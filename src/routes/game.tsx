@@ -592,8 +592,21 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       p.dashCd = Math.max(0, p.dashCd - dt);
       // slip if in grease
       if (p.slipT > 0) { p.slipT -= dt; }
+      p.vx = dx * speed; p.vy = dy * speed;
       p.x = clamp(p.x + dx * speed * dt, 0.02, 0.98);
       p.y = clamp(p.y + dy * speed * dt, 0.10, 0.96);
+      // Facing: flip when moving left/right (keep last facing when idle)
+      if (Math.abs(dx) > 0.05) p.face = dx > 0 ? 1 : -1;
+      // Hop animation: advance phase only while moving; faster when dashing
+      if (mag > 0) {
+        p.moveT += dt;
+        p.hopPhase += dt * (dashing ? 11 : 7);
+      } else {
+        p.moveT = Math.max(0, p.moveT - dt * 2);
+        // ease phase back to 0 (feet down) when idle
+        const target = Math.round(p.hopPhase / Math.PI) * Math.PI;
+        p.hopPhase += (target - p.hopPhase) * Math.min(1, dt * 8);
+      }
 
       // Grill cooking
       const g = grillRef.current;
