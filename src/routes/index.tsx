@@ -289,7 +289,7 @@ function Nav({ open, setOpen, muted, setMuted, onConnect, wallet, wrongNet }: {
     <header className="sticky top-0 z-50 border-b-2 border-grape/40 bg-bg/85 backdrop-blur-md">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
         <a href="#top" className="flex min-w-0 items-center gap-2">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-grape text-xl shadow-[0_0_20px_rgba(124,58,237,0.6)]">🐦</div>
+          <img src="/favicon.png" alt="Bird Burger" width={40} height={40} className="h-10 w-10 shrink-0 rounded-md bg-bg object-cover shadow-[0_0_20px_rgba(124,58,237,0.6)]" />
           <div className="min-w-0 leading-none">
             <div className="font-display text-lg tracking-wider text-mustard">BIRD BURGER</div>
             <div className="hidden truncate text-[10px] uppercase tracking-widest text-ink/60 sm:block">The Worst Restaurant on the Blockchain</div>
