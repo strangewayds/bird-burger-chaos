@@ -663,7 +663,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-
+function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: string | null; onDownload: () => void }) {
   return (
     <section id="community-band" className="relative border-y-4 border-mustard/60 bg-gradient-to-br from-grape via-grape/90 to-[#3a1d6b] py-16">
       <div className="absolute inset-0 grain opacity-30" aria-hidden />
