@@ -827,9 +827,10 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
 
     const scanAlpha = 0.02 + iv * 0.16;
     ctx.globalAlpha = scanAlpha;
-    // loopLen (30) is divisible by 3, so mod-3 shift is also seamless.
-    const shift = anim ? fMod % 3 : 0;
+    // loopLen (30) is divisible by 3, so mod-3 shift is also seamless. Seed flips direction.
+    const shift = anim ? (sv.scanDir > 0 ? fMod % 3 : (3 - (fMod % 3)) % 3) : 0;
     for (let y = shift; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
+
     ctx.globalAlpha = 1;
 
     const haloAlpha = Math.floor(0x99 + pulse * 0x40).toString(16).padStart(2, "0");
