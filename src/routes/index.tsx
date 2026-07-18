@@ -45,6 +45,7 @@ import menuChud from "@/assets/menu-chudburger.png";
 import menuKids from "@/assets/menu-paper-hands.png";
 import menuNothing from "@/assets/menu-nothing-burger.png";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
+import { getLeaderboard, PAYROLL, type LbEntry } from "@/lib/leaderboard";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -841,6 +842,7 @@ function BirdBurgerPage() {
       <PurpleBand bucks={bucks} wallet={wallet} onDownload={() => earn(20)} />
       <Menu onOrder={(name) => { setOrderItem(name); play("bell"); earn(50); }} />
       <Reviews />
+      <PayrollSection />
       <CommunitySection wallet={wallet} />
       <TokenSection wallet={wallet} />
       <HowToBuy />
@@ -2244,23 +2246,19 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
         <a href="#top" className="flex min-w-0 items-center gap-2">
           <img src="/favicon.png" alt="Bird Burger" width={40} height={40} className="h-10 w-10 shrink-0 rounded-md bg-bg object-cover shadow-[0_0_20px_rgba(124,58,237,0.6)]" />
           <div className="min-w-0 leading-none">
-            <div className="font-display text-lg tracking-wider text-mustard">BIRD BURGER</div>
-            <div className="hidden truncate text-[10px] uppercase tracking-widest text-ink/60 sm:block">The Worst Restaurant on the Blockchain</div>
+            <div className="whitespace-nowrap font-display text-lg tracking-wider text-mustard">BIRD BURGER</div>
+            <div className="hidden truncate text-[10px] uppercase tracking-widest text-ink/60 sm:block xl:hidden">The Worst Restaurant on the Blockchain</div>
           </div>
         </a>
-        <nav className="hidden justify-center gap-1 lg:flex">
+        <nav className="hidden min-w-0 justify-center gap-0.5 xl:flex">
           {NAV_LINKS.map((l) => (
-            <a key={l.href} href={l.href} className="rounded px-3 py-2 text-xs font-bold uppercase tracking-widest text-ink/80 transition-colors hover:bg-grape/20 hover:text-mustard">{l.label}</a>
+            <a key={l.href} href={l.href} className="whitespace-nowrap rounded px-2 py-2 text-[11px] font-bold uppercase tracking-wide transition-colors text-ink/80 hover:bg-grape/20 hover:text-mustard xl:text-xs">{l.label}</a>
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 rounded-md border-2 border-robin/60 bg-robin/10 px-3 py-1.5 text-[11px] font-bold uppercase text-robin md:flex">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-robin shadow-[0_0_10px_#00C805]" />
-            Store Open — Mgmt Missing
-          </div>
           <a
             href="/game"
-            className="hidden items-center gap-1.5 rounded-md border-2 border-mustard bg-mustard/15 px-3 py-2 text-xs font-black uppercase tracking-widest text-mustard shadow-[0_0_20px_rgba(250,204,21,0.35)] hover:bg-mustard hover:text-bg sm:inline-flex"
+            className="hidden items-center gap-1.5 whitespace-nowrap rounded-md border-2 border-mustard bg-mustard/15 px-3 py-2 text-xs font-black uppercase tracking-widest text-mustard shadow-[0_0_20px_rgba(250,204,21,0.35)] hover:bg-mustard hover:text-bg sm:inline-flex"
             title="Play Bird Burger: Kitchen Chaos"
           >
             <Flame className="h-4 w-4" /> Play Game
@@ -2296,7 +2294,7 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
               }}
               aria-label="Volume"
               title={`Volume ${muted ? 0 : volPct}%`}
-              className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-ink/20 accent-mustard sm:w-24"
+              className="hidden h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-ink/20 accent-mustard sm:max-lg:block sm:w-24"
               style={{
                 backgroundImage: `linear-gradient(to right, var(--color-mustard, #f4b400) 0%, var(--color-mustard, #f4b400) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) 100%)`,
               }}
@@ -2322,7 +2320,7 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
               onChange={(e) => setAmbVolume(parseInt(e.target.value, 10) / 100)}
               aria-label="Kitchen ambience volume"
               title={`Ambience ${muted ? 0 : ambPct}%`}
-              className="h-1.5 w-16 cursor-pointer appearance-none rounded-full bg-ink/20 accent-cyan sm:w-20"
+              className="hidden h-1.5 w-16 cursor-pointer appearance-none rounded-full bg-ink/20 accent-cyan sm:max-lg:block sm:w-20"
               style={{
                 backgroundImage: `linear-gradient(to right, var(--color-cyan, #22d3ee) 0%, var(--color-cyan, #22d3ee) ${muted ? 0 : ambPct}%, rgba(255,255,255,0.15) ${muted ? 0 : ambPct}%, rgba(255,255,255,0.15) 100%)`,
               }}
@@ -2342,14 +2340,14 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
             <Wallet className="h-4 w-4" />
             {wallet ? (wrongNet ? "Wrong Restaurant" : `${wallet.slice(0, 6)}…${wallet.slice(-4)}`) : "Connect Wallet"}
           </button>
-          <button onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-md border border-ink/20 text-ink lg:hidden" aria-label="Toggle menu">
+          <button onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-md border border-ink/20 text-ink xl:hidden" aria-label="Toggle menu">
             {open ? <X className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
           </button>
         </div>
       </div>
       <AnimatePresence>
         {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t border-grape/30 bg-card lg:hidden">
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t border-grape/30 bg-card xl:hidden">
             <div className="flex flex-col p-3">
               {NAV_LINKS.map((l) => (
                 <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded px-3 py-3 text-sm font-bold uppercase tracking-widest text-ink/85 hover:bg-grape/20">{l.label}</a>
@@ -3059,13 +3057,6 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
     }
   };
 
-  const downloadBlob = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = filename; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  };
-
   const shareTo = async (target: "x" | "discord") => {
     if (clipping) return;
     setClipping(true); setClipPct(0);
@@ -3089,16 +3080,19 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
       } catch { /* fall through to desktop flow */ }
     }
 
-    // Desktop: download the GIF, copy caption, open target compose window
-    downloadBlob(blob, `bird-burger-cam.gif`);
+    // Desktop: NO silent downloads (looks like malware). Open the GIF in a tab
+    // the user can drag/save themselves, copy the caption, open the compose window.
+    const gifUrl = URL.createObjectURL(blob);
+    window.open(gifUrl, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(gifUrl), 60_000);
     try { await navigator.clipboard.writeText(caption); } catch {}
     if (target === "x") {
       const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`;
       window.open(url, "_blank", "noopener,noreferrer");
-      showToast("GIF downloaded · caption copied · X opened. Attach the GIF!");
+      showToast("Caption copied · GIF opened in a tab — drag it into your post on X.");
     } else {
       window.open("https://discord.com/channels/@me", "_blank", "noopener,noreferrer");
-      showToast("GIF downloaded · caption copied · Discord opened. Drop the GIF in chat!");
+      showToast("Caption copied · GIF opened in a tab — drag it into Discord.");
     }
     onIncident();
   };
@@ -3568,6 +3562,64 @@ function CommunitySection({ wallet }: { wallet: string | null }) {
 }
 
 /* ─────────────────────────  TOKEN  ───────────────────────── */
+
+/* ─────────── $BRGR PAYROLL — play-to-earn leaderboard teaser ─────────── */
+function PayrollSection() {
+  const [data, setData] = useState<{ week: string; top: LbEntry[]; total: number } | null>(null);
+  useEffect(() => {
+    getLeaderboard().then(setData).catch(() => {});
+  }, []);
+  const medals = ["🥇", "🥈", "🥉"];
+  return (
+    <section id="payroll" className="mx-auto max-w-7xl px-4 py-16">
+      <SectionTitle
+        kicker="Employee of the Week Program"
+        title="PLAY THE GAME. EARN YOUR BACK-PAY."
+        sub={`Every week, the top 3 Kitchen Chaos shifts earn a $BRGR allocation when the token launches. Pay the $2,000 rent in any shift to qualify for the Worker's Airdrop. ${PAYROLL.disclaimers[0]}`}
+      />
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+        <div className="rounded-lg border-2 border-robin/50 bg-card p-6">
+          <div className="mb-4 font-mono text-xs uppercase tracking-[0.25em] text-robin">This Week's Payroll {data ? `· ${data.week}` : ""}</div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PAYROLL.prizes.map((pr, i) => (
+              <div key={pr.place} className="rounded-lg border-2 border-mustard/40 bg-bg/60 p-3 text-center">
+                <div className="text-2xl">{medals[i]}</div>
+                <div className="mt-1 font-display text-sm text-mustard">{pr.amount}</div>
+                <div className="mt-1 text-[9px] uppercase tracking-widest text-ink/50">{pr.title}</div>
+              </div>
+            ))}
+          </div>
+          <a
+            href="/game"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border-4 border-mustard bg-mustard px-6 py-4 text-lg font-black uppercase tracking-widest text-bg shadow-[0_6px_0_#B08807,0_0_28px_rgba(250,204,21,0.5)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5"
+          >
+            🔥 Clock In — Play Kitchen Chaos
+          </a>
+          <div className="mt-3 text-center text-[9px] uppercase tracking-widest text-ink/40">{PAYROLL.disclaimers[2]}</div>
+        </div>
+        <div className="rounded-lg border-2 border-grape/50 bg-card p-6">
+          <div className="mb-4 font-mono text-xs uppercase tracking-[0.25em] text-grape">Current Standings {data ? `· ${data.total} employees clocked in` : ""}</div>
+          <div className="space-y-1.5">
+            {(data?.top ?? []).slice(0, 8).map((e, i) => (
+              <div key={e.n + i} className={`flex items-center gap-3 rounded px-3 py-2 text-sm ${i < 3 ? "border border-mustard/30 bg-mustard/10" : "bg-bg/50"}`}>
+                <span className="w-8 shrink-0 text-center font-black text-ink/70">{medals[i] ?? `#${i + 1}`}</span>
+                <span className="flex-1 truncate font-bold">{e.n}</span>
+                {e.won && <span className="rounded bg-robin/20 px-1.5 py-0.5 text-[8px] font-black uppercase text-robin">rent paid</span>}
+                <span className="font-display text-mustard">${e.s.toLocaleString()}</span>
+              </div>
+            ))}
+            {(!data || data.top.length === 0) && (
+              <div className="rounded border border-ink/10 bg-bg/50 p-6 text-center text-sm text-ink/50">
+                Nobody has clocked in this week.<br />
+                <span className="font-bold text-mustard">The #1 spot — and the 1,000,000 $BRGR — is free real estate.</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function TokenSection({ wallet }: { wallet: string | null }) {
   const net = activeNetwork();

@@ -76,7 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Bird Burger — The Worst Restaurant on the Blockchain" },
       {
         name: "description",
@@ -92,11 +92,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Bird Burger" },
+      { property: "og:url", content: "https://birdburger.meme" },
+      { property: "og:image", content: "https://birdburger.meme/og-image.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Bird Burger — The Worst Restaurant on the Blockchain" },
+      {
+        name: "twitter:description",
+        content:
+          "Order liquidity fries, call the world's worst kitchen, fire Larry, and enter the most unnecessary restaurant on Robinhood Chain.",
+      },
+      { name: "twitter:image", content: "https://birdburger.meme/og-image.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

@@ -4,6 +4,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, VolumeX, Vibrate, VibrateOff } from "lucide-react";
 import kitchenBg from "@/assets/game-kitchen.jpg";
 import mascotHero from "@/assets/bird-mascot.png";
+import { submitScore, getLeaderboard, PAYROLL, type LbEntry } from "@/lib/leaderboard";
+import imgMcrug from "@/assets/menu-mcrug.png";
+import imgFries from "@/assets/menu-liquidity-fries.png";
+import imgShake from "@/assets/menu-pump-shake.png";
+import imgChud from "@/assets/menu-chudburger.png";
+import imgNuggets from "@/assets/menu-diamond-nuggets.png";
+import imgCombo from "@/assets/menu-exit-combo.png";
+import imgKids from "@/assets/menu-paper-hands.png";
+import imgNothing from "@/assets/menu-nothing-burger.png";
 
 export const Route = createFileRoute("/game")({
   head: () => ({
@@ -34,6 +43,91 @@ const ING_META: Record<Ing, { color: string; label: string; emoji: string }> = {
   nugget: { color: "#22D3EE", label: "Nuggets", emoji: "🍗" },
 };
 
+// Crafted mini-icons for ingredients — no emoji slop on the tickets
+function IngIcon({ kind, className }: { kind: Ing; className?: string }) {
+  const p: Record<Ing, React.ReactNode> = {
+    bun: (
+      <>
+        <path d="M3 11a9 5.5 0 0 1 18 0v1H3z" fill="#E8A33D" stroke="#7C4A12" strokeWidth="1.4" />
+        <rect x="3" y="14" width="18" height="5" rx="2" fill="#D98F2B" stroke="#7C4A12" strokeWidth="1.4" />
+        <circle cx="9" cy="8.5" r="0.9" fill="#FDE9C8" /><circle cx="13.5" cy="7.5" r="0.9" fill="#FDE9C8" /><circle cx="16.5" cy="9.5" r="0.9" fill="#FDE9C8" />
+      </>
+    ),
+    patty_raw: (
+      <>
+        <ellipse cx="12" cy="12" rx="9" ry="6" fill="#E76A6A" stroke="#8F2F2F" strokeWidth="1.4" />
+        <circle cx="9" cy="11" r="1.1" fill="#C94F4F" /><circle cx="14.5" cy="13.5" r="1.3" fill="#C94F4F" /><circle cx="15.5" cy="10" r="0.9" fill="#F2A0A0" />
+      </>
+    ),
+    patty_cooked: (
+      <>
+        <ellipse cx="12" cy="12" rx="9" ry="6" fill="#8A5A2B" stroke="#4A2E12" strokeWidth="1.4" />
+        <path d="M5.5 11h13M6.5 13.5h11" stroke="#5E3A17" strokeWidth="1.3" strokeLinecap="round" />
+      </>
+    ),
+    lettuce_raw: (
+      <>
+        <circle cx="12" cy="12" r="8" fill="#5BBE58" stroke="#2C6E2A" strokeWidth="1.4" />
+        <path d="M12 4.5c-2 2.5-2 12.5 0 15M7 6.5c1.5 3.5 1.5 8.5 0 11M17 6.5c-1.5 3.5-1.5 8.5 0 11" stroke="#2C6E2A" strokeWidth="1.1" fill="none" />
+      </>
+    ),
+    lettuce_chopped: (
+      <>
+        <path d="M4 15c2-3 5-3 7-1s5 2 9-1c-1 4-4 6-8 6s-7-2-8-4z" fill="#6FD26C" stroke="#2C6E2A" strokeWidth="1.4" />
+        <path d="M7 9l2 3M12 7l1 4M16 9l-1 3" stroke="#3E9A3B" strokeWidth="1.6" strokeLinecap="round" />
+      </>
+    ),
+    cheese: (
+      <>
+        <path d="M3 16l18-7v9H3z" fill="#F5C518" stroke="#9C7508" strokeWidth="1.4" />
+        <circle cx="9" cy="14.5" r="1.2" fill="#D9A90D" /><circle cx="14" cy="15.5" r="0.9" fill="#D9A90D" /><circle cx="17.5" cy="13" r="1" fill="#D9A90D" />
+      </>
+    ),
+    sauce: (
+      <>
+        <rect x="9" y="3" width="6" height="3" rx="1" fill="#9C1C1C" />
+        <path d="M8 8c0-1.2 1-2 2-2h4c1 0 2 .8 2 2v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z" fill="#E23A3A" stroke="#8F1F1F" strokeWidth="1.4" />
+        <rect x="9.5" y="10" width="5" height="5" rx="1" fill="#FFF" opacity="0.85" />
+      </>
+    ),
+    fries: (
+      <>
+        <path d="M8 4l1 6M12 3v7M16 4l-1 6" stroke="#F5C842" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M6 9h12l-1.5 11h-9z" fill="#E23A3A" stroke="#8F1F1F" strokeWidth="1.4" />
+        <path d="M6.8 12.5h10.4" stroke="#FFF" strokeWidth="1.2" opacity="0.6" />
+      </>
+    ),
+    shake: (
+      <>
+        <path d="M7 8h10l-1.5 12h-7z" fill="#F8B4D9" stroke="#9C4A75" strokeWidth="1.4" />
+        <path d="M6 8a6 3.5 0 0 1 12 0z" fill="#FDE9F3" stroke="#9C4A75" strokeWidth="1.4" />
+        <path d="M13 6l2-4" stroke="#E23A3A" strokeWidth="2" strokeLinecap="round" />
+      </>
+    ),
+    nugget: (
+      <>
+        <path d="M6 13c-1-3 1-6 4-6 1-2 5-2 6 0 3 0 5 3 3 6 1 3-2 5-5 4-2 2-6 1-6-1-2 0-3-2-2-3z" fill="#E8B04B" stroke="#8A6016" strokeWidth="1.4" />
+        <circle cx="10" cy="11" r="0.8" fill="#C58F2E" /><circle cx="14" cy="13" r="0.9" fill="#C58F2E" />
+      </>
+    ),
+  };
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">{p[kind]}</svg>
+  );
+}
+
+// What each station hands you — floated above it in-game so you never guess
+const STATION_YIELDS: { id: string; items: Ing[] }[] = [
+  { id: "fridge", items: ["bun"] },
+  { id: "raw_patty", items: ["patty_raw"] },
+  { id: "cutting", items: ["lettuce_chopped"] },
+  { id: "cheese", items: ["cheese"] },
+  { id: "sauce", items: ["sauce"] },
+  { id: "grill", items: ["patty_cooked"] },
+  { id: "fryer", items: ["fries", "nugget"] },
+  { id: "drink", items: ["shake"] },
+];
+
 type StationKind = "fridge" | "cutting" | "raw_patty" | "cheese" | "sauce" | "grill" | "fryer" | "drink" | "assembly" | "pickup" | "extinguisher" | "mop";
 
 type Station = {
@@ -59,23 +153,23 @@ const STATIONS: Station[] = [
   { id: "sauce", kind: "sauce", x: 0.471, y: 0.741, w: 0.098, h: 0.098, label: "SAUCE", color: "#EC4899" },
   { id: "assembly", kind: "assembly", x: 0.383, y: 0.872, w: 0.105, h: 0.056, label: "ASSEMBLY", color: "#7C3AED" },
   { id: "pickup", kind: "pickup", x: 0.921, y: 0.310, w: 0.049, h: 0.140, label: "PICK UP", color: "#EC4899" },
-  { id: "extinguisher", kind: "extinguisher", x: 0.725, y: 0.605, w: 0.040, h: 0.070, label: "EXT.", color: "#EF4444" },
-  { id: "mop", kind: "mop", x: 0.795, y: 0.850, w: 0.045, h: 0.070, label: "MOP", color: "#22D3EE" },
+  { id: "extinguisher", kind: "extinguisher", x: 0.725, y: 0.605, w: 0.040, h: 0.070, label: "🧯 FIRE EXT.", color: "#EF4444" },
+  { id: "mop", kind: "mop", x: 0.795, y: 0.850, w: 0.045, h: 0.070, label: "🪣 MOP", color: "#22D3EE" },
 ];
 
 /* ─────────────────────────  ORDER RECIPES  ───────────────────────── */
 
-type OrderTemplate = { name: string; items: Ing[]; time: number; score: number; emoji: string };
+type OrderTemplate = { name: string; items: Ing[]; time: number; score: number; emoji: string; img: string };
 
 const ORDER_POOL: OrderTemplate[] = [
-  { name: "McRug Pull", items: ["bun", "patty_cooked", "sauce"], time: 55, score: 220, emoji: "🍔" },
-  { name: "Liquidity Fries", items: ["fries", "sauce"], time: 45, score: 160, emoji: "🍟" },
-  { name: "Pump & Shake", items: ["shake"], time: 40, score: 120, emoji: "🥤" },
-  { name: "Chudburger Deluxe", items: ["bun", "patty_cooked", "patty_cooked", "cheese", "sauce"], time: 80, score: 380, emoji: "🍔" },
-  { name: "Diamond Nuggets", items: ["nugget", "sauce"], time: 50, score: 200, emoji: "🍗" },
-  { name: "Exit Combo", items: ["bun", "patty_cooked", "cheese", "fries", "shake"], time: 95, score: 460, emoji: "🥡" },
-  { name: "Paper Hands Meal", items: ["bun", "patty_cooked", "lettuce_chopped"], time: 60, score: 240, emoji: "🥪" },
-  { name: "Nothing Burger", items: ["bun"], time: 30, score: 90, emoji: "🍞" },
+  { name: "McRug Pull", items: ["bun", "patty_cooked", "sauce"], time: 65, score: 220, emoji: "🍔", img: imgMcrug },
+  { name: "Liquidity Fries", items: ["fries", "sauce"], time: 55, score: 160, emoji: "🍟", img: imgFries },
+  { name: "Pump & Shake", items: ["shake"], time: 45, score: 120, emoji: "🥤", img: imgShake },
+  { name: "Chudburger Deluxe", items: ["bun", "patty_cooked", "patty_cooked", "cheese", "sauce"], time: 95, score: 380, emoji: "🍔", img: imgChud },
+  { name: "Diamond Nuggets", items: ["nugget", "sauce"], time: 60, score: 200, emoji: "🍗", img: imgNuggets },
+  { name: "Exit Combo", items: ["bun", "patty_cooked", "cheese", "fries", "shake"], time: 110, score: 460, emoji: "🥡", img: imgCombo },
+  { name: "Paper Hands Meal", items: ["bun", "patty_cooked", "lettuce_chopped"], time: 70, score: 240, emoji: "🥪", img: imgKids },
+  { name: "Nothing Burger", items: ["bun"], time: 35, score: 90, emoji: "🍞", img: imgNothing },
 ];
 
 type Order = { id: number; template: OrderTemplate; remaining: number; };
@@ -100,28 +194,41 @@ type FallingSign = {
   spinSpd: number;
 };
 
+// Perks: speed = movement, cook = grill/fryer speed, tips = order payout, calm = chaos cooldown rate
 const EMPLOYEES = [
-  { id: "larry", name: "Larry", tint: "#C4A9F5", desc: "Tired. Always tired." },
-  { id: "frycook", name: "FryCook420", tint: "#22D3EE", desc: "Wears shades indoors." },
-  { id: "diamond", name: "Diamond Dave", tint: "#FACC15", desc: "Never sells." },
-  { id: "pete", name: "Paper Hands Pete", tint: "#EC4899", desc: "Drops everything." },
-  { id: "gary", name: "Manager Gary", tint: "#00C805", desc: "Reluctantly here." },
+  { id: "larry", name: "Larry", tint: "#C4A9F5", desc: "Tired. Always tired.", perk: "Perfectly average at everything", speed: 1, cook: 1, tips: 1, calm: 1 },
+  { id: "frycook", name: "FryCook420", tint: "#22D3EE", desc: "Wears shades indoors.", perk: "Cooks 35% faster", speed: 0.95, cook: 1.35, tips: 1, calm: 1 },
+  { id: "diamond", name: "Diamond Dave", tint: "#FACC15", desc: "Never sells.", perk: "+25% tips on every order", speed: 0.9, cook: 1, tips: 1.25, calm: 1 },
+  { id: "pete", name: "Paper Hands Pete", tint: "#EC4899", desc: "Drops everything.", perk: "Fastest bird alive (+25% speed)", speed: 1.25, cook: 1, tips: 0.9, calm: 1 },
+  { id: "gary", name: "Manager Gary", tint: "#00C805", desc: "Reluctantly here.", perk: "Chaos cools down 2× faster", speed: 1, cook: 1, tips: 1, calm: 2.2 },
 ];
+
+// THE GOAL: earn this much before the shift ends or Bird Burger is finished.
+const RENT_QUOTA = 2000;
+const SHIFT_SECONDS = 180;
+
+type Outcome = "win" | "evicted" | "shutdown";
 
 /* ─────────────────────────  COMPONENT  ───────────────────────── */
 
 function GamePage() {
-  const [phase, setPhase] = useState<Phase>("start");
+  // ?autostart skips the start screen (used for automated visual testing)
+  const [phase, setPhase] = useState<Phase>(() =>
+    typeof window !== "undefined" && window.location.search.includes("autostart") ? "playing" : "start",
+  );
   const [employee, setEmployee] = useState(EMPLOYEES[0]);
   const [showHelp, setShowHelp] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [finalStats, setFinalStats] = useState<GameStats | null>(null);
   const haptics = useHaptics();
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
-      <TopBar muted={muted} setMuted={setMuted} haptics={haptics} />
-      <AnimatePresence mode="wait">
+      {/* Phone landscape: every pixel goes to the kitchen — no site header */}
+      <div className={phase === "playing" ? "max-lg:landscape:hidden" : ""}>
+        <TopBar muted={muted} setMuted={setMuted} haptics={haptics} />
+      </div>
+      <AnimatePresence mode="wait" initial={false}>
         {phase === "start" && (
           <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <StartScreen
@@ -223,9 +330,15 @@ function StartScreen({ employee, setEmployee, onStart, onHelp }: {
           <p className="mt-4 max-w-md text-lg font-bold uppercase tracking-wider text-[#FACC15]/90">
             "The worst shift on the blockchain."
           </p>
-          <p className="mt-3 max-w-md text-sm text-white/70">
-            Cook absurd meals, extinguish fryer fires, chase pigeons, and try to survive three minutes at the greasiest kitchen in Web3.
-          </p>
+          <div className="mt-3 max-w-md rounded-lg border-2 border-[#FACC15]/60 bg-[#09090B]/60 p-3">
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FACC15]">📋 Your Mission</div>
+            <p className="mt-1 text-sm text-white/85">
+              The landlord wants <b className="text-[#00C805]">${RENT_QUOTA.toLocaleString()} RENT</b> by the end of your <b className="text-[#FACC15]">3-minute shift</b>. Cook and deliver orders to earn it — <b className="text-[#22D3EE]">pay it off early to win big</b>.
+            </p>
+            <p className="mt-1.5 text-xs text-white/60">
+              Fail and you're <b className="text-[#EF4444]">EVICTED</b>. Let the CHAOS meter max out and the <b className="text-[#EF4444]">health inspector shuts you down</b>. Fires, grease and pigeons are not your friends.
+            </p>
+          </div>
           <div className="mt-6 grid grid-cols-2 gap-3 sm:max-w-md">
             <button onClick={onStart} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-lg border-4 border-[#FACC15] bg-[#FACC15] px-6 py-4 text-lg font-black uppercase tracking-widest text-[#09090B] shadow-[0_6px_0_#B08807,0_0_28px_rgba(250,204,21,0.5)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5">
               <Play className="h-5 w-5" /> Start Shift
@@ -240,6 +353,7 @@ function StartScreen({ employee, setEmployee, onStart, onHelp }: {
           <div className="mt-4 text-[10px] uppercase tracking-widest text-white/50">
             Now serving: <span className="text-[#FACC15]">{employee.name}</span> — {employee.desc}
           </div>
+          <PayrollPanel />
         </div>
         <div className="relative mx-auto">
           <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-72 w-72 rounded-full bg-[#7C3AED]/40 blur-3xl" />
@@ -276,6 +390,7 @@ function EmployeePicker({ current, onPick, onClose }: { current: string; onPick:
               </div>
               <div className="mt-2 text-xs font-black uppercase tracking-widest text-white">{e.name}</div>
               <div className="mt-1 text-[9px] uppercase tracking-widest text-white/60">{e.desc}</div>
+              <div className="mt-1.5 rounded border border-[#22D3EE]/40 bg-[#22D3EE]/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-[#22D3EE]">{e.perk}</div>
             </button>
           ))}
         </div>
@@ -296,14 +411,20 @@ function HowToPlay({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-xl border-2 border-[#EC4899] bg-[#2E1065] p-6">
         <h3 className="mb-3 [font-family:'Bungee','Impact',sans-serif] text-2xl text-[#EC4899]">HOW TO PLAY</h3>
+        <div className="mb-3 rounded-lg border border-[#FACC15]/50 bg-[#FACC15]/10 p-2.5 text-sm">
+          <b className="text-[#FACC15]">🏆 GOAL:</b> <span className="text-white/85">Earn <b className="text-[#00C805]">$2,000 rent</b> before the 3-minute shift ends. Hit it early for a better grade.</span>
+          <div className="mt-1 text-xs text-white/70"><b className="text-[#EF4444]">YOU LOSE IF:</b> time runs out short (EVICTED), or the CHAOS meter maxes out and the health inspector's 5-second countdown hits zero (SHUT DOWN). Failed orders, burned food and wrong deliveries raise chaos — mopping, extinguishing and serving keep it down. Chaos also cools on its own; don't panic, just clean.</div>
+        </div>
         <ul className="space-y-2 text-sm text-white/85">
-          <li><b className="text-[#FACC15]">WASD / Arrows</b> — Move Larry around the kitchen</li>
-          <li><b className="text-[#FACC15]">SHIFT</b> — Dash (short burst of speed)</li>
-          <li><b className="text-[#FACC15]">SPACE / E</b> — Interact with the nearest station</li>
+          <li><b className="text-[#FACC15]">CLICK / TAP</b> — Larry runs wherever you click. <b className="text-[#22D3EE]">Click a station and he'll use it automatically</b> when he gets there.</li>
+          <li><b className="text-[#FACC15]">SPACE / E</b> — Interact with the nearest station (if you'd rather do it yourself)</li>
           <li><b className="text-[#FACC15]">Q</b> — Drop what you're carrying</li>
-          <li className="pt-2 text-white/70">Pick up buns, cook patties on the grill, chop lettuce at the cutting board, fry fries at the fryer. Assemble the meal in your hands and drop it at <b className="text-[#EC4899]">PICK UP</b>.</li>
+          <li><b className="text-[#FACC15]">WASD / Arrows + SHIFT</b> — Old-school move & dash still work too</li>
+          <li className="pt-2 text-white/70"><b className="text-[#FACC15]">Just follow the yellow arrow.</b> It always points at the station you need next for the ★ MAKE THIS ★ order, and the banner under the orders tells you exactly what to do there.</li>
+          <li className="text-white/70">Pick up buns, cook patties on the grill, chop lettuce at the cutting board, fry fries at the fryer. Carry the full order in your hands and deliver it at <b className="text-[#EC4899]">PICK UP</b>.</li>
           <li className="text-white/70">Fires break out at the fryer — grab the extinguisher and interact with the flames to put them out.</li>
-          <li className="text-white/70">Pigeons will steal food. Run into them to scare them off.</li>
+          <li className="text-white/70">Pigeons wander in from the alley. Run into them to scare them off for bonus tips.</li>
+          <li className="text-white/70">Each employee has a different perk — pick one that fits how you play.</li>
         </ul>
         <button onClick={onClose} className="mt-4 w-full rounded border-2 border-[#FACC15] bg-[#FACC15]/20 py-2 text-xs font-black uppercase tracking-widest text-[#FACC15] hover:bg-[#FACC15]/40">Got it</button>
       </div>
@@ -325,6 +446,8 @@ type GameStats = {
   birdBucks: number;
   grade: string;
   gradeSub: string;
+  outcome: Outcome;
+  timeLeft: number;
 };
 
 /* ─────────────────────────  GAME SFX (synth)  ─────────────────────────
@@ -595,7 +718,156 @@ function useGameSfx(muted: boolean) {
     pop.start(t); pop.stop(t + 0.14);
   }, [muted, ensure]);
 
-  return { hop, land, boom, whoosh, dashLand, mop, mopDone, ensure };
+  // Restaurant ambience: fryer sizzle + low room rumble + occasional service bell.
+  const ambStartedRef = useRef(false);
+  const startAmbience = useCallback(() => {
+    if (ambStartedRef.current) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    ambStartedRef.current = true;
+    const g = ctx.createGain();
+    g.gain.value = 0.22;
+    g.connect(masterRef.current);
+    // shared noise buffer
+    const len = ctx.sampleRate * 2;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    // fryer sizzle (bandpassed noise, gently wobbling)
+    const sizzle = ctx.createBufferSource(); sizzle.buffer = buf; sizzle.loop = true;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 5200; bp.Q.value = 0.8;
+    const sg = ctx.createGain(); sg.gain.value = 0.05;
+    sizzle.connect(bp); bp.connect(sg); sg.connect(g); sizzle.start();
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.23;
+    const lfoG = ctx.createGain(); lfoG.gain.value = 0.02;
+    lfo.connect(lfoG); lfoG.connect(sg.gain); lfo.start();
+    // room rumble (lowpassed slow noise — fridge hum / vent)
+    const rumble = ctx.createBufferSource(); rumble.buffer = buf; rumble.loop = true; rumble.playbackRate.value = 0.4;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 200;
+    const rg = ctx.createGain(); rg.gain.value = 0.07;
+    rumble.connect(lp); lp.connect(rg); rg.connect(g); rumble.start();
+    // background crowd murmur (slow-breathing midband noise — sounds like distant customers)
+    const murmur = ctx.createBufferSource(); murmur.buffer = buf; murmur.loop = true; murmur.playbackRate.value = 0.22;
+    const mbp = ctx.createBiquadFilter(); mbp.type = "bandpass"; mbp.frequency.value = 420; mbp.Q.value = 1.4;
+    const mg = ctx.createGain(); mg.gain.value = 0.045;
+    murmur.connect(mbp); mbp.connect(mg); mg.connect(g); murmur.start();
+    const mlfo = ctx.createOscillator(); mlfo.frequency.value = 0.13;
+    const mlfoG = ctx.createGain(); mlfoG.gain.value = 0.025;
+    mlfo.connect(mlfoG); mlfoG.connect(mg.gain); mlfo.start();
+    // occasional counter bell
+    const ding = () => {
+      const c = ctxRef.current;
+      if (!c || c.state === "closed") return;
+      const t = c.currentTime;
+      const dg = c.createGain();
+      dg.gain.setValueAtTime(0.0001, t);
+      dg.gain.exponentialRampToValueAtTime(0.09, t + 0.012);
+      dg.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+      dg.connect(g);
+      for (const f of [1870, 2350]) {
+        const o = c.createOscillator(); o.type = "sine"; o.frequency.value = f;
+        o.connect(dg); o.start(t); o.stop(t + 1.4);
+      }
+      window.setTimeout(ding, 12000 + Math.random() * 22000);
+    };
+    window.setTimeout(ding, 7000);
+  }, [ensure]);
+
+  // Door chime — a customer walked in (two-tone bing-bong)
+  const doorBell = useCallback(() => {
+    if (muted) return;
+    const ctx = ctxRef.current;
+    if (!ctx || ctx.state !== "running" || !masterRef.current) return;
+    if (!rateOk("door", 900)) return;
+    const t = ctx.currentTime;
+    const dg = ctx.createGain();
+    dg.gain.setValueAtTime(0.0001, t);
+    dg.gain.exponentialRampToValueAtTime(0.14, t + 0.015);
+    dg.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+    dg.connect(masterRef.current);
+    const o1 = ctx.createOscillator(); o1.type = "sine"; o1.frequency.value = 659; // E5
+    const o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.value = 523; // C5
+    o1.connect(dg); o2.connect(dg);
+    o1.start(t); o1.stop(t + 0.35);
+    o2.start(t + 0.28); o2.stop(t + 1.1);
+  }, [muted]);
+
+  // Service bell — DING DING, a customer is losing patience
+  const orderBell = useCallback(() => {
+    if (muted) return;
+    const ctx = ctxRef.current;
+    if (!ctx || ctx.state !== "running" || !masterRef.current) return;
+    if (!rateOk("orderbell", 700)) return;
+    const t0 = ctx.currentTime;
+    for (const dt0 of [0, 0.18]) {
+      const dg = ctx.createGain();
+      dg.gain.setValueAtTime(0.0001, t0 + dt0);
+      dg.gain.exponentialRampToValueAtTime(0.13, t0 + dt0 + 0.008);
+      dg.gain.exponentialRampToValueAtTime(0.0001, t0 + dt0 + 0.6);
+      dg.connect(masterRef.current);
+      for (const f of [2093, 2637]) {
+        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+        o.connect(dg); o.start(t0 + dt0); o.stop(t0 + dt0 + 0.65);
+      }
+    }
+  }, [muted]);
+
+  // Extinguisher hiss — burst of high-passed noise
+  const hiss = useCallback(() => {
+    if (muted) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    if (!rateOk("hiss", 250)) return;
+    const t = ctx.currentTime;
+    const len = Math.floor(ctx.sampleRate * 0.6);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 2600;
+    const hg = ctx.createGain();
+    hg.gain.setValueAtTime(0.22, t);
+    hg.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+    src.connect(hp); hp.connect(hg); hg.connect(masterRef.current);
+    src.start(t);
+  }, [muted, ensure]);
+
+  // Cha-ching — money in the register
+  const kaching = useCallback(() => {
+    if (muted) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    if (!rateOk("kaching", 300)) return;
+    const t = ctx.currentTime;
+    for (const [f, d0, dur] of [[1318.5, 0, 0.12], [1760, 0.09, 0.35]] as const) {
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t + d0);
+      g2.gain.exponentialRampToValueAtTime(0.14, t + d0 + 0.008);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + d0 + dur);
+      g2.connect(masterRef.current);
+      const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = f;
+      o.connect(g2); o.start(t + d0); o.stop(t + d0 + dur + 0.05);
+    }
+  }, [muted, ensure]);
+
+  // Cartoon slip — descending whistle
+  const slip = useCallback(() => {
+    if (muted) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    if (!rateOk("slip", 500)) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(); o.type = "triangle";
+    o.frequency.setValueAtTime(1100, t);
+    o.frequency.exponentialRampToValueAtTime(180, t + 0.35);
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.12, t);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
+    o.connect(g2); g2.connect(masterRef.current);
+    o.start(t); o.stop(t + 0.4);
+  }, [muted, ensure]);
+
+  return { hop, land, boom, whoosh, dashLand, mop, mopDone, ensure, startAmbience, doorBell, orderBell, hiss, slip, kaching };
 
 }
 
@@ -650,7 +922,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
-  const mascotImgRef = useRef<HTMLImageElement | null>(null);
+  const mascotImgRef = useRef<HTMLImageElement | HTMLCanvasElement | null>(null);
   const sfx = useGameSfx(muted);
   const sfxRef = useRef(sfx);
   useEffect(() => { sfxRef.current = sfx; }, [sfx]);
@@ -658,7 +930,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   useEffect(() => { hapticsRef.current = haptics; }, [haptics]);
   // Resume AudioContext on first user gesture (autoplay policy)
   useEffect(() => {
-    const kick = () => { sfxRef.current.ensure(); };
+    const kick = () => { sfxRef.current.ensure(); sfxRef.current.startAmbience(); };
     window.addEventListener("pointerdown", kick, { once: true });
     window.addEventListener("keydown", kick, { once: true });
     return () => {
@@ -675,6 +947,14 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   // Turning-estimation state: last smoothed dir + its rate of change for predictive lookahead
   const turnEstRef = useRef({ prevDirAvg: 0, dirVel: 0, predicted: 0, lastFaceSign: 1 });
   const carryRef = useRef<Ing[]>([]);
+  // Point-and-click: where the bird is running to; interact=true auto-uses the station on arrival
+  const targetRef = useRef<{ x: number; y: number; interact: boolean } | null>(null);
+  const interactFnRef = useRef<() => void>(() => {});
+  // Slapstick props: bananas on the floor, explosion shockwave + flying debris, extinguisher foam
+  const bananasRef = useRef<{ x: number; y: number; wob: number }[]>([]);
+  const shockRef = useRef<{ x: number; y: number; start: number } | null>(null);
+  const debrisRef = useRef<{ x: number; y: number; vx: number; vy: number; glyph: string; rot: number; vr: number; start: number; color?: string }[]>([]);
+  const streakRef = useRef(0); // consecutive clean deliveries = tip multiplier
   const ordersRef = useRef<Order[]>([]);
   const orderIdRef = useRef(1);
   const firesRef = useRef<Fire[]>([]);
@@ -693,6 +973,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   const shakeRef = useRef(0); // seconds remaining
   const explosionRef = useRef(0); // 0..1 flash intensity remaining
   const viceRef = useRef({ smokeCd: 0, drinkCd: 0, buzz: 0 });
+  // Vice acting: he really raises the cig / pulls the flask for a couple seconds
+  const viceAnimRef = useRef<{ type: null | "smoke" | "flask"; t: number; max: number }>({ type: null, t: 0, max: 1 });
   // Kitchen disasters
   const alarmRef = useRef({ life: 0, strobe: 0 }); // life > 0 = smoke alarm blaring
   const flareRef = useRef({ x: 0, y: 0, r: 0, life: 0, max: 0 }); // fryer flare-up radial burst
@@ -740,7 +1022,28 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   });
   const scoreRef = useRef(0);
   const chaosRef = useRef(0);
-  const timeRef = useRef(180);
+  const timeRef = useRef(SHIFT_SECONDS);
+  const inspectorRef = useRef(-1); // >=0 while the shutdown countdown is running
+  const [inspectorT, setInspectorT] = useState(-1);
+  // Phones: the shift STARTS in takeover mode — no button hunting, the game just fills the screen
+  // (?fstest forces it for automated visual testing)
+  const [isFs, setIsFs] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      (window.matchMedia("(pointer: coarse) and (max-width: 1023px)").matches || window.location.search.includes("fstest")),
+  );
+
+  // While the game owns the screen, the page must not scroll or rubber-band underneath it
+  useEffect(() => {
+    if (!isFs) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overscrollBehavior = "none";
+    return () => {
+      document.body.style.overflow = prev;
+      document.documentElement.style.overscrollBehavior = "";
+    };
+  }, [isFs]);
 
   const best = useMemo(() => {
     if (typeof window === "undefined") return 0;
@@ -754,20 +1057,72 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     bg.onload = () => { bgImgRef.current = bg; };
     const m = new Image();
     m.src = mascotHero;
-    m.onload = () => { mascotImgRef.current = m; };
+    m.onload = () => {
+      // Pre-tint the sprite on an offscreen canvas so the employee color only
+      // touches the bird's pixels — tinting on the main canvas painted a box.
+      const c = document.createElement("canvas");
+      c.width = 256; c.height = 256;
+      const cc = c.getContext("2d");
+      if (!cc) { mascotImgRef.current = m; return; }
+      cc.drawImage(m, 0, 0, 256, 256);
+      cc.globalCompositeOperation = "source-atop";
+      cc.fillStyle = employee.tint + "40";
+      cc.fillRect(0, 0, 256, 256);
+      mascotImgRef.current = c;
+    };
   }, []);
 
   // Seed orders
   useEffect(() => {
     ordersRef.current = [];
-    for (let i = 0; i < 4; i++) spawnOrder();
+    for (let i = 0; i < 3; i++) spawnOrder(true);
     setTick((t) => t + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function spawnOrder() {
-    const t = ORDER_POOL[Math.floor(Math.random() * ORDER_POOL.length)];
+  function spawnOrder(silent = false) {
+    // Ease-in difficulty: simple orders first, the monsters only show up late-shift
+    const elapsed = SHIFT_SECONDS - timeRef.current;
+    const maxItems = elapsed < 45 ? 2 : elapsed < 105 ? 3 : 5;
+    const pool = ORDER_POOL.filter((t) => t.items.length <= maxItems);
+    const t = pool[Math.floor(Math.random() * pool.length)];
     ordersRef.current.push({ id: orderIdRef.current++, template: t, remaining: t.time });
+    if (!silent) sfxRef.current.doorBell(); // a customer just walked in
+  }
+
+  // Explosion cinematics: shockwave ring + food shrapnel raining across the kitchen
+  function cinematicBoom(x: number, y: number) {
+    shockRef.current = { x, y, start: performance.now() };
+    const glyphs = ["🍟", "🍔", "🔩", "🔥", "🥓", "🧀"];
+    for (let i = 0; i < 12; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 0.12 + Math.random() * 0.35;
+      debrisRef.current.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: -Math.abs(Math.sin(a)) * sp - 0.18,
+        glyph: glyphs[i % glyphs.length],
+        rot: Math.random() * 6,
+        vr: (Math.random() - 0.5) * 12,
+        start: performance.now(),
+      });
+    }
+  }
+
+  // Extinguisher foam: a satisfying cloud of white puffs over the fire
+  function foamBurst(x: number, y: number) {
+    for (let i = 0; i < 10; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 0.03 + Math.random() * 0.08;
+      debrisRef.current.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: -Math.random() * 0.08,
+        glyph: Math.random() < 0.5 ? "💨" : "☁️",
+        rot: 0, vr: 0,
+        start: performance.now(),
+      });
+    }
   }
 
   // Input
@@ -811,6 +1166,52 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.03, text, color, life: 1 });
   }
 
+  // ── GUIDANCE: what does the CURRENT (first) order still need, and where do you get it? ──
+  function guidance(): { stationId: string; text: string } | null {
+    // FIRES trump everything — the kitchen burning down is priority one
+    const fire = firesRef.current[0];
+    if (fire) {
+      if (!hasExtinguisherRef.current) return { stationId: "extinguisher", text: "🔥 FIRE! GRAB THE EXTINGUISHER!" };
+      return { stationId: fire.stationId, text: "🧯 CLICK THE FIRE TO SPRAY IT!" };
+    }
+    const o = ordersRef.current[0];
+    if (!o) return null;
+    const pool = [...carryRef.current];
+    const need: Ing[] = [];
+    for (const it of o.template.items) {
+      const i = pool.indexOf(it);
+      if (i >= 0) pool.splice(i, 1);
+      else need.push(it);
+    }
+    if (need.length === 0) return { stationId: "pickup", text: "ORDER READY — DELIVER AT PICK UP!" };
+    const next = need[0];
+    switch (next) {
+      case "bun": return { stationId: "fridge", text: "GRAB A BUN FROM THE FRIDGE" };
+      case "patty_cooked": {
+        if (grillRef.current.item === "patty_cooked") return { stationId: "grill", text: "PATTY DONE — GRAB IT OFF THE GRILL!" };
+        if (grillRef.current.item === "patty_raw") return { stationId: "grill", text: "PATTY COOKING — DON'T LET IT BURN" };
+        if (carryRef.current.includes("patty_raw")) return { stationId: "grill", text: "PUT THE PATTY ON THE GRILL" };
+        return { stationId: "raw_patty", text: "GRAB A RAW PATTY" };
+      }
+      case "lettuce_chopped": {
+        if (carryRef.current.includes("lettuce_raw")) return { stationId: "cutting", text: "CHOP THE LETTUCE (PRESS E AGAIN)" };
+        return { stationId: "cutting", text: "GET LETTUCE AT THE CHOP BOARD" };
+      }
+      case "cheese": return { stationId: "cheese", text: "GRAB CHEESE" };
+      case "sauce": return { stationId: "sauce", text: "GRAB SAUCE" };
+      case "fries": {
+        if (fryerRef.current.item === "fries") return { stationId: "fryer", text: fryerRef.current.progress >= 1 ? "FRIES DONE — GRAB THEM!" : "FRIES FRYING — WAIT FOR IT" };
+        return { stationId: "fryer", text: "START THE FRYER FOR FRIES" };
+      }
+      case "nugget": {
+        if (fryerRef.current.item === "nugget") return { stationId: "fryer", text: fryerRef.current.progress >= 1 ? "NUGGETS DONE — GRAB THEM!" : "NUGGETS FRYING — WAIT FOR IT" };
+        return { stationId: "fryer", text: "START THE FRYER FOR NUGGETS" };
+      }
+      case "shake": return { stationId: "drink", text: "POUR A SHAKE AT DRINKS" };
+      default: return null;
+    }
+  }
+
   function tryDeliverAtPickup() {
     const carry = carryRef.current;
     if (carry.length === 0) { pushFloat("EMPTY!", "#EF4444"); return; }
@@ -822,16 +1223,33 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       chaosRef.current = Math.min(6, chaosRef.current + 0.5);
       setChaos(chaosRef.current);
       statsRef.current.dropped++;
+      streakRef.current = 0;
       carryRef.current = [];
       return;
     }
     const order = ordersRef.current[idx];
+    streakRef.current++;
+    const streakMult = 1 + Math.min(0.5, (streakRef.current - 1) * 0.1);
     const timeBonus = Math.max(0, Math.floor(order.remaining * 2));
-    const gain = order.template.score + timeBonus;
+    const gain = Math.round((order.template.score + timeBonus) * employee.tips * streakMult);
     scoreRef.current += gain;
     setScore(scoreRef.current);
     statsRef.current.ordersCompleted++;
-    pushFloat(`+${gain}`, "#00C805");
+    sfxRef.current.kaching();
+    // cash burst at the pickup window
+    const pu = STATIONS.find((s) => s.id === "pickup")!;
+    for (let ci = 0; ci < 8; ci++) {
+      const a = Math.PI * (0.9 + Math.random() * 1.2);
+      const sp = 0.08 + Math.random() * 0.14;
+      debrisRef.current.push({
+        x: pu.x + pu.w / 2, y: pu.y + pu.h / 2,
+        vx: Math.cos(a) * sp, vy: -Math.abs(Math.sin(a)) * sp - 0.06,
+        glyph: "$", rot: 0, vr: (Math.random() - 0.5) * 6,
+        start: performance.now(), color: "#00C805",
+      });
+    }
+    pushFloat(`+$${gain}`, "#00C805");
+    if (streakRef.current >= 2) pushFloat(`STREAK ×${streakRef.current} — TIPS +${Math.round((streakMult - 1) * 100)}%`, "#FACC15");
     ordersRef.current.splice(idx, 1);
     carryRef.current = [];
     // spawn a new one
@@ -957,6 +1375,24 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         break;
       }
       case "grill": {
+        // extinguish grill fire first if one's burning
+        const grillFire = firesRef.current.find((fi) => fi.stationId === s.id);
+        if (grillFire) {
+          if (hasExtinguisherRef.current) {
+            firesRef.current = firesRef.current.filter((fi) => fi !== grillFire);
+            hasExtinguisherRef.current = false;
+            sfxRef.current.hiss();
+            foamBurst(grillFire.x, grillFire.y);
+            pushFloat("PUT OUT!", "#22D3EE");
+            scoreRef.current += 80;
+            setScore(scoreRef.current);
+            chaosRef.current = Math.max(0, chaosRef.current - 1);
+            setChaos(chaosRef.current);
+          } else {
+            pushFloat("GET EXTINGUISHER!", "#EF4444");
+          }
+          break;
+        }
         const g = grillRef.current;
         if (g.item === null) {
           const i = carry.indexOf("patty_raw");
@@ -973,7 +1409,9 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           carry.push("patty_cooked");
           g.item = null;
           g.progress = 0;
-          pushFloat("+ COOKED", "#7C3A1F");
+          pushFloat("+ COOKED PATTY", "#FFD24A");
+        } else if (g.item === "patty_raw") {
+          pushFloat(`COOKING — ${Math.ceil((1 - g.progress) * 5)}s`, "#F97316");
         }
         break;
       }
@@ -985,6 +1423,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           if (hasExtinguisherRef.current) {
             firesRef.current = firesRef.current.filter((fi) => fi !== fireHere);
             hasExtinguisherRef.current = false;
+            sfxRef.current.hiss();
+            foamBurst(fireHere.x, fireHere.y);
             pushFloat("PUT OUT!", "#22D3EE");
             scoreRef.current += 80;
             setScore(scoreRef.current);
@@ -996,15 +1436,20 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           break;
         }
         if (f.item === null) {
-          f.item = "fries";
+          // Fry what the orders actually need — nuggets if an order wants them and we don't have one
+          const needNugget = ordersRef.current.some((o) => o.template.items.includes("nugget")) && !carry.includes("nugget");
+          f.item = needNugget ? ("nugget" as Ing) : "fries";
           f.progress = 0;
-          pushFloat("FRYING…", "#FACC15");
+          pushFloat(needNugget ? "FRYING NUGGETS…" : "FRYING…", "#FACC15");
         } else if (f.progress >= 1) {
           if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
-          carry.push(f.item === "fries" ? "fries" : "nugget");
+          const got = f.item === "nugget" ? "nugget" : "fries";
+          carry.push(got as Ing);
           f.item = null;
           f.progress = 0;
-          pushFloat("+ FRIES", "#FFD24A");
+          pushFloat(got === "nugget" ? "+ NUGGETS" : "+ FRIES", "#FFD24A");
+        } else {
+          pushFloat(`STILL FRYING — ${Math.ceil((1 - f.progress) * 4)}s`, "#FACC15");
         }
         break;
       }
@@ -1056,6 +1501,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     let pigeonCd = 15;
     let spillCd = 6;
     let disasterCd = 18 + Math.random() * 8;
+    let bananaCd = 12;
     let orderTickAcc = 0;
     let uiTickAcc = 0;
 
@@ -1100,10 +1546,25 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       if (k["a"] || k["arrowleft"]) dx -= 1;
       if (k["d"] || k["arrowright"]) dx += 1;
       if (touchRef.current) { dx += touchRef.current.dx; dy += touchRef.current.dy; }
+      // Point-and-click: run toward the clicked spot unless keys/joystick take over
+      let autoRun = false;
+      if (dx !== 0 || dy !== 0) {
+        targetRef.current = null;
+      } else if (targetRef.current) {
+        const tgt = targetRef.current;
+        const ddx = tgt.x - p.x, ddy = tgt.y - p.y;
+        if (Math.hypot(ddx, ddy) > 0.014) {
+          dx = ddx; dy = ddy; autoRun = true;
+        } else {
+          targetRef.current = null;
+          if (tgt.interact) interactFnRef.current();
+        }
+      }
       const mag = Math.hypot(dx, dy);
       if (mag > 0) { dx /= mag; dy /= mag; }
       const dashing = (k["shift"] || false) && p.dashCd <= 0 && mag > 0;
-      const speed = dashing ? 0.55 : 0.28;
+      // Click-running is brisk — nobody likes watching a bird stroll
+      const speed = (dashing ? 0.55 : autoRun ? 0.42 : 0.28) * employee.speed;
       if (dashing) { p.dashCd = 1.2; sfxRef.current.whoosh("start", 1); }
       p.dashCd = Math.max(0, p.dashCd - dt);
       // slip if in grease
@@ -1114,6 +1575,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       // Grease spills: overlapping puddle → boost slipT (drunk-like slide)
       for (const sp of spillsRef.current) {
         if (Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r) {
+          if (p.slipT < 0.1) sfxRef.current.slip();
           p.slipT = Math.max(p.slipT, dashing ? 0.9 : 0.55);
           // small perpendicular nudge for a "banana peel" feel
           const nudge = (dashing ? 0.05 : 0.025) * dt * 60 * 0.016;
@@ -1296,10 +1758,13 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       // Grill cooking
       const g = grillRef.current;
       if (g.item === "patty_raw") {
-        g.progress += dt / 5;
-        if (g.progress >= 1) { g.item = "patty_cooked"; }
+        g.progress += (dt * employee.cook) / 5;
+        if (g.progress >= 1) {
+          g.item = "patty_cooked";
+          floatsRef.current.push({ x: 0.53, y: 0.26, text: "🔔 PATTY READY!", color: "#FACC15", life: 1.6 });
+        }
       } else if (g.item === "patty_cooked") {
-        g.progress += dt / 8;
+        g.progress += dt / 14;
         if (g.progress >= 2) {
           g.item = null; g.progress = 0;
           statsRef.current.foodBurned++;
@@ -1310,16 +1775,48 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       // Fryer cooking
       const f = fryerRef.current;
       if (f.item) {
-        f.progress += dt / 4;
+        const beforeF = f.progress;
+        // Cooks in 4s, then a generous 12s grab window before it burns
+        f.progress += f.progress < 1 ? (dt * employee.cook) / 4 : dt / 12;
+        if (beforeF < 1 && f.progress >= 1) {
+          floatsRef.current.push({ x: 0.685, y: 0.3, text: f.item === "nugget" ? "🔔 NUGGETS READY!" : "🔔 FRIES READY!", color: "#FACC15", life: 1.6 });
+        }
         if (f.progress > 2) {
           f.item = null; f.progress = 0;
           statsRef.current.foodBurned++;
+          chaosRef.current = Math.min(6, chaosRef.current + 0.5);
+          floatsRef.current.push({ x: 0.685, y: 0.3, text: "BURNED!", color: "#EF4444", life: 1.4 });
         }
       }
 
       // Fires + mishaps
+      // Tutorial grace: no fires/disasters/spills/pigeons until the first order is done
+      const inTutorial = statsRef.current.ordersCompleted < 1;
+
+      // Bananas: they spawn, you slip, everyone laughs
+      bananaCd -= dt;
+      if (bananaCd <= 0 && bananasRef.current.length < 2 && !inTutorial) {
+        bananaCd = 14 + Math.random() * 12;
+        bananasRef.current.push({ x: 0.25 + Math.random() * 0.55, y: 0.55 + Math.random() * 0.35, wob: Math.random() * Math.PI * 2 });
+      }
+      for (let bi = bananasRef.current.length - 1; bi >= 0; bi--) {
+        const bn = bananasRef.current[bi];
+        if (Math.hypot(p.x - bn.x, p.y - bn.y) < 0.028) {
+          bananasRef.current.splice(bi, 1);
+          p.slipT = Math.max(p.slipT, 1.0);
+          sfxRef.current.slip();
+          shakeRef.current = Math.max(shakeRef.current, 0.18);
+          floatsRef.current.push({ x: bn.x, y: bn.y - 0.05, text: "🍌 SLIPPED!", color: "#FACC15", life: 1.3 });
+          if (carryRef.current.length > 0) {
+            carryRef.current.pop();
+            statsRef.current.dropped++;
+            floatsRef.current.push({ x: bn.x, y: bn.y - 0.09, text: "DROPPED IT!", color: "#EF4444", life: 1.2 });
+          }
+        }
+      }
+
       fireCd -= dt;
-      if (fireCd <= 0) {
+      if (fireCd <= 0 && !inTutorial) {
         // random chance of fire at grill or fryer; small chance of GRILL EXPLOSION
         const explode = Math.random() < 0.28;
         const target = explode ? "grill" : (Math.random() < 0.5 ? "grill" : "fryer");
@@ -1341,6 +1838,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
             playerRef.current.slipT = 0.6;
             shakeRef.current = 0.55;
             explosionRef.current = 1;
+            cinematicBoom(st.x + st.w / 2, st.y + st.h / 2);
             sfxRef.current.boom(1.1);
             floatsRef.current.push({ x: st.x + st.w/2, y: st.y - 0.02, text: "💥 BOOM!", color: "#FACC15", life: 1.2 });
             floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "OSHA WHO?", color: "#EF4444", life: 1.2 });
@@ -1370,7 +1868,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       const comboN = cleanComboRef.current.count;
       const chaosMul = 1 + Math.min(comboN, 8) * 0.35; // up to ~3.8x at combo 8
       const spillCap = Math.min(14, 6 + Math.floor(comboN * 0.9));
-      if (spillCd <= 0 && spillsRef.current.length < spillCap) {
+      if (spillCd <= 0 && spillsRef.current.length < spillCap && !inTutorial) {
         const spawnCount = 1 + (comboN >= 3 ? 1 : 0) + (comboN >= 6 ? 1 : 0);
         for (let i = 0; i < spawnCount; i++) {
           const near = Math.random() < 0.7
@@ -1407,7 +1905,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
 
       // ─── KITCHEN DISASTERS ───
       disasterCd -= dt;
-      if (disasterCd <= 0) {
+      if (disasterCd <= 0 && !inTutorial) {
         const roll = Math.random();
         if (roll < 0.4) {
           // SMOKE ALARM
@@ -1593,6 +2091,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
               scoreRef.current += 80;
               chaosRef.current = Math.max(0, chaosRef.current - 1);
               hasExtinguisherRef.current = false;
+              sfxRef.current.hiss();
+              foamBurst(fi.x, fi.y);
               floatsRef.current.push({ x: fi.x, y: fi.y - 0.03, text: "PUT OUT! +80", color: "#22D3EE", life: 1.2 });
             } else {
               chaosRef.current = Math.min(6, chaosRef.current + 1);
@@ -1612,6 +2112,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
             }
             shakeRef.current = Math.max(shakeRef.current, 0.5);
             explosionRef.current = 1;
+            cinematicBoom(fi.x, fi.y);
             sfxRef.current.boom(1.25);
             chaosRef.current = Math.min(6, chaosRef.current + 1.5);
             floatsRef.current.push({ x: fi.x, y: fi.y - 0.04, text: "💥 KABOOM!", color: "#EF4444", life: 1.3 });
@@ -1623,7 +2124,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
 
       // Pigeons
       pigeonCd -= dt;
-      if (pigeonCd <= 0) {
+      if (pigeonCd <= 0 && !inTutorial) {
         pigeonsRef.current.push({ x: -0.05, y: 0.5 + (Math.random() - 0.5) * 0.4, vx: 0.08 + Math.random()*0.05, vy: (Math.random() - 0.5) * 0.05, hp: 1 });
         pigeonCd = 12 + Math.random() * 10;
       }
@@ -1645,10 +2146,14 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       orderTickAcc += dt;
       if (orderTickAcc > 1) {
         orderTickAcc = 0;
-        ordersRef.current.forEach((o) => { o.remaining -= 1; });
+        ordersRef.current.forEach((o) => {
+          o.remaining -= 1;
+          if (o.remaining === 14) sfxRef.current.orderBell(); // DING DING — customer losing it
+        });
         const failed = ordersRef.current.filter((o) => o.remaining <= 0);
         if (failed.length) {
           statsRef.current.ordersFailed += failed.length;
+          streakRef.current = 0;
           chaosRef.current = Math.min(6, chaosRef.current + failed.length);
           ordersRef.current = ordersRef.current.filter((o) => o.remaining > 0);
           failed.forEach(() => spawnOrder());
@@ -1659,11 +2164,35 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       floatsRef.current.forEach((fl) => { fl.life -= dt; fl.y -= dt * 0.05; });
       floatsRef.current = floatsRef.current.filter((fl) => fl.life > 0);
 
+      // Chaos slowly cools off (Gary cools it faster) so a bad stretch is recoverable
+      chaosRef.current = Math.max(0, chaosRef.current - dt * 0.055 * employee.calm);
+      if (viceAnimRef.current.t > 0) viceAnimRef.current.t -= dt;
+
+      // HEALTH INSPECTOR: chaos pegged at max starts a 5s shutdown countdown
+      if (chaosRef.current >= 5.75) {
+        if (inspectorRef.current < 0) inspectorRef.current = 5;
+        inspectorRef.current -= dt;
+        if (inspectorRef.current <= 0) {
+          cancelAnimationFrame(raf);
+          finishGame("shutdown");
+          return;
+        }
+      } else if (inspectorRef.current >= 0 && chaosRef.current < 5.2) {
+        inspectorRef.current = -1; // crisis averted
+      }
+
+      // WIN: rent quota reached — shift ends immediately, time left = bragging rights
+      if (scoreRef.current >= RENT_QUOTA) {
+        cancelAnimationFrame(raf);
+        finishGame("win");
+        return;
+      }
+
       // Timer
       timeRef.current -= dt;
       if (timeRef.current <= 0) {
         cancelAnimationFrame(raf);
-        finishGame();
+        finishGame(scoreRef.current >= RENT_QUOTA ? "win" : "evicted");
         return;
       }
 
@@ -1674,6 +2203,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         setTimeLeft(Math.max(0, Math.ceil(timeRef.current)));
         setScore(scoreRef.current);
         setChaos(chaosRef.current);
+        setInspectorT(inspectorRef.current);
         setTick((t) => t + 1);
         setPerfFps(Math.round(perfRef.current.fps));
       }
@@ -1686,14 +2216,14 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function finishGame() {
+  function finishGame(outcome: Outcome) {
     const s = statsRef.current;
     const total = scoreRef.current;
     const newBest = Math.max(best, total);
     if (typeof window !== "undefined") window.localStorage.setItem("bb_kc_best", String(newBest));
-    // Grade
-    const grade = gradeFor(total);
-    const bucks = Math.floor(total / 10) + s.ordersCompleted * 5;
+    const secLeft = Math.max(0, Math.ceil(timeRef.current));
+    const grade = gradeForOutcome(outcome, total, secLeft);
+    const bucks = Math.floor(total / 10) + s.ordersCompleted * 5 + (outcome === "win" ? 150 : 0);
     // Award bird bucks in main site's ledger
     if (typeof window !== "undefined") {
       const prev = parseInt(window.localStorage.getItem("bb_bucks") || "0", 10);
@@ -1711,6 +2241,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       birdBucks: bucks,
       grade: grade.letter,
       gradeSub: grade.sub,
+      outcome,
+      timeLeft: secLeft,
     });
   }
 
@@ -1746,19 +2278,18 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, W, H);
 
-    // Station highlight rings
+    // Station highlight ring — ONLY on the station you're close enough to use (no dashed-circle clutter)
     const near = nearestStation();
-    for (const s of STATIONS) {
+    if (near) {
+      const s = near;
       const cx = (s.x + s.w/2) * W;
       const cy = (s.y + s.h/2) * H;
       const r = Math.max(s.w, s.h) * W * 0.55;
-      const active = near?.id === s.id;
       ctx.save();
-      ctx.strokeStyle = active ? "#FACC15" : s.color + "88";
-      ctx.lineWidth = active ? 4 : 2;
-      ctx.setLineDash(active ? [] : [6, 6]);
-      ctx.shadowColor = s.color;
-      ctx.shadowBlur = active ? 24 : 8;
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 4;
+      ctx.shadowColor = "#FACC15";
+      ctx.shadowBlur = 24;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.stroke();
@@ -1860,18 +2391,61 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       ctx.arc(cx, cy, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * dpct);
       ctx.stroke();
       ctx.restore();
-      // flames
-      for (let i = 0; i < 5; i++) {
-        const tt = Math.sin(performance.now()/120 + i) * 6;
-        ctx.fillStyle = i % 2 ? "#FACC15" : "#EF4444";
+      // flames — layered flickering tongues with glow, hot core and rising embers
+      {
+        const now = performance.now() / 1000;
+        const glow = ctx.createRadialGradient(cx, cy, 4, cx, cy, 58);
+        glow.addColorStop(0, "rgba(255,160,40,0.45)");
+        glow.addColorStop(0.5, "rgba(255,90,20,0.18)");
+        glow.addColorStop(1, "rgba(255,60,0,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(cx - 58, cy - 58, 116, 116);
+        const layers = [
+          { c: "#DC2626", s: 1.0 },
+          { c: "#F97316", s: 0.72 },
+          { c: "#FACC15", s: 0.45 },
+        ];
+        for (let ti2 = 0; ti2 < 3; ti2++) {
+          const ox = (ti2 - 1) * 11;
+          const phase = now * (5 + ti2 * 1.7) + ti2 * 2.1;
+          const hgt = 32 + Math.sin(phase) * 6 + Math.sin(phase * 2.3) * 3;
+          const wob = Math.sin(phase * 1.4) * 5;
+          for (const L of layers) {
+            const hh = hgt * L.s;
+            const ww = 10 * L.s + (ti2 === 1 ? 3 : 0);
+            ctx.save();
+            ctx.fillStyle = L.c;
+            ctx.beginPath();
+            ctx.moveTo(cx + ox - ww, cy + 6);
+            ctx.quadraticCurveTo(cx + ox - ww, cy - hh * 0.45, cx + ox + wob * L.s, cy - hh);
+            ctx.quadraticCurveTo(cx + ox + ww, cy - hh * 0.45, cx + ox + ww, cy + 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = "#FEF3C7";
         ctx.beginPath();
-        ctx.arc(cx + (i-2)*10, cy + tt - 10, 12 - i*1.2, 0, Math.PI*2);
+        ctx.ellipse(cx, cy + 1, 7 + Math.sin(now * 9) * 1.5, 10, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
+        for (let ei = 0; ei < 4; ei++) {
+          const ek = (now * 0.8 + ei * 0.27) % 1;
+          ctx.save();
+          ctx.globalAlpha = (1 - ek) * 0.8;
+          ctx.fillStyle = ei % 2 ? "#FACC15" : "#FB923C";
+          ctx.beginPath();
+          ctx.arc(cx + Math.sin((now + ei * 2) * 4) * 12, cy - 8 - ek * 44, 1.6 + (1 - ek) * 1.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
       }
       ctx.fillStyle = "#FFF";
       ctx.font = "bold 12px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText(`🔥 ${fi.danger.toFixed(1)}s`, cx, cy + 30);
+      ctx.fillText(`${fi.danger.toFixed(1)}s`, cx, cy + 34);
       // spray cone from player
       if (fi.sprayT > 0.05) {
         const px = playerRef.current.x * W, py = playerRef.current.y * H;
@@ -2154,11 +2728,6 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           ctx.scale(s.face * (0.82 + k * 0.10), 0.94 + k * 0.06);
           ctx.translate(-s.x, -(s.y + 16));
           ctx.drawImage(mm, s.x - size / 2, s.y - size + 16 + s.hopY, size, size);
-          // tint pass to flatten detail into a silhouette
-          ctx.globalCompositeOperation = "source-atop";
-          ctx.globalAlpha = alpha * 1.4;
-          ctx.fillStyle = employee.tint;
-          ctx.fillRect(s.x - size / 2, s.y - size + 16 + s.hopY, size, size);
           ctx.restore();
         }
       }
@@ -2194,10 +2763,66 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         ctx.translate(-pxs, -(py + 16));
       }
       ctx.drawImage(m, drawX, drawY, size, size);
-      ctx.globalCompositeOperation = "source-atop";
-      ctx.fillStyle = employee.tint + "40";
-      ctx.fillRect(drawX, drawY, size, size);
       ctx.restore();
+
+      // Vice acting: cig raised to the beak, or a flask pulled out
+      const va = viceAnimRef.current;
+      if (va.type && va.t > 0) {
+        const raise = Math.min(1, (va.max - va.t) * 5); // hand comes up fast
+        const bx = pxs + p.face * (14 + 6 * raise);
+        const by = py - 30 + hopY - 10 * raise;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.scale(p.face, 1);
+        if (va.type === "smoke") {
+          // cigarette
+          ctx.rotate(-0.25);
+          ctx.fillStyle = "#F5F5F4";
+          ctx.fillRect(0, -1.5, 13, 3);
+          ctx.fillStyle = "#D97706";
+          ctx.fillRect(10.5, -1.5, 2.5, 3);
+          ctx.fillStyle = "#FCA5A5";
+          ctx.fillRect(13, -1.5, 1.5, 3);
+          ctx.restore();
+          // smoke puffs drifting up
+          const now = performance.now() / 1000;
+          for (let i = 0; i < 3; i++) {
+            const k = ((now * 0.7 + i * 0.33) % 1);
+            ctx.save();
+            ctx.globalAlpha = 0.35 * (1 - k) * raise;
+            ctx.fillStyle = "#D4D4D8";
+            ctx.beginPath();
+            ctx.arc(bx + p.face * 16 + Math.sin((now + i) * 3) * 3, by - 6 - k * 26, 3 + k * 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        } else {
+          // flask tipped to the mouth
+          ctx.rotate(-0.7 * raise);
+          ctx.fillStyle = "#9CA3AF";
+          ctx.beginPath();
+          ctx.roundRect(-2, -4, 11, 15, 3);
+          ctx.fill();
+          ctx.fillStyle = "#6B7280";
+          ctx.fillRect(1, -7, 5, 4);
+          ctx.strokeStyle = "#4B5563";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(0, 0, 7, 7);
+          ctx.restore();
+          // amber glugs
+          const now = performance.now() / 1000;
+          for (let i = 0; i < 2; i++) {
+            const k = ((now * 1.1 + i * 0.5) % 1);
+            ctx.save();
+            ctx.globalAlpha = 0.5 * (1 - k) * raise;
+            ctx.fillStyle = "#F59E0B";
+            ctx.beginPath();
+            ctx.arc(bx + p.face * 6, by - 2 - k * 10, 1.5 + k * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
     } else {
       ctx.fillStyle = employee.tint;
       ctx.beginPath();
@@ -2230,10 +2855,98 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       });
     }
     if (hasExtinguisherRef.current) {
-      ctx.fillStyle = "#EF4444";
-      ctx.fillRect(px - 32, py - 20, 8, 22);
-      ctx.fillStyle = "#000";
-      ctx.fillRect(px - 32, py - 24, 8, 4);
+      // A proper fire extinguisher in his wing: red tank, valve, hose, yellow nozzle
+      ctx.save();
+      ctx.translate(px + 26 * p.face, py - 6 + hopY);
+      ctx.scale(p.face, 1);
+      ctx.fillStyle = "#DC2626";
+      ctx.beginPath();
+      ctx.roundRect(-5, -14, 10, 20, 3);
+      ctx.fill();
+      ctx.fillStyle = "#FCA5A5";
+      ctx.fillRect(-3, -11, 2, 13);
+      ctx.fillStyle = "#FFF";
+      ctx.fillRect(-4, -6, 8, 5);
+      ctx.fillStyle = "#111";
+      ctx.fillRect(-2, -18, 4, 4);
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(2, -15);
+      ctx.quadraticCurveTo(12, -22, 16, -14);
+      ctx.stroke();
+      ctx.fillStyle = "#FACC15";
+      ctx.fillRect(14, -16, 6, 4);
+      ctx.restore();
+    }
+
+    // The extinguisher + mop bucket sit visibly at their stations until picked up
+    if (!hasExtinguisherRef.current) {
+      const es = STATIONS.find((s) => s.id === "extinguisher")!;
+      ctx.save();
+      ctx.font = "28px system-ui";
+      ctx.textAlign = "center";
+      const bob2 = Math.sin(performance.now() / 500) * 2;
+      ctx.fillText("🧯", (es.x + es.w / 2) * W, (es.y + es.h / 2) * H + 8 + bob2);
+      ctx.restore();
+    }
+    if (!mopRef.current.has) {
+      const ms = STATIONS.find((s) => s.id === "mop")!;
+      ctx.save();
+      ctx.font = "26px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("🪣", (ms.x + ms.w / 2) * W, (ms.y + ms.h / 2) * H + 8);
+      ctx.restore();
+    }
+
+    // Bananas on the floor (the oldest joke in gaming, still undefeated)
+    for (const bn of bananasRef.current) {
+      ctx.save();
+      ctx.translate(bn.x * W, bn.y * H);
+      ctx.rotate(Math.sin(performance.now() / 900 + bn.wob) * 0.12);
+      ctx.font = "22px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("🍌", 0, 6);
+      ctx.restore();
+    }
+
+    // Explosion shockwave rings
+    if (shockRef.current) {
+      const age = (performance.now() - shockRef.current.start) / 1000;
+      if (age > 0.9) shockRef.current = null;
+      else {
+        const cx = shockRef.current.x * W, cy = shockRef.current.y * H;
+        ctx.save();
+        for (const [spd, col, lw] of [[1300, "rgba(250,204,21,", 5], [950, "rgba(239,68,68,", 3]] as const) {
+          const rr = age * spd;
+          ctx.strokeStyle = `${col}${Math.max(0, 0.8 - age)})`;
+          ctx.lineWidth = lw * (1 - age * 0.6);
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, rr, rr * 0.55, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    // Flying debris / foam puffs (stateless physics from spawn time)
+    if (debrisRef.current.length) {
+      const nowT = performance.now();
+      debrisRef.current = debrisRef.current.filter((d) => nowT - d.start < 1400);
+      for (const d of debrisRef.current) {
+        const age = (nowT - d.start) / 1000;
+        const dx2 = (d.x + d.vx * age) * W;
+        const dy2 = (d.y + d.vy * age + 0.45 * age * age) * H;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - age / 1.4);
+        ctx.translate(dx2, dy2);
+        ctx.rotate(d.rot + d.vr * age);
+        ctx.font = d.color ? "bold 18px system-ui" : "20px system-ui";
+        if (d.color) ctx.fillStyle = d.color;
+        ctx.textAlign = "center";
+        ctx.fillText(d.glyph, 0, 0);
+        ctx.restore();
+      }
     }
     if (mopRef.current.has) {
       ctx.save();
@@ -2260,19 +2973,103 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       ctx.globalAlpha = 1;
     }
 
-    // Station labels
-    for (const s of STATIONS) {
-      const cx = (s.x + s.w/2) * W;
-      const cy = (s.y + s.h + 0.01) * H;
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      const tw = ctx.measureText(s.label).width + 12;
-      ctx.fillRect(cx - tw/2, cy, tw, 16);
-      ctx.strokeStyle = s.color;
-      ctx.strokeRect(cx - tw/2, cy, tw, 16);
-      ctx.fillStyle = s.color;
-      ctx.font = "bold 10px system-ui";
+    // Station labels — scale with canvas so they stay readable on phones
+    {
+      const lf = Math.max(10, Math.round(W * 0.011));
+      const boxH = lf + 8;
+      ctx.font = `bold ${lf}px system-ui`;
       ctx.textAlign = "center";
-      ctx.fillText(s.label, cx, cy + 12);
+      for (const s of STATIONS) {
+        const cx = (s.x + s.w/2) * W;
+        const cy = (s.y + s.h + 0.01) * H;
+        const tw = ctx.measureText(s.label).width + 14;
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.fillRect(cx - tw/2, cy, tw, boxH);
+        ctx.strokeStyle = s.color;
+        ctx.strokeRect(cx - tw/2, cy, tw, boxH);
+        ctx.fillStyle = s.color;
+        ctx.fillText(s.label, cx, cy + lf + 2);
+      }
+    }
+
+    // Point-and-click destination marker
+    if (targetRef.current) {
+      const tp = targetRef.current;
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 130);
+      ctx.save();
+      ctx.strokeStyle = `rgba(34,211,238,${0.5 + 0.5 * pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(tp.x * W, tp.y * H, 14 + pulse * 6, 7 + pulse * 3, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(tp.x * W, tp.y * H, 5, 2.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(34,211,238,${0.6 + 0.4 * pulse})`;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // GUIDANCE: pulsing highlight + bouncing arrow over the station you need next
+    {
+      const gd = guidance();
+      const st = gd ? STATIONS.find((s) => s.id === gd.stationId) : null;
+      if (st) {
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 220);
+        const gx = st.x * W, gy = st.y * H, gw = st.w * W, gh = st.h * H;
+        ctx.save();
+        ctx.strokeStyle = `rgba(250,204,21,${0.55 + 0.45 * pulse})`;
+        ctx.lineWidth = 3 + pulse * 2;
+        ctx.setLineDash([10, 7]);
+        ctx.strokeRect(gx - 6, gy - 6, gw + 12, gh + 12);
+        ctx.setLineDash([]);
+        const bob = Math.sin(performance.now() / 200) * 7;
+        const acx = gx + gw / 2;
+        const acy = gy - 26 + bob;
+        ctx.fillStyle = "#FACC15";
+        ctx.strokeStyle = "#09090B";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(acx, acy + 16);
+        ctx.lineTo(acx - 13, acy);
+        ctx.lineTo(acx - 5, acy);
+        ctx.lineTo(acx - 5, acy - 12);
+        ctx.lineTo(acx + 5, acy - 12);
+        ctx.lineTo(acx + 5, acy);
+        ctx.lineTo(acx + 13, acy);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // FIRST DAY TRAINING: spotlight the target station until the first order is delivered
+      if (statsRef.current.ordersCompleted < 1 && st) {
+        const scx = (st.x + st.w / 2) * W;
+        const scy = (st.y + st.h / 2) * H;
+        const srad = Math.max(st.w * W, st.h * H) * 0.95 + 34;
+        const plx = playerRef.current.x * W;
+        const ply = playerRef.current.y * H;
+        const prad = 85;
+        ctx.save();
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.beginPath();
+        ctx.rect(0, 0, W, H);
+        ctx.arc(scx, scy, srad, 0, Math.PI * 2);
+        if (Math.hypot(plx - scx, ply - scy) > srad + prad) ctx.arc(plx, ply, prad, 0, Math.PI * 2);
+        ctx.fill("evenodd");
+        ctx.restore();
+        ctx.save();
+        const fs1 = Math.max(11, Math.min(19, W * 0.0135));
+        const fs2 = Math.max(9, Math.min(12, W * 0.0085));
+        ctx.fillStyle = "#FACC15";
+        ctx.font = `bold ${fs1}px system-ui`;
+        ctx.textAlign = "center";
+        ctx.fillText("🎓 FIRST DAY TRAINING — CLICK THE SPOTLIT STATION", W / 2, H - 92);
+        ctx.fillStyle = "rgba(255,255,255,0.75)";
+        ctx.font = `bold ${fs2}px system-ui`;
+        ctx.fillText("Deliver your first order and the real shift (fires, pigeons, bananas) begins", W / 2, H - 72);
+        ctx.restore();
+      }
     }
     ctx.restore();
     // Explosion flash overlay (drawn without transform)
@@ -2328,6 +3125,9 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     }
   }, [employee]);
 
+  // Keep the game loop's arrival-callback pointed at the latest interact()
+  useEffect(() => { interactFnRef.current = interact; });
+
   // Resize canvas
   useEffect(() => {
     const onResize = () => {
@@ -2339,17 +3139,233 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       cv.height = Math.floor(r.height);
     };
     onResize();
+    const t1 = setTimeout(onResize, 120);
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+    document.addEventListener("fullscreenchange", onResize);
+    return () => {
+      clearTimeout(t1);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("fullscreenchange", onResize);
+    };
+  }, [isFs]);
+
+  // Fullscreen: real Fullscreen API where it exists; CSS page-takeover everywhere
+  // (iPhone Safari has no element fullscreen — the takeover IS the fullscreen there).
+  const toggleFs = () => {
+    const next = !isFs;
+    setIsFs(next);
+    const el = wrapRef.current as (HTMLDivElement & { requestFullscreen?: (o?: object) => Promise<void> }) | null;
+    if (next) {
+      el?.requestFullscreen?.({ navigationUI: "hide" })?.catch?.(() => {});
+      try { (screen.orientation as unknown as { lock?: (o: string) => Promise<void> })?.lock?.("landscape")?.catch?.(() => {}); } catch {}
+    } else if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+    setTimeout(() => window.dispatchEvent(new Event("resize")), 80);
+  };
 
   return (
-    <div className="relative mx-auto max-w-[1920px] p-2 md:p-4">
-      <div ref={wrapRef} className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border-2 border-[#7C3AED] shadow-[0_0_60px_rgba(124,58,237,0.4)]">
-        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+    <div className="relative mx-auto flex max-w-[1920px] flex-col items-center gap-2 p-2 md:p-3 lg:flex-row lg:items-start lg:justify-center max-lg:landscape:flex-row max-lg:landscape:items-start max-lg:landscape:justify-center max-lg:landscape:gap-1.5 max-lg:landscape:p-1.5" style={{ paddingLeft: "max(0.375rem, env(safe-area-inset-left))", paddingRight: "max(0.375rem, env(safe-area-inset-right))" }}>
+      {/* The kitchen — a clean, unblocked field of view; every panel lives in the sidebar */}
+      <div
+        ref={wrapRef}
+        className={
+          isFs
+            ? "fixed inset-0 z-[100] h-[100dvh] w-screen overflow-hidden bg-black"
+            : "relative aspect-[16/9] w-full overflow-hidden rounded-xl border-2 border-[#7C3AED] shadow-[0_0_60px_rgba(124,58,237,0.4)] lg:w-[min(calc(100%_-_316px),calc((100vh_-_100px)*1.7778))] max-lg:landscape:w-[min(calc(100%_-_212px),calc((100dvh_-_16px)*1.7778))]"
+        }
+      >
+        {/* Fullscreen toggle */}
+        <button
+          onClick={toggleFs}
+          className="absolute right-2 top-2 z-50 rounded-md border-2 border-[#FACC15]/80 bg-[#09090B]/85 px-3 py-2 text-xs font-black uppercase tracking-widest text-[#FACC15] backdrop-blur active:scale-95"
+        >
+          {isFs ? "✕ EXIT" : "⛶ FULL SCREEN"}
+        </button>
 
-        {/* Top-left: logo + kitchen stats + disaster */}
-        <div className="absolute left-2 top-2 w-[170px] space-y-1.5 md:left-4 md:top-4">
+        {/* Compact HUD for fullscreen + phones (the sidebar isn't visible there) */}
+        <div className={`pointer-events-none absolute left-2 top-2 z-20 flex-col gap-1 ${isFs ? "flex" : "flex lg:hidden"}`}>
+          <div className="flex items-center gap-2 rounded-md border border-[#FACC15]/50 bg-[#09090B]/85 px-2 py-1 backdrop-blur">
+            <span className="font-mono text-sm font-black text-[#FACC15]">{fmt(timeLeft)}</span>
+            <span className="text-[10px] font-black text-[#22D3EE]">${score.toLocaleString()}<span className="text-white/40">/${RENT_QUOTA.toLocaleString()}</span></span>
+          </div>
+          {ordersRef.current[0] && (
+            <div className="flex items-center gap-1 rounded-md border border-[#FACC15]/50 bg-[#FFF7DF]/95 px-2 py-1">
+              <span className="max-w-[90px] truncate text-[9px] font-black uppercase text-[#2E1065]">{ordersRef.current[0].template.name}</span>
+              {(() => {
+                const o = ordersRef.current[0];
+                const pool = [...carryRef.current];
+                return o.template.items.slice(0, 5).map((it, i) => {
+                  const idx = pool.indexOf(it);
+                  const have = idx >= 0;
+                  if (have) pool.splice(idx, 1);
+                  return (
+                    <span key={i} className={`grid h-5 w-5 place-items-center rounded-full ${have ? "ring-2 ring-[#00C805]" : "opacity-50 grayscale-[40%]"}`} style={{ background: ING_META[it].color + "55" }}>
+                      <IngIcon kind={it} className="h-4 w-4" />
+                    </span>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </div>
+        {/* Portrait phones: the kitchen needs the wide way round */}
+        <div className="pointer-events-none absolute inset-0 z-40 hidden place-items-center bg-black/75 backdrop-blur-[2px] max-lg:portrait:grid">
+          <div className="px-6 text-center">
+            <div className="text-5xl">🔄</div>
+            <div className="mt-2 [font-family:'Bungee','Impact',sans-serif] text-2xl text-[#FACC15]">ROTATE YOUR PHONE</div>
+            <div className="mt-1 text-xs uppercase tracking-widest text-white/70">The kitchen only fits sideways. Health code thing.</div>
+          </div>
+        </div>
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 h-full w-full cursor-crosshair touch-none select-none"
+          style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" } as React.CSSProperties}
+          onPointerDown={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            const nx = (e.clientX - r.left) / r.width;
+            const ny = (e.clientY - r.top) / r.height;
+            // Clicked a station (generous hitbox)? Run there and use it on arrival.
+            const st = STATIONS.find((s) => nx >= s.x - 0.025 && nx <= s.x + s.w + 0.025 && ny >= s.y - 0.035 && ny <= s.y + s.h + 0.035);
+            if (st) {
+              targetRef.current = {
+                x: clamp(st.x + st.w / 2, 0.02, 0.98),
+                y: clamp(st.y + st.h + 0.03, 0.1, 0.96),
+                interact: true,
+              };
+            } else {
+              targetRef.current = { x: clamp(nx, 0.02, 0.98), y: clamp(ny, 0.1, 0.96), interact: false };
+            }
+          }}
+        />
+
+
+
+
+        {/* Floating ingredient badges above each station */}
+        <div className="pointer-events-none absolute inset-0 z-10">
+          {STATION_YIELDS.map(({ id, items }) => {
+            const s = STATIONS.find((st) => st.id === id)!;
+            return (
+              <div
+                key={id}
+                className="absolute flex -translate-x-1/2 -translate-y-full gap-0.5"
+                style={{ left: `${(s.x + s.w / 2) * 100}%`, top: `${(s.y - 0.012) * 100}%`, animation: `bounce 2.6s ease-in-out ${(s.x * 1.7).toFixed(2)}s infinite` }}
+              >
+                {items.map((it) => (
+                  <span key={it} title={ING_META[it].label} className="grid h-7 w-7 place-items-center rounded-full border border-white/25 bg-[#09090B]/80 shadow-[0_2px_8px_rgba(0,0,0,0.6)] backdrop-blur-[2px]">
+                    <IngIcon kind={it} className="h-5 w-5" />
+                  </span>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* In-field action banner: the one instruction, right where you're looking */}
+        {(() => {
+          const gd = guidance();
+          return gd ? (
+            <div className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center">
+              <div className="rounded-full border-2 border-[#FACC15] bg-[#09090B]/90 px-4 py-1 text-[11px] font-black uppercase tracking-widest text-[#FACC15] shadow-[0_0_20px_rgba(250,204,21,0.4)] md:text-xs">
+                👉 {gd.text}
+              </div>
+            </div>
+          ) : null;
+        })()}
+
+        {/* HEALTH INSPECTOR shutdown countdown */}
+        {inspectorT >= 0 && (
+          <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex justify-center md:top-16">
+            <div className="animate-pulse rounded-xl border-4 border-[#EF4444] bg-[#09090B]/90 px-6 py-3 text-center shadow-[0_0_50px_rgba(239,68,68,0.8)]">
+              <div className="[font-family:'Bungee','Impact',sans-serif] text-2xl text-[#EF4444] md:text-4xl">🚨 HEALTH INSPECTOR: {Math.ceil(Math.max(0, inspectorT))} 🚨</div>
+              <div className="mt-1 text-[10px] font-black uppercase tracking-widest text-[#FACC15]">CALM THE CHAOS OR GET SHUT DOWN — MOP, EXTINGUISH, DELIVER!</div>
+            </div>
+          </div>
+        )}
+
+
+
+        {/* Bottom-center: what you're holding, big and readable */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-2 z-20 flex justify-center md:bottom-4">
+          <div className="flex items-center gap-1.5 rounded-xl border-2 border-[#FACC15]/70 bg-[#09090B]/90 px-3 py-1.5 backdrop-blur">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[#FACC15]">HANDS {carryRef.current.length}/4</span>
+            {carryRef.current.length === 0 ? (
+              <span className="px-1 text-[10px] uppercase tracking-wider text-white/50">empty — click a glowing station</span>
+            ) : (
+              carryRef.current.map((it, i) => (
+                <span key={i} className="flex items-center gap-1 rounded-lg px-2 py-1 shadow" style={{ background: ING_META[it].color }}>
+                  <IngIcon kind={it} className="h-6 w-6 drop-shadow" />
+                  <span className="hidden text-[9px] font-black uppercase text-[#09090B] md:inline">{ING_META[it].label}</span>
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Mobile touch controls */}
+        {showTouch && <TouchControls onInteract={interact} onDrop={dropCarry} />}
+      </div>
+      <aside className="flex w-full flex-col gap-2 lg:w-[300px] lg:shrink-0 max-lg:landscape:max-h-[calc(100dvh-16px)] max-lg:landscape:w-[205px] max-lg:landscape:shrink-0 max-lg:landscape:overflow-y-auto">
+        {/* Time + rent */}
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <InfoCard title="TIME" value={fmt(timeLeft)} sub="LANDLORD INBOUND" tint="#FACC15" wide />
+            <InfoCard title="RENT EARNED" value={`$${score.toLocaleString()}`} sub={`GOAL: $${RENT_QUOTA.toLocaleString()}`} tint="#22D3EE" wide />
+          </div>
+          {/* Rent progress bar */}
+          <div className="self-stretch rounded-lg border-2 border-[#22D3EE]/60 bg-[#09090B]/85 p-1.5 backdrop-blur">
+            <div className="h-3 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#22D3EE] to-[#00C805] transition-[width] duration-300"
+                style={{ width: `${Math.min(100, (score / RENT_QUOTA) * 100)}%` }}
+              />
+            </div>
+            <div className="mt-0.5 text-center text-[8px] font-black uppercase tracking-widest text-white/60">
+              {score >= RENT_QUOTA ? "RENT PAID!!!" : `$${(RENT_QUOTA - score).toLocaleString()} TO MAKE RENT`}
+            </div>
+          </div>
+          {cleanCombo >= 2 && (
+            <div
+              key={cleanCombo}
+              className={`self-end rounded-lg border-2 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest backdrop-blur animate-[pulse_0.6s_ease-out] ${
+                cleanCombo >= 3 ? "border-[#FACC15] bg-[#FACC15]/20 text-[#FACC15]" : "border-[#22D3EE] bg-[#22D3EE]/20 text-[#22D3EE]"
+              }`}
+            >
+              MOP CHAIN <span className="text-base">×{cleanCombo}</span>
+            </div>
+          )}
+        </div>
+        {/* Orders + next-step guidance */}
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="flex flex-wrap justify-center gap-2">
+            {ordersRef.current.map((o, i) => <OrderCard key={o.id} order={o} carry={carryRef.current} focused={i === 0} />)}
+          </div>
+        </div>
+        {/* Chaos + controls */}
+        <div className="flex flex-col gap-2">
+          {!showTouch && (
+            <div className="hidden rounded-lg border-2 border-[#7C3AED]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur md:block">
+              <div className="mb-1 font-black text-[#FACC15]">CONTROLS</div>
+              <KeyRow keyLabel="CLICK" action="Run there / use station" />
+              <KeyRow keyLabel="SPACE" action="Interact" />
+              <KeyRow keyLabel="Q" action="Drop" />
+              <KeyRow keyLabel="WASD" action="Move (optional)" />
+            </div>
+          )}
+          <div className={`rounded-lg border-2 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur ${chaos >= 4.5 ? "border-[#EF4444] animate-pulse" : "border-[#EF4444]/60"}`}>
+            <div className="mb-1 font-black text-[#EF4444]">CHAOS {chaos >= 4.5 ? "— INSPECTOR WATCHING" : "LEVEL"}</div>
+            <div className="flex gap-1">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <span key={i} className={`text-lg leading-none ${i < Math.floor(chaos) ? "" : "grayscale opacity-30"}`}>🔥</span>
+              ))}
+            </div>
+            <div className="mt-0.5 text-[8px] text-white/50">MAX = HEALTH INSPECTOR SHUTS YOU DOWN</div>
+          </div>
+          <button onClick={onQuit} className="rounded border border-[#EF4444]/70 bg-[#09090B]/85 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#EF4444]/90 backdrop-blur hover:bg-[#EF4444]/30">Clock Out</button>
+        </div>
+        {/* Kitchen tools + vices + settings */}
+        <div className="space-y-1.5">
           <div className="flex items-center gap-1.5 rounded-lg border-2 border-[#7C3AED] bg-[#2E1065]/85 p-2 backdrop-blur">
             <div className="flex-1">
               <div className="[font-family:'Bungee','Impact',sans-serif] text-xs leading-none text-[#7C3AED]">BIRD BURGER</div>
@@ -2456,6 +3472,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
                       scoreRef.current += 15;
                       chaosRef.current = Math.max(0, chaosRef.current - 0.75);
                       setChaos(chaosRef.current);
+                      viceAnimRef.current = { type: "smoke", t: 2.6, max: 2.6 };
                       floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🚬 SMOKE BREAK", color: "#FACC15", life: 1.3 });
                       setViceTick((n) => n + 1);
                     }}
@@ -2474,15 +3491,16 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
                       chaosRef.current = Math.max(0, chaosRef.current - 1);
                       setChaos(chaosRef.current);
                       playerRef.current.slipT = 0.8;
-                      floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🍺 CRACK OPEN", color: "#22D3EE", life: 1.3 });
+                      viceAnimRef.current = { type: "flask", t: 2.2, max: 2.2 };
+                      floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🥃 FLASK TIME", color: "#22D3EE", life: 1.3 });
                       setViceTick((n) => n + 1);
                     }}
                     disabled={v.drinkCd > 0}
                     className="relative flex-1 overflow-hidden rounded border-2 border-[#22D3EE]/70 bg-[#22D3EE]/10 px-2 py-1 text-[10px] font-black text-[#22D3EE] transition hover:bg-[#22D3EE]/25 disabled:cursor-not-allowed disabled:opacity-70"
-                    title="Crack a cold one. Chaos drops. So does your motor control."
+                    title="Pull the flask. Chaos drops. So does your motor control."
                   >
                     <div className="absolute inset-y-0 left-0 bg-[#22D3EE]/25 transition-[width] duration-200" style={{ width: `${beerPct * 100}%` }} />
-                    <span className="relative">🍺 {v.drinkCd > 0 ? `${v.drinkCd.toFixed(1)}s` : "BEER"}</span>
+                    <span className="relative">🥃 {v.drinkCd > 0 ? `${v.drinkCd.toFixed(1)}s` : "FLASK"}</span>
                   </button>
                 </div>
                 {buzz > 0 && (
@@ -2566,71 +3584,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           </div>
           </>)}
         </div>
-
-
-        {/* Top: order queue */}
-        <div className="pointer-events-none absolute inset-x-0 top-2 mx-auto flex max-w-[62%] justify-center gap-2 md:top-4">
-          {ordersRef.current.map((o) => <OrderCard key={o.id} order={o} />)}
-        </div>
-
-        {/* Top-right: time / score / bucks */}
-        <div className="absolute right-2 top-2 flex flex-col gap-2 md:right-4 md:top-4">
-          <div className="flex gap-2">
-            <InfoCard title="TIME" value={fmt(timeLeft)} sub="ROUND 1" tint="#FACC15" wide />
-            <InfoCard title="SCORE" value={score.toLocaleString()} sub={`BEST: ${Math.max(best, score).toLocaleString()}`} tint="#22D3EE" wide />
-            <InfoCard title="BIRD BUCKS" value={Math.floor(score/10).toLocaleString()} sub="COMPLETELY WORTHLESS" tint="#EC4899" wide />
-          </div>
-          {cleanCombo >= 2 && (
-            <div
-              key={cleanCombo}
-              className={`self-end rounded-lg border-2 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest backdrop-blur animate-[pulse_0.6s_ease-out] ${
-                cleanCombo >= 3 ? "border-[#FACC15] bg-[#FACC15]/20 text-[#FACC15]" : "border-[#22D3EE] bg-[#22D3EE]/20 text-[#22D3EE]"
-              }`}
-            >
-              MOP CHAIN <span className="text-base">×{cleanCombo}</span>
-            </div>
-          )}
-          <button onClick={onQuit} className="self-end rounded border border-[#EF4444] bg-[#EF4444]/20 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#EF4444] hover:bg-[#EF4444]/40">Clock Out</button>
-
-        </div>
-
-        {/* Bottom-left: minimap (fades when player walks over it) */}
-        <div
-          ref={minimapRef}
-          className="absolute bottom-2 left-2 h-[110px] w-[160px] rounded-lg border-2 border-[#7C3AED] bg-[#09090B]/80 p-1 backdrop-blur transition-opacity duration-150 md:bottom-4 md:left-4"
-        >
-          <div className="mb-0.5 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-[#EC4899]"><span>PIGEON MENACE</span><span className="text-[#FACC15]">MAP</span></div>
-          <Minimap
-            player={playerRef.current}
-            fires={firesRef.current}
-            pigeons={pigeonsRef.current}
-          />
-        </div>
-
-        {/* Bottom-right: controls + chaos */}
-        <div className="absolute bottom-2 right-2 flex flex-col items-end gap-2 md:bottom-4 md:right-4">
-          {!showTouch && (
-            <div className="hidden rounded-lg border-2 border-[#7C3AED]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur md:block">
-              <div className="mb-1 font-black text-[#FACC15]">CONTROLS</div>
-              <KeyRow keyLabel="WASD" action="Move" />
-              <KeyRow keyLabel="SPACE/E" action="Interact" />
-              <KeyRow keyLabel="SHIFT" action="Dash" />
-              <KeyRow keyLabel="Q" action="Drop" />
-            </div>
-          )}
-          <div className="rounded-lg border-2 border-[#EF4444]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
-            <div className="mb-1 font-black text-[#EF4444]">CHAOS LEVEL</div>
-            <div className="flex gap-1">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <span key={i} className={`text-lg leading-none ${i < Math.floor(chaos) ? "" : "grayscale opacity-30"}`}>🔥</span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile touch controls */}
-        {showTouch && <TouchControls touchRef={touchRef} onInteract={interact} onDrop={dropCarry} />}
-      </div>
+      </aside>
     </div>
   );
 }
@@ -2650,12 +3604,17 @@ function drawProgress(ctx: CanvasRenderingContext2D, x: number, y: number, t: nu
   ctx.strokeStyle = "#000";
   ctx.strokeRect(x - w/2, y - h/2, w, h);
 }
-function gradeFor(score: number): { letter: string; sub: string } {
-  if (score >= 4000) return { letter: "S", sub: "MICHELIN INSPECTOR CONFUSED" };
-  if (score >= 2500) return { letter: "A", sub: "MILDLY EDIBLE" };
-  if (score >= 1500) return { letter: "B", sub: "TECHNICALLY LEGAL" };
-  if (score >= 700) return { letter: "C", sub: "HEALTH CODE VIOLATION" };
-  if (score >= 200) return { letter: "D", sub: "TOTAL RUG PULL" };
+function gradeForOutcome(outcome: Outcome, score: number, secLeft: number): { letter: string; sub: string } {
+  if (outcome === "win") {
+    // Graded on how fast you paid the landlord
+    if (secLeft >= 75) return { letter: "S", sub: "SPEEDRAN CAPITALISM" };
+    if (secLeft >= 45) return { letter: "A", sub: "LANDLORD MILDLY IMPRESSED" };
+    if (secLeft >= 20) return { letter: "B", sub: "RENT PAID IN CRUMPLED ONES" };
+    return { letter: "C", sub: "PAID AT 11:59 PM" };
+  }
+  if (outcome === "shutdown") return { letter: "F", sub: "THE INSPECTOR SAW EVERYTHING" };
+  // evicted — at least you tried
+  if (score >= 1400) return { letter: "D", sub: "SO CLOSE, YET SO BROKE" };
   return { letter: "F", sub: "CLOSED BY AUTHORITIES" };
 }
 
@@ -2689,28 +3648,61 @@ function KeyRow({ keyLabel, action }: { keyLabel: string; action: string }) {
   );
 }
 
-function OrderCard({ order }: { order: Order }) {
+function OrderCard({ order, carry, focused }: { order: Order; carry: Ing[]; focused?: boolean }) {
   const t = order.remaining;
   const total = order.template.time;
   const pct = clamp(t / total, 0, 1);
   const urgent = t < 15;
+  // Mark which ingredients you're already holding (consume duplicates properly)
+  const pool = [...carry];
+  const have = order.template.items.map((it) => {
+    const i = pool.indexOf(it);
+    if (i >= 0) { pool.splice(i, 1); return true; }
+    return false;
+  });
   return (
     <motion.div
       animate={urgent ? { x: [0, -2, 2, -2, 2, 0] } : {}}
       transition={urgent ? { duration: 0.4, repeat: Infinity } : {}}
-      className={`pointer-events-auto w-[150px] shrink-0 overflow-hidden rounded-lg border-2 bg-[#FFF7DF] text-[#2E1065] shadow-lg ${urgent ? "border-[#EF4444]" : "border-[#2E1065]"}`}
+      className={`pointer-events-auto shrink-0 overflow-hidden rounded-lg border-2 bg-[#FFF7DF] text-[#2E1065] shadow-lg ${
+        focused ? "w-[195px] border-[3px] border-[#FACC15] shadow-[0_0_24px_rgba(250,204,21,0.6)]" : urgent ? "w-[130px] border-[#EF4444] opacity-85" : "w-[130px] border-[#2E1065] opacity-85"
+      }`}
     >
+      {focused && (
+        <div className="bg-[#FACC15] py-0.5 text-center text-[9px] font-black uppercase tracking-[0.2em] text-[#09090B]">★ MAKE THIS ★</div>
+      )}
       <div className="border-b border-[#2E1065]/30 bg-[#2E1065] px-2 py-1 text-center text-[10px] font-black uppercase tracking-widest text-[#FACC15]">
         {order.template.name}
       </div>
-      <div className="flex items-center justify-center py-1 text-3xl">{order.template.emoji}</div>
-      <div className="flex justify-center gap-0.5 px-1 pb-1">
-        {order.template.items.slice(0, 5).map((it, i) => (
-          <span key={i} title={ING_META[it].label} className="grid h-5 w-5 place-items-center rounded-full text-[10px]" style={{ background: ING_META[it].color }}>
-            {ING_META[it].emoji}
-          </span>
-        ))}
-      </div>
+      {focused ? (
+        /* Focused order: gross food glamour shot + readable recipe checklist */
+        <div className="space-y-0.5 px-1.5 py-1">
+          <img src={order.template.img} alt={order.template.name} className="mx-auto h-16 w-16 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]" />
+          {order.template.items.slice(0, 5).map((it, i) => (
+            <div key={i} className={`flex items-center gap-1.5 rounded px-1 py-0.5 ${have[i] ? "bg-[#00C805]/15" : "bg-[#2E1065]/8"}`}>
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full shadow-sm" style={{ background: ING_META[it].color + "55" }}><IngIcon kind={it} className="h-5 w-5" /></span>
+              <span className={`flex-1 text-[11px] font-black uppercase leading-tight ${have[i] ? "text-[#0B7A1E] line-through" : "text-[#2E1065]"}`}>{ING_META[it].label}</span>
+              <span className={`text-[10px] font-black ${have[i] ? "text-[#00C805]" : "text-[#2E1065]/40"}`}>{have[i] ? "✓" : "•"}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-center py-1"><img src={order.template.img} alt={order.template.name} className="h-11 w-11 object-contain" /></div>
+          <div className="flex justify-center gap-0.5 px-1 pb-1">
+            {order.template.items.slice(0, 5).map((it, i) => (
+              <span
+                key={i}
+                title={ING_META[it].label}
+                className={`relative grid h-5 w-5 place-items-center rounded-full ${have[i] ? "ring-2 ring-[#00C805]" : "opacity-60 grayscale-[35%]"}`}
+                style={{ background: ING_META[it].color + "55" }}
+              >
+                <IngIcon kind={it} className="h-4 w-4" />
+              </span>
+            ))}
+          </div>
+        </>
+      )}
       <div className="px-1.5 pb-1">
         <div className="mb-0.5 text-center text-[10px] font-black">{t}s</div>
         <div className="h-1.5 w-full overflow-hidden rounded bg-[#2E1065]/20">
@@ -2738,81 +3730,56 @@ function Minimap({ player, fires, pigeons }: { player: { x: number; y: number };
   );
 }
 
-function TouchControls({ touchRef, onInteract, onDrop }: { touchRef: React.MutableRefObject<{ dx: number; dy: number } | null>; onInteract: () => void; onDrop: () => void }) {
-  const [nub, setNub] = useState({ x: 0, y: 0 });
-  const stickRef = useRef<HTMLDivElement>(null);
-  const activeIdRef = useRef<number | null>(null);
-  const onStart = (e: React.TouchEvent) => {
-    const t = e.changedTouches[0];
-    activeIdRef.current = t.identifier;
-  };
-  const onMove = (e: React.TouchEvent) => {
-    if (!stickRef.current) return;
-    const t = Array.from(e.touches).find((tt) => tt.identifier === activeIdRef.current);
-    if (!t) return;
-    const r = stickRef.current.getBoundingClientRect();
-    const cx = r.left + r.width/2, cy = r.top + r.height/2;
-    const dx = (t.clientX - cx) / (r.width/2);
-    const dy = (t.clientY - cy) / (r.height/2);
-    const mag = Math.hypot(dx, dy);
-    const nx = mag > 1 ? dx/mag : dx;
-    const ny = mag > 1 ? dy/mag : dy;
-    setNub({ x: nx * 24, y: ny * 24 });
-    touchRef.current = { dx: nx, dy: ny };
-  };
-  const onEnd = () => {
-    activeIdRef.current = null;
-    setNub({ x: 0, y: 0 });
-    touchRef.current = null;
-  };
+function TouchControls({ onInteract, onDrop }: { onInteract: () => void; onDrop: () => void }) {
+  // Tap-to-move IS the movement control on touch — no joystick blocking the kitchen.
   return (
-    <>
-      <div
-        ref={stickRef}
-        onTouchStart={onStart}
-        onTouchMove={onMove}
-        onTouchEnd={onEnd}
-        onTouchCancel={onEnd}
-        className="absolute bottom-4 left-4 grid h-24 w-24 place-items-center rounded-full border-2 border-[#7C3AED]/60 bg-[#09090B]/60 md:hidden"
-      >
-        <div className="h-10 w-10 rounded-full bg-[#FACC15]/80" style={{ transform: `translate(${nub.x}px, ${nub.y}px)` }} />
-      </div>
-      <div className="absolute bottom-4 right-4 flex flex-col gap-2 md:hidden">
-        <button onTouchStart={onInteract} className="h-16 w-16 rounded-full border-4 border-[#FACC15] bg-[#FACC15] text-xs font-black uppercase text-[#09090B]">USE</button>
-        <button onTouchStart={onDrop} className="h-12 w-12 rounded-full border-2 border-[#EF4444] bg-[#EF4444]/30 text-[10px] font-black uppercase text-[#EF4444]">DROP</button>
-      </div>
-    </>
+    <div className="absolute bottom-3 right-3 z-20 flex items-end gap-2.5 md:hidden">
+      <button onTouchStart={onDrop} className="h-12 w-12 rounded-full border-2 border-[#EF4444] bg-[#09090B]/70 text-[10px] font-black uppercase text-[#EF4444] active:bg-[#EF4444]/40">DROP</button>
+      <button onTouchStart={onInteract} className="h-16 w-16 rounded-full border-4 border-[#FACC15] bg-[#FACC15]/90 text-xs font-black uppercase text-[#09090B] shadow-[0_0_18px_rgba(250,204,21,0.5)] active:scale-95">USE</button>
+    </div>
   );
 }
 
 /* ─────────────────────────  RESULTS SCREEN  ───────────────────────── */
 
 function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay: () => void; onQuit: () => void }) {
+  const won = stats.outcome === "win";
   const share = () => {
-    const text = `I just clocked out of Bird Burger: Kitchen Chaos with ${stats.score} pts (grade ${stats.grade}). ${stats.foodBurned} foods burned. ${stats.fires} fires. ${stats.pigeonsChased} pigeons chased. The worst shift on the blockchain.`;
+    const outcomeTxt = won
+      ? `I PAID THE $2,000 RENT with ${stats.timeLeft}s to spare (grade ${stats.grade})`
+      : stats.outcome === "shutdown"
+        ? `the health inspector SHUT ME DOWN (grade ${stats.grade})`
+        : `I got EVICTED — only made $${stats.score} of the $2,000 rent (grade ${stats.grade})`;
+    const text = `Bird Burger: Kitchen Chaos — ${outcomeTxt}. ${stats.foodBurned} foods burned. ${stats.fires} fires. ${stats.pigeonsChased} pigeons chased. The worst shift on the blockchain. birdburger.meme/game`;
     if (navigator.share) navigator.share({ text }).catch(() => {});
     else if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
     }
   };
+  const banner = won
+    ? { pill: "💸 RENT PAID — LANDLORD APPEASED 💸", pillCls: "border-[#00C805] bg-[#00C805]/20 text-[#00C805]", h1: "YOU WIN", sub: `Paid with ${stats.timeLeft} seconds to spare. The Worst Restaurant survives another day.` }
+    : stats.outcome === "shutdown"
+      ? { pill: "🚨 SHUT DOWN BY THE HEALTH INSPECTOR 🚨", pillCls: "border-[#EF4444] bg-[#EF4444]/20 text-[#EF4444]", h1: "SHUT DOWN", sub: "He walked in. He saw everything. He left crying." }
+      : { pill: "🚨 EVICTION NOTICE 🚨", pillCls: "border-[#EF4444] bg-[#EF4444]/20 text-[#EF4444]", h1: "EVICTED", sub: `Rent was $2,000. You made $${stats.score.toLocaleString()}. The landlord has changed the locks.` };
   return (
     <div className="relative min-h-[calc(100vh-56px)] overflow-hidden">
-      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url(${kitchenBg})`, backgroundSize: "cover", filter: "blur(4px) hue-rotate(-20deg)" }} />
+      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url(${kitchenBg})`, backgroundSize: "cover", filter: won ? "blur(4px)" : "blur(4px) hue-rotate(-20deg)" }} />
       <div className="absolute inset-0 bg-gradient-to-b from-[#09090B]/85 via-[#2E1065]/70 to-[#09090B]" />
       <div className="relative mx-auto max-w-3xl px-6 py-12">
         <div className="mb-6 text-center">
-          <div className="inline-block rounded-full border-2 border-[#EF4444] bg-[#EF4444]/20 px-4 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-[#EF4444] animate-pulse">
-            🚨 RESTAURANT CLOSED BY AUTHORITIES 🚨
+          <div className={`inline-block rounded-full border-2 px-4 py-1 text-[10px] font-black uppercase tracking-[0.3em] animate-pulse ${banner.pillCls}`}>
+            {banner.pill}
           </div>
-          <h1 className="mt-3 [font-family:'Bungee','Impact',sans-serif] text-4xl leading-none text-[#FACC15] drop-shadow-[0_0_20px_rgba(250,204,21,0.5)] md:text-6xl">
-            SHIFT OVER
+          <h1 className={`mt-3 [font-family:'Bungee','Impact',sans-serif] text-4xl leading-none drop-shadow-[0_0_20px_rgba(250,204,21,0.5)] md:text-6xl ${won ? "text-[#00C805]" : "text-[#FACC15]"}`}>
+            {banner.h1}
           </h1>
-          <p className="mt-2 text-sm uppercase tracking-widest text-white/70">The bird has stopped screaming. Briefly.</p>
+          <p className="mt-2 text-sm uppercase tracking-widest text-white/70">{banner.sub}</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
           <div className="rounded-xl border-2 border-[#7C3AED] bg-[#09090B]/70 p-5 backdrop-blur">
             <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-[#EC4899]">SHIFT REPORT</div>
+            <ResultRow label="Rent Earned" value={`$${stats.score.toLocaleString()} / $2,000`} good={won} big />
             <ResultRow label="Orders Completed" value={stats.ordersCompleted} good />
             <ResultRow label="Orders Failed" value={stats.ordersFailed} />
             <ResultRow label="Food Burned" value={stats.foodBurned} />
@@ -2820,18 +3787,19 @@ function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay
             <ResultRow label="Pigeons Chased" value={stats.pigeonsChased} good />
             <ResultRow label="Ingredients Dropped" value={stats.dropped} />
             <div className="my-3 h-px bg-white/20" />
-            <ResultRow label="Bird Bucks Earned" value={`+${stats.birdBucks}`} good />
-            <ResultRow label="Final Score" value={stats.score.toLocaleString()} big />
+            <ResultRow label="Bird Bucks Earned" value={`+${stats.birdBucks}${won ? " (WIN BONUS +150)" : ""}`} good />
             <ResultRow label="Personal Best" value={stats.best.toLocaleString()} />
           </div>
           <div className="flex flex-col items-center justify-center rounded-xl border-2 border-[#FACC15] bg-[#2E1065]/70 p-6 text-center backdrop-blur">
             <div className="text-[10px] font-black uppercase tracking-widest text-[#FACC15]">RESTAURANT GRADE</div>
-            <div className="mt-2 [font-family:'Bungee','Impact',sans-serif] text-[140px] leading-none text-[#EF4444] drop-shadow-[0_0_30px_rgba(239,68,68,0.6)]">
+            <div className={`mt-2 [font-family:'Bungee','Impact',sans-serif] text-[140px] leading-none ${won ? "text-[#00C805] drop-shadow-[0_0_30px_rgba(0,200,5,0.6)]" : "text-[#EF4444] drop-shadow-[0_0_30px_rgba(239,68,68,0.6)]"}`}>
               {stats.grade}
             </div>
             <div className="mt-2 text-xs font-black uppercase tracking-widest text-white">{stats.gradeSub}</div>
           </div>
         </div>
+
+        <PayrollSubmit stats={stats} />
 
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button onClick={onReplay} className="inline-flex items-center gap-2 rounded-lg border-4 border-[#FACC15] bg-[#FACC15] px-5 py-3 text-sm font-black uppercase tracking-widest text-[#09090B] shadow-[0_6px_0_#B08807] hover:-translate-y-0.5 active:translate-y-0.5">
@@ -2844,6 +3812,125 @@ function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay
             <ArrowLeft className="h-4 w-4" /> Return to Restaurant
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────  $BRGR PAYROLL (leaderboard)  ───────────────────────── */
+
+function PayrollSubmit({ stats }: { stats: GameStats }) {
+  const [name, setName] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("bb_lb_name") || "" : ""));
+  const [wallet, setWallet] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("bb_lb_wallet") || "" : ""));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [result, setResult] = useState<{ rank: number; week: string; top: LbEntry[] } | null>(null);
+
+  const submit = async () => {
+    setErr("");
+    if (name.trim().length < 2) { setErr("Give the payroll department a name (2+ characters)."); return; }
+    setBusy(true);
+    try {
+      window.localStorage.setItem("bb_lb_name", name.trim());
+      window.localStorage.setItem("bb_lb_wallet", wallet.trim());
+      const r = await submitScore({ data: { name: name.trim(), wallet: wallet.trim(), score: stats.score, won: stats.outcome === "win" } });
+      setResult(r);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Payroll machine is jammed. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-6 rounded-xl border-2 border-[#00C805]/60 bg-[#09090B]/70 p-5 backdrop-blur">
+      <div className="mb-1 text-[10px] font-black uppercase tracking-[0.25em] text-[#00C805]">💸 $BRGR PAYROLL — {PAYROLL.season}</div>
+      {!result ? (
+        <>
+          <p className="mb-3 text-xs text-white/70">
+            Clock your <b className="text-white">${stats.score.toLocaleString()}</b> shift onto the weekly leaderboard. Top 3 birds each week earn $BRGR back-pay when the token launches.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={16}
+              placeholder="Employee name"
+              className="w-40 rounded-md border-2 border-[#7C3AED]/60 bg-[#09090B] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#FACC15] focus:outline-none"
+            />
+            <input
+              value={wallet}
+              onChange={(e) => setWallet(e.target.value)}
+              placeholder="0x wallet for back-pay (optional)"
+              className="min-w-[260px] flex-1 rounded-md border-2 border-[#7C3AED]/60 bg-[#09090B] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#FACC15] focus:outline-none"
+            />
+            <button
+              onClick={submit}
+              disabled={busy}
+              className="rounded-md border-2 border-[#00C805] bg-[#00C805]/15 px-5 py-2 text-sm font-black uppercase tracking-widest text-[#00C805] hover:bg-[#00C805]/30 disabled:opacity-50"
+            >
+              {busy ? "Filing…" : "Clock It In"}
+            </button>
+          </div>
+          {err && <div className="mt-2 text-xs font-bold text-[#EF4444]">{err}</div>}
+          <div className="mt-2 text-[9px] uppercase tracking-wider text-white/40">{PAYROLL.disclaimers[0]}</div>
+        </>
+      ) : (
+        <div>
+          <div className="text-sm font-black text-white">
+            Filed! You're <span className="text-[#FACC15]">#{result.rank}</span> this week ({result.week}).
+            {result.rank <= 3 && <span className="ml-2 text-[#00C805]">CURRENTLY IN THE MONEY 💰</span>}
+          </div>
+          <LeaderboardList top={result.top} highlight={name.trim()} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LeaderboardList({ top, highlight }: { top: LbEntry[]; highlight?: string }) {
+  const medals = ["🥇", "🥈", "🥉"];
+  return (
+    <div className="mt-3 space-y-1">
+      {top.map((e, i) => (
+        <div
+          key={e.n + e.w + i}
+          className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${i < 3 ? "bg-[#FACC15]/10" : "bg-white/5"} ${highlight && e.n.toLowerCase() === highlight.toLowerCase() ? "ring-1 ring-[#00C805]" : ""}`}
+        >
+          <span className="w-7 shrink-0 text-center font-black text-white/70">{medals[i] ?? `#${i + 1}`}</span>
+          <span className="flex-1 truncate font-bold text-white">{e.n}</span>
+          {e.won && <span className="rounded bg-[#00C805]/20 px-1 text-[8px] font-black uppercase text-[#00C805]">rent paid</span>}
+          <span className="font-black text-[#FACC15]">${e.s.toLocaleString()}</span>
+        </div>
+      ))}
+      {top.length === 0 && <div className="text-xs text-white/50">Nobody has clocked in this week. The #1 spot is free real estate.</div>}
+    </div>
+  );
+}
+
+function PayrollPanel() {
+  const [data, setData] = useState<{ week: string; top: LbEntry[]; total: number } | null>(null);
+  useEffect(() => {
+    getLeaderboard().then(setData).catch(() => {});
+  }, []);
+  return (
+    <div className="mt-5 max-w-md rounded-lg border-2 border-[#00C805]/50 bg-[#09090B]/70 p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-[#00C805]">💸 Weekly $BRGR Payroll</span>
+        {data && <span className="text-[9px] uppercase tracking-wider text-white/50">{data.week} · {data.total} employees</span>}
+      </div>
+      <div className="mb-2 grid grid-cols-3 gap-1.5 text-center">
+        {PAYROLL.prizes.map((pr) => (
+          <div key={pr.place} className="rounded border border-[#FACC15]/40 bg-[#FACC15]/5 p-1.5">
+            <div className="text-[9px] font-black uppercase text-[#FACC15]">{pr.place}</div>
+            <div className="text-[10px] font-black text-white">{pr.amount}</div>
+            <div className="text-[7px] uppercase tracking-wider text-white/50">{pr.title}</div>
+          </div>
+        ))}
+      </div>
+      <LeaderboardList top={(data?.top ?? []).slice(0, 5)} />
+      <div className="mt-2 text-[8px] uppercase leading-relaxed tracking-wider text-white/40">
+        {PAYROLL.workerAirdrop} · {PAYROLL.disclaimers[0]}
       </div>
     </div>
   );
