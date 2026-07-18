@@ -679,7 +679,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   const [intensity, setIntensity] = useState(60);
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
-  const [gifPreview, setGifPreview] = useState<{ url: string; blob: Blob } | null>(null);
+  const [gifPreview, setGifPreview] = useState<{ url: string; blob: Blob; platform: Platform } | null>(null);
+  const [exportPlatform, setExportPlatform] = useState<Platform | "match">("match");
   const LOOP_LEN = 30;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -697,7 +698,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
-  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number, loopLen: number = LOOP_LEN) => {
+  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number, loopLen: number = LOOP_LEN, platformOverride?: Platform) => {
+    const plat: Platform = platformOverride ?? platform;
     const iv = (intensityOverride ?? intensity) / 100; // 0..1
     // Normalize into a single loop so first and last frame align exactly.
     const fMod = ((frame % loopLen) + loopLen) % loopLen;
@@ -723,7 +725,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
 
     ctx.save();
     ctx.clearRect(0, 0, size, size);
-    if (platform === "x") {
+    if (plat === "x") {
       ctx.beginPath(); ctx.arc(size/2, size/2, size/2, 0, Math.PI*2); ctx.clip();
     } else {
       roundRect(ctx, 0, 0, size, size, size * 0.1875); ctx.clip();
@@ -820,7 +822,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     ctx.save();
     ctx.lineWidth = size * 0.027;
     ctx.strokeStyle = employee.tint;
-    if (platform === "x") {
+    if (plat === "x") {
       ctx.beginPath(); ctx.arc(size/2, size/2, size/2 - size*0.0137, 0, Math.PI*2); ctx.stroke();
     } else {
       roundRect(ctx, size*0.0137, size*0.0137, size - size*0.0273, size - size*0.0273, size*0.176); ctx.stroke();
@@ -885,17 +887,18 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
         workerScript: (workerUrlMod as { default: string }).default,
       });
       const exportIntensity = animated ? intensity : Math.max(60, intensity);
+      const targetPlatform: Platform = exportPlatform === "match" ? platform : exportPlatform;
       // Render frames 0..LOOP_LEN-1. Because every animated quantity in
       // drawFrame is periodic over LOOP_LEN, frame 0 and frame LOOP_LEN are
       // pixel-identical → the GIF loops with no visible seam.
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN);
+        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN, targetPlatform);
         gif.addFrame(octx, { copy: true, delay });
       }
       gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
       gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
-        setGifPreview({ url, blob });
+        setGifPreview({ url, blob, platform: targetPlatform });
         setExporting(false); setExportPct(0);
       });
       gif.render();
@@ -909,7 +912,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     if (!gifPreview) return;
     const a = document.createElement("a");
     a.href = gifPreview.url;
-    a.download = `bird-burger-${employee.id}-${platform}.gif`;
+    a.download = `bird-burger-${employee.id}-${gifPreview.platform}.gif`;
     a.click();
     onDownload();
   };
@@ -988,6 +991,30 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
             >
               {exporting ? `RENDERING ${exportPct}%` : "PREVIEW GIF LOOP"}
             </button>
+          </div>
+          <div className="mt-3 rounded-md border-2 border-robin/40 bg-black/30 p-3">
+            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">GIF export frame</div>
+            <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="GIF export frame shape">
+              {([
+                { id: "match", label: "MATCH PREVIEW", sub: platform === "x" ? "𝕏 · CIRCLE" : "DISCORD · SQUARE" },
+                { id: "x", label: "𝕏 · CIRCLE", sub: "Force circle" },
+                { id: "discord", label: "DISCORD", sub: "Force rounded" },
+              ] as { id: Platform | "match"; label: string; sub: string }[]).map((opt) => {
+                const active = exportPlatform === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setExportPlatform(opt.id)}
+                    className={`rounded-md border-2 px-2 py-2 text-left transition ${active ? "border-mustard bg-mustard/15 text-ink" : "border-ink/15 text-ink/60 hover:border-ink/30"}`}
+                  >
+                    <div className="font-display text-[10px] leading-tight tracking-widest">{opt.label}</div>
+                    <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-ink/50">{opt.sub}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <button onClick={share} className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-3 py-2 font-display text-xs tracking-widest text-cyan">
             <Share2 className="h-4 w-4"/> SHARE THE SHAME
@@ -1086,7 +1113,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
           >
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-robin">Seamless loop · {LOOP_LEN} frames · ~2s</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-robin">Seamless loop · {LOOP_LEN} frames · ~2s · {gifPreview.platform === "x" ? "𝕏 CIRCLE" : "DISCORD ROUNDED"}</div>
                 <div className="font-display text-lg tracking-widest">PREVIEW YOUR GIF</div>
               </div>
               <button
