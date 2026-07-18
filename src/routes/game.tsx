@@ -341,6 +341,11 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   const shakeRef = useRef(0); // seconds remaining
   const explosionRef = useRef(0); // 0..1 flash intensity remaining
   const viceRef = useRef({ smokeCd: 0, drinkCd: 0, buzz: 0 });
+  // Kitchen disasters
+  const alarmRef = useRef({ life: 0, strobe: 0 }); // life > 0 = smoke alarm blaring
+  const flareRef = useRef({ x: 0, y: 0, r: 0, life: 0, max: 0 }); // fryer flare-up radial burst
+  const signsRef = useRef<FallingSign[]>([]);
+  const [_disasterTick, setDisasterTick] = useState(0);
   const [_viceTick, setViceTick] = useState(0);
   // Movement particles: pixel dust puffs + impact flashes at feet
   type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; color: string; kind: "dust" | "flash" };
