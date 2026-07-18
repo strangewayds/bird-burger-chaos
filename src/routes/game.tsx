@@ -786,6 +786,14 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     const p = playerRef.current;
     const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.01);
     if (spillHit && carryRef.current.length === 0) {
+      const mop = mopRef.current;
+      const now = performance.now();
+      if (!mop.has) { pushFloat("GRAB MOP BUCKET!", "#22D3EE"); return; }
+      if (mop.charges <= 0) { pushFloat("BUCKET EMPTY — REFILL!", "#EF4444"); return; }
+      if (now < mop.nextSwing) return; // brief per-swing cooldown
+      mop.nextSwing = now + 320;
+      mop.charges -= 1;
+      setMopTick((t) => t + 1);
       spillHit.cleanT += 0.34;
       const cap = perfRef.current.scale;
       // per-tick tiny puff so mopping feels physical
