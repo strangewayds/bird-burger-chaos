@@ -654,6 +654,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   const sfx = useGameSfx(muted);
   const sfxRef = useRef(sfx);
   useEffect(() => { sfxRef.current = sfx; }, [sfx]);
+  const hapticsRef = useRef(haptics);
+  useEffect(() => { hapticsRef.current = haptics; }, [haptics]);
   // Resume AudioContext on first user gesture (autoplay policy)
   useEffect(() => {
     const kick = () => { sfxRef.current.ensure(); };
