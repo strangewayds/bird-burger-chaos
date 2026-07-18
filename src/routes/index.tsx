@@ -1001,7 +1001,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     if (!gifPreview) return;
     const a = document.createElement("a");
     a.href = gifPreview.url;
-    a.download = `bird-burger-${employee.id}-${gifPreview.platform}.gif`;
+    a.download = `bird-burger-${employee.id}-${gifPreview.platform}-seed${gifPreview.seed}.gif`;
     a.click();
     onDownload();
   };
