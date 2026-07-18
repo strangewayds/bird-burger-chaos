@@ -950,6 +950,60 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     const fr = fryerRef.current;
     if (fr.item) drawProgress(ctx, (fs.x + fs.w/2)*W, (fs.y - 0.02)*H, Math.min(1, fr.progress), fr.progress > 1 ? "#EF4444" : "#FACC15");
 
+    // Grease spills (draw beneath fires/pigeons but above floor)
+    for (const sp of spillsRef.current) {
+      const cx = sp.x * W, cy = sp.y * H;
+      const rx = sp.r * W * 1.15;
+      const ry = sp.r * H * 0.75;
+      const fade = Math.min(1, sp.life / 4) * (1 - sp.cleanT);
+      ctx.save();
+      // dark oily body
+      ctx.globalAlpha = 0.72 * fade;
+      const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, Math.max(rx, ry));
+      grad.addColorStop(0, `hsl(${sp.hue}, 55%, 18%)`);
+      grad.addColorStop(0.7, `hsl(${sp.hue}, 45%, 10%)`);
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // glossy highlight streak
+      ctx.globalAlpha = 0.55 * fade;
+      ctx.fillStyle = `hsl(${sp.hue}, 95%, 68%)`;
+      const gx = cx - rx * 0.35 + Math.sin(performance.now() / 700 + sp.wob) * 2;
+      const gy = cy - ry * 0.35;
+      ctx.beginPath();
+      ctx.ellipse(gx, gy, rx * 0.32, ry * 0.18, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      // little droplets around edge
+      ctx.globalAlpha = 0.5 * fade;
+      ctx.fillStyle = `hsl(${sp.hue}, 60%, 22%)`;
+      for (let i = 0; i < 4; i++) {
+        const a = sp.wob + i * 1.7;
+        const dx = Math.cos(a) * rx * 1.15;
+        const dy = Math.sin(a) * ry * 1.15;
+        ctx.beginPath();
+        ctx.arc(cx + dx, cy + dy, 2 + (i % 2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // cleaning progress ring
+      if (sp.cleanT > 0.01) {
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = "#22D3EE";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(rx, ry) + 4, -Math.PI / 2, -Math.PI / 2 + sp.cleanT * Math.PI * 2);
+        ctx.stroke();
+      }
+      // warning label
+      ctx.globalAlpha = 0.85 * fade;
+      ctx.fillStyle = "#FACC15";
+      ctx.font = "bold 9px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("⚠ GREASE", cx, cy + ry + 12);
+      ctx.restore();
+    }
+
     // Fires
     for (const fi of firesRef.current) {
       const cx = fi.x * W, cy = fi.y * H;
