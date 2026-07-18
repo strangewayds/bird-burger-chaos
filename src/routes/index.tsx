@@ -916,6 +916,25 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
           >
             {animated ? "◉ Live preview: ON (blink + jitter)" : "○ Live preview: OFF"}
           </button>
+          <div className={`mt-3 rounded-md border-2 p-3 transition ${animated ? "border-grape/60 bg-grape/10" : "border-ink/15 bg-black/20 opacity-60"}`}>
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">
+              <span>Animation Intensity</span>
+              <span className="text-mustard">
+                {intensity === 0 ? "OFF" : intensity < 25 ? "SUBTLE" : intensity < 55 ? "LIVELY" : intensity < 85 ? "GLITCHY" : "SEIZURE"} · {intensity}%
+              </span>
+            </div>
+            <input
+              type="range" min={0} max={100} value={intensity}
+              onChange={(e) => setIntensity(parseInt(e.target.value, 10))}
+              disabled={!animated}
+              className="w-full accent-pink-400 disabled:cursor-not-allowed"
+            />
+            <div className="mt-1 grid grid-cols-3 gap-1 font-mono text-[9px] uppercase tracking-widest text-ink/50">
+              <span>Jitter</span>
+              <span className="text-center">Blink</span>
+              <span className="text-right">Scanlines</span>
+            </div>
+          </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button onClick={download} className="rounded-md border-2 border-mustard bg-mustard px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
               PNG
