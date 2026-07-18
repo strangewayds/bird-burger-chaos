@@ -915,8 +915,8 @@ function Menu({ onOrder }: { onOrder: (name: string) => void }) {
             whileHover={{ y: -4, rotate: -0.5 }}
             className="group relative rounded-lg border-2 border-grape/40 bg-card p-4 shadow-[6px_6px_0_rgba(124,58,237,0.35)]"
           >
-            <div className="grid h-32 place-items-center rounded-md border border-ink/10 bg-gradient-to-br from-grape/20 to-black/50 text-6xl">
-              {m.icon}
+            <div className="relative aspect-[4/3] overflow-hidden rounded-md border border-grape/30 bg-gradient-to-br from-grape/20 to-black/60">
+              <img src={m.img} alt={m.name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
             </div>
             <div className="mt-3 flex items-start justify-between gap-2">
               <h3 className="font-display text-base leading-tight">{m.name}</h3>
