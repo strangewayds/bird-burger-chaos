@@ -1589,7 +1589,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       if (moving) {
         const baseTilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
         const bigRoll = isBig ? Math.sin(p.hopPhase) * 0.08 * p.face : 0;
-        const tilt = baseTilt + bigRoll;
+        // Anticipation lean: eases out (1 - (1-lean)^2) and points to new direction in scaled space
+        const leanEase = 1 - (1 - p.lean) * (1 - p.lean);
+        const antic = leanEase * p.leanDir * 0.26 * (p.face >= 0 ? 1 : -1);
+        const tilt = baseTilt + bigRoll + antic;
         ctx.translate(pxs, py + 16);
         ctx.rotate(tilt);
         ctx.translate(-pxs, -(py + 16));
