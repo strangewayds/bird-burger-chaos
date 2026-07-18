@@ -676,6 +676,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   const [handle, setHandle] = useState("@bird_burger");
   const [showBadge, setShowBadge] = useState(true);
   const [animated, setAnimated] = useState(true);
+  const [intensity, setIntensity] = useState(60);
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -694,11 +695,16 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
-  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated) => {
-    const jx = anim ? ((frame * 73) % 5) - 2 : 0;
-    const jy = anim ? ((frame * 131) % 5) - 2 : 0;
-    const blinking = anim && (frame % 60) < 4;
-    const pulse = anim ? 0.5 + 0.5 * Math.sin(frame / 6) : 0.7;
+  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number) => {
+    const iv = (intensityOverride ?? intensity) / 100; // 0..1
+    const jitterAmp = anim ? Math.max(1, Math.round(iv * 4)) : 0;
+    const jRange = jitterAmp * 2 + 1;
+    const jx = anim ? ((frame * 73) % jRange) - jitterAmp : 0;
+    const jy = anim ? ((frame * 131) % jRange) - jitterAmp : 0;
+    const blinkPeriod = Math.max(24, Math.round(90 - iv * 60)); // more intense = faster
+    const blinkDuration = Math.max(2, Math.round(3 + iv * 4));
+    const blinking = anim && iv > 0.05 && (frame % blinkPeriod) < blinkDuration;
+    const pulse = anim ? 0.5 + 0.5 * Math.sin(frame / 6) * (0.4 + iv * 0.6) : 0.7;
 
     ctx.save();
     ctx.clearRect(0, 0, size, size);
@@ -717,7 +723,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     }
     ctx.fillRect(0, 0, size, size);
 
-    ctx.globalAlpha = 0.08;
+    const scanAlpha = 0.02 + iv * 0.16;
+    ctx.globalAlpha = scanAlpha;
     const shift = anim ? frame % 3 : 0;
     for (let y = shift; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
     ctx.globalAlpha = 1;
@@ -749,15 +756,16 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       ctx.fillText("🐦", size/2, size*0.65);
     }
 
-    const hatBob = anim ? Math.sin(frame / 8) * 3 : 0;
+    const hatBob = anim ? Math.sin(frame / 8) * (1 + iv * 4) : 0;
     ctx.font = `bold ${size*0.176}px 'Apple Color Emoji','Segoe UI Emoji',sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(employee.hat, size*0.72 + jx, size*0.32 + hatBob);
 
-    if (anim && (frame % 30) < 18) {
+    const livePeriod = Math.max(14, Math.round(40 - iv * 26));
+    if (anim && (frame % livePeriod) < Math.round(livePeriod * 0.6)) {
       ctx.save();
       ctx.fillStyle = "#ff2e63";
-      ctx.shadowColor = "#ff2e63"; ctx.shadowBlur = 12;
+      ctx.shadowColor = "#ff2e63"; ctx.shadowBlur = 8 + iv * 14;
       ctx.beginPath(); ctx.arc(size*0.12, size*0.11, size*0.018, 0, Math.PI*2); ctx.fill();
       ctx.restore();
       ctx.fillStyle = "#fff";
@@ -812,7 +820,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empId, bgId, platform, handle, showBadge, animated]);
+  }, [empId, bgId, platform, handle, showBadge, animated, intensity]);
 
   const download = () => {
     const c = canvasRef.current; if (!c) return;
@@ -849,13 +857,11 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
         height: size,
         workerScript: (workerUrlMod as { default: string }).default,
       });
-      const wasAnimated = animated;
-      // force animated on for export regardless of toggle
+      const exportIntensity = animated ? intensity : Math.max(60, intensity);
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i, true);
+        drawFrame(octx, size, i, true, exportIntensity);
         gif.addFrame(octx, { copy: true, delay });
       }
-      void wasAnimated;
       gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
       gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
@@ -910,6 +916,25 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
           >
             {animated ? "◉ Live preview: ON (blink + jitter)" : "○ Live preview: OFF"}
           </button>
+          <div className={`mt-3 rounded-md border-2 p-3 transition ${animated ? "border-grape/60 bg-grape/10" : "border-ink/15 bg-black/20 opacity-60"}`}>
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">
+              <span>Animation Intensity</span>
+              <span className="text-mustard">
+                {intensity === 0 ? "OFF" : intensity < 25 ? "SUBTLE" : intensity < 55 ? "LIVELY" : intensity < 85 ? "GLITCHY" : "SEIZURE"} · {intensity}%
+              </span>
+            </div>
+            <input
+              type="range" min={0} max={100} value={intensity}
+              onChange={(e) => setIntensity(parseInt(e.target.value, 10))}
+              disabled={!animated}
+              className="w-full accent-pink-400 disabled:cursor-not-allowed"
+            />
+            <div className="mt-1 grid grid-cols-3 gap-1 font-mono text-[9px] uppercase tracking-widest text-ink/50">
+              <span>Jitter</span>
+              <span className="text-center">Blink</span>
+              <span className="text-right">Scanlines</span>
+            </div>
+          </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button onClick={download} className="rounded-md border-2 border-mustard bg-mustard px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
               PNG
