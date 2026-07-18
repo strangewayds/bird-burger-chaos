@@ -60,6 +60,7 @@ const STATIONS: Station[] = [
   { id: "assembly", kind: "assembly", x: 0.383, y: 0.872, w: 0.105, h: 0.056, label: "ASSEMBLY", color: "#7C3AED" },
   { id: "pickup", kind: "pickup", x: 0.921, y: 0.310, w: 0.049, h: 0.140, label: "PICK UP", color: "#EC4899" },
   { id: "extinguisher", kind: "extinguisher", x: 0.725, y: 0.605, w: 0.040, h: 0.070, label: "EXT.", color: "#EF4444" },
+  { id: "mop", kind: "mop", x: 0.795, y: 0.850, w: 0.045, h: 0.070, label: "MOP", color: "#22D3EE" },
 ];
 
 /* ─────────────────────────  ORDER RECIPES  ───────────────────────── */
