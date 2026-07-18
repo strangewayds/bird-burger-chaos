@@ -34,7 +34,7 @@ const ING_META: Record<Ing, { color: string; label: string; emoji: string }> = {
   nugget: { color: "#22D3EE", label: "Nuggets", emoji: "🍗" },
 };
 
-type StationKind = "fridge" | "cutting" | "raw_patty" | "cheese" | "sauce" | "grill" | "fryer" | "drink" | "assembly" | "pickup" | "extinguisher";
+type StationKind = "fridge" | "cutting" | "raw_patty" | "cheese" | "sauce" | "grill" | "fryer" | "drink" | "assembly" | "pickup" | "extinguisher" | "mop";
 
 type Station = {
   id: string;
@@ -60,6 +60,7 @@ const STATIONS: Station[] = [
   { id: "assembly", kind: "assembly", x: 0.383, y: 0.872, w: 0.105, h: 0.056, label: "ASSEMBLY", color: "#7C3AED" },
   { id: "pickup", kind: "pickup", x: 0.921, y: 0.310, w: 0.049, h: 0.140, label: "PICK UP", color: "#EC4899" },
   { id: "extinguisher", kind: "extinguisher", x: 0.725, y: 0.605, w: 0.040, h: 0.070, label: "EXT.", color: "#EF4444" },
+  { id: "mop", kind: "mop", x: 0.795, y: 0.850, w: 0.045, h: 0.070, label: "MOP", color: "#22D3EE" },
 ];
 
 /* ─────────────────────────  ORDER RECIPES  ───────────────────────── */
@@ -627,6 +628,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   const [cleanCombo, setCleanCombo] = useState(0);
   const floatsRef = useRef<FloatText[]>([]);
   const hasExtinguisherRef = useRef(false);
+  const mopRef = useRef({ has: false, charges: 0, max: 5, nextSwing: 0 });
+  const [_mopTick, setMopTick] = useState(0);
   const grillRef = useRef({ progress: 0, item: null as Ing | null });
   const fryerRef = useRef({ progress: 0, item: null as Ing | null });
   const minimapRef = useRef<HTMLDivElement | null>(null);
@@ -783,6 +786,14 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     const p = playerRef.current;
     const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.01);
     if (spillHit && carryRef.current.length === 0) {
+      const mop = mopRef.current;
+      const now = performance.now();
+      if (!mop.has) { pushFloat("GRAB MOP BUCKET!", "#22D3EE"); return; }
+      if (mop.charges <= 0) { pushFloat("BUCKET EMPTY — REFILL!", "#EF4444"); return; }
+      if (now < mop.nextSwing) return; // brief per-swing cooldown
+      mop.nextSwing = now + 320;
+      mop.charges -= 1;
+      setMopTick((t) => t + 1);
       spillHit.cleanT += 0.34;
       const cap = perfRef.current.scale;
       // per-tick tiny puff so mopping feels physical
@@ -950,6 +961,21 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
       case "extinguisher": {
         hasExtinguisherRef.current = true;
         pushFloat("EXTINGUISHER!", "#EF4444");
+        break;
+      }
+      case "mop": {
+        const mop = mopRef.current;
+        if (!mop.has) {
+          mop.has = true;
+          mop.charges = mop.max;
+          pushFloat("MOP BUCKET!", "#22D3EE");
+        } else if (mop.charges < mop.max) {
+          mop.charges = mop.max;
+          pushFloat("REFILLED", "#22D3EE");
+        } else {
+          pushFloat("BUCKET FULL", "#22D3EE");
+        }
+        setMopTick((t) => t + 1);
         break;
       }
     }
@@ -2142,6 +2168,20 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
       ctx.fillStyle = "#000";
       ctx.fillRect(px - 32, py - 24, 8, 4);
     }
+    if (mopRef.current.has) {
+      ctx.save();
+      ctx.translate(px + 26, py - 4);
+      ctx.rotate(-0.35);
+      // handle
+      ctx.fillStyle = "#A0522D";
+      ctx.fillRect(-2, -26, 4, 32);
+      // mop head
+      ctx.fillStyle = mopRef.current.charges > 0 ? "#22D3EE" : "#6B7280";
+      ctx.fillRect(-8, -32, 16, 8);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(-8, -24, 16, 2);
+      ctx.restore();
+    }
 
     // Floats
     for (const fl of floatsRef.current) {
@@ -2256,6 +2296,37 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             <StatRow label="Pigeons Chased" value={statsRef.current.pigeonsChased} />
             <StatRow label="Dropped" value={statsRef.current.dropped} />
           </div>
+          {(() => {
+            const mop = mopRef.current;
+            const chargePct = mop.has ? mop.charges / mop.max : 0;
+            const empty = mop.has && mop.charges === 0;
+            const borderColor = !mop.has ? "border-white/20" : empty ? "border-[#EF4444]" : "border-[#22D3EE]/60";
+            return (
+              <div className={`rounded-lg border-2 ${borderColor} bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur`}>
+                <div className="mb-1 flex items-center justify-between font-black text-[#22D3EE]">
+                  <span>🪣 MOP BUCKET</span>
+                  <span className={empty ? "text-[#EF4444]" : "text-white/70"}>
+                    {mop.has ? `${mop.charges}/${mop.max}` : "MISSING"}
+                  </span>
+                </div>
+                {mop.has ? (
+                  <>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full transition-[width] duration-150"
+                        style={{ width: `${chargePct * 100}%`, background: empty ? "#EF4444" : chargePct > 0.4 ? "#22D3EE" : "#FACC15" }}
+                      />
+                    </div>
+                    <div className="mt-1 text-white/60">
+                      {empty ? "Return to 🪣 to refill." : "E / SPACE to mop spills."}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-white/60">Grab the 🪣 bucket to mop grease spills.</div>
+                )}
+              </div>
+            );
+          })()}
           {firesRef.current.length > 0 && (() => {
             const worst = firesRef.current.reduce((a, b) => (a.danger < b.danger ? a : b));
             const pct = Math.max(0, Math.min(1, worst.danger / worst.dangerMax));
