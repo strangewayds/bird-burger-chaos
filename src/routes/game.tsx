@@ -1683,9 +1683,12 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     // Grease spills (draw beneath fires/pigeons but above floor)
     for (const sp of spillsRef.current) {
       const cx = sp.x * W, cy = sp.y * H;
-      const rx = sp.r * W * 1.15;
-      const ry = sp.r * H * 0.75;
-      const fade = Math.min(1, sp.life / 4) * (1 - sp.cleanT);
+      // shrink visibly as it's mopped (radius drops with cleanT)
+      const shrink = 1 - sp.cleanT * 0.55;
+      const rx = sp.r * W * 1.15 * shrink;
+      const ry = sp.r * H * 0.75 * shrink;
+      // stronger, nonlinear fade so it clearly disappears near completion
+      const fade = Math.min(1, sp.life / 4) * Math.pow(1 - sp.cleanT, 1.6);
       ctx.save();
       // dark oily body
       ctx.globalAlpha = 0.72 * fade;
@@ -1716,15 +1719,25 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
         ctx.arc(cx + dx, cy + dy, 2 + (i % 2), 0, Math.PI * 2);
         ctx.fill();
       }
-      // cleaning progress ring
+      // cleaning progress ring — thicker + pulsing as it approaches full
       if (sp.cleanT > 0.01) {
-        ctx.globalAlpha = 0.9;
-        ctx.strokeStyle = "#22D3EE";
-        ctx.lineWidth = 3;
+        const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 90);
+        ctx.globalAlpha = 0.85 + 0.15 * sp.cleanT;
+        ctx.strokeStyle = sp.cleanT > 0.75 ? "#FACC15" : "#22D3EE";
+        ctx.lineWidth = 3 + sp.cleanT * 2.5;
         ctx.beginPath();
-        ctx.arc(cx, cy, Math.max(rx, ry) + 4, -Math.PI / 2, -Math.PI / 2 + sp.cleanT * Math.PI * 2);
+        ctx.arc(cx, cy, Math.max(rx, ry) + 4 + sp.cleanT * 3, -Math.PI / 2, -Math.PI / 2 + sp.cleanT * Math.PI * 2);
         ctx.stroke();
+        // soft glow behind ring as it fills
+        if (sp.cleanT > 0.5) {
+          ctx.globalAlpha = 0.25 * (sp.cleanT - 0.5) * 2 * pulse;
+          ctx.fillStyle = sp.cleanT > 0.75 ? "#FACC15" : "#22D3EE";
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, rx * 1.25, ry * 1.25, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
+
       // warning label
       ctx.globalAlpha = 0.85 * fade;
       ctx.fillStyle = "#FACC15";
