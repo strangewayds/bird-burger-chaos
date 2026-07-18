@@ -996,7 +996,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
             fi.life -= dt * 6;
             fi.danger = Math.min(fi.dangerMax, fi.danger + dt * 2); // resets timer
             // spray particles
-            if (Math.random() < 0.85) {
+            if (Math.random() < 0.85 * perfRef.current.scale) {
               const ang = Math.atan2(fi.y - playerRef.current.y, fi.x - playerRef.current.x) + (Math.random() - 0.5) * 0.5;
               particlesRef.current.push({
                 type: "dust",
