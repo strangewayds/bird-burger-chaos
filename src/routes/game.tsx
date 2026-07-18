@@ -2498,6 +2498,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
               {motionMode === "reduced" ? "No dash trails or strobe flashes; softer shake & squash." : "Full shake, trails, flashes & squash chaos."}
             </div>
           </div>
+          </>)}
         </div>
 
 
