@@ -784,17 +784,63 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.01);
     if (spillHit && carryRef.current.length === 0) {
       spillHit.cleanT += 0.34;
+      const cap = perfRef.current.scale;
+      // per-tick tiny puff so mopping feels physical
+      for (let i = 0; i < Math.round(3 * cap); i++) {
+        const a = Math.random() * Math.PI * 2;
+        const rr = spillHit.r * (0.4 + Math.random() * 0.7);
+        particlesRef.current.push({
+          x: spillHit.x + Math.cos(a) * rr, y: spillHit.y + Math.sin(a) * rr * 0.6,
+          vx: Math.cos(a) * 0.15, vy: Math.sin(a) * 0.08 - 0.05,
+          life: 0, max: 0.28 + Math.random() * 0.12, size: 3 + Math.random() * 2,
+          color: `hsl(${spillHit.hue}, 55%, ${22 + Math.random() * 12}%)`, kind: "dust",
+        });
+      }
+      const pitch = 1 + Math.min(0.6, cleanComboRef.current.count * 0.08);
+      sfxRef.current.mop(0.9, pitch);
       if (spillHit.cleanT >= 1) {
+        // combo window: 3.2s to chain another finish
+        const now = performance.now();
+        const combo = cleanComboRef.current;
+        if (now < combo.expires) combo.count += 1; else combo.count = 1;
+        combo.expires = now + 3200;
+        setCleanCombo(combo.count);
+        const multi = 1 + (combo.count - 1) * 0.5;
+        const gained = Math.round(40 * multi);
+        // splash burst — big directional flick, colored to spill
+        const burst = Math.round(18 * cap);
+        for (let i = 0; i < burst; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = 0.4 + Math.random() * 0.9;
+          particlesRef.current.push({
+            x: spillHit.x, y: spillHit.y,
+            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.55 - 0.25,
+            life: 0, max: 0.5 + Math.random() * 0.25, size: 3 + Math.random() * 3,
+            color: `hsl(${spillHit.hue}, 65%, ${28 + Math.random() * 20}%)`, kind: "dust",
+          });
+        }
+        // ring flash — cyan for clean, gold on combo≥3
+        particlesRef.current.push({
+          x: spillHit.x, y: spillHit.y, vx: 0, vy: 0,
+          life: 0, max: 0.32, size: spillHit.r * 260,
+          color: combo.count >= 3 ? "#FACC15" : "#22D3EE", kind: "flash",
+        });
         spillsRef.current = spillsRef.current.filter((sp) => sp !== spillHit);
-        scoreRef.current += 40;
+        scoreRef.current += gained;
         setScore(scoreRef.current);
-        chaosRef.current = Math.max(0, chaosRef.current - 0.4);
-        pushFloat("+ MOPPED", "#22D3EE");
+        chaosRef.current = Math.max(0, chaosRef.current - 0.4 - combo.count * 0.06);
+        sfxRef.current.mopDone(combo.count);
+        if (combo.count >= 2) {
+          pushFloat(`x${combo.count} COMBO  +${gained}`, combo.count >= 3 ? "#FACC15" : "#22D3EE");
+        } else {
+          pushFloat(`+ MOPPED  +${gained}`, "#22D3EE");
+        }
       } else {
         pushFloat("MOPPING…", "#22D3EE");
       }
       return;
     }
+
     const s = nearestStation();
     if (!s) return;
     const carry = carryRef.current;
