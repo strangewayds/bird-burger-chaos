@@ -77,21 +77,32 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Bird Burger — The Worst Restaurant on the Blockchain" },
+      {
+        name: "description",
+        content:
+          "Order liquidity fries, call the world's worst kitchen, fire Larry, and enter the most unnecessary restaurant on Robinhood Chain.",
+      },
+      { name: "theme-color", content: "#09090b" },
+      { property: "og:title", content: "Bird Burger — The Worst Restaurant on the Blockchain" },
+      {
+        property: "og:description",
+        content:
+          "Order liquidity fries, call the world's worst kitchen, fire Larry, and enter the most unnecessary restaurant on Robinhood Chain.",
+      },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Bird Burger" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;700&family=VT323&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,
