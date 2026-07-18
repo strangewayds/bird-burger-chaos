@@ -756,8 +756,11 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   const [intensity, setIntensity] = useState(60);
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
-  const [gifPreview, setGifPreview] = useState<{ url: string; blob: Blob; platform: Platform } | null>(null);
+  const [gifPreview, setGifPreview] = useState<{ url: string; blob: Blob; platform: Platform; seed: number } | null>(null);
   const [exportPlatform, setExportPlatform] = useState<Platform | "match">("match");
+  const [seed, setSeed] = useState<number>(1337);
+  const [lockSeed, setLockSeed] = useState<boolean>(true);
+
   const LOOP_LEN = 30;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
