@@ -2144,13 +2144,16 @@ function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: stri
 
 
 
-function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volume, setVolume, onConnect, wallet, wrongNet }: {
+function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volume, setVolume, ambVolume, setAmbVolume, onConnect, wallet, wrongNet }: {
   open: boolean; setOpen: (b: boolean) => void; muted: boolean; setMuted: (b: boolean) => void;
   onRandomizeTrack: () => void; trackName: string;
   volume: number; setVolume: (n: number) => void;
+  ambVolume: number; setAmbVolume: (n: number) => void;
   onConnect: () => void; wallet: string | null; wrongNet: boolean;
 }) {
   const volPct = Math.round(volume * 100);
+  const ambPct = Math.round(ambVolume * 100);
+
   return (
     <header className="sticky top-0 z-50 border-b-2 border-grape/40 bg-bg/85 backdrop-blur-md">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
