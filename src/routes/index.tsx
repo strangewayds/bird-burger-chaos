@@ -1069,6 +1069,49 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
               <span className="text-right">Scanlines</span>
             </div>
           </div>
+          <div className={`mt-3 rounded-md border-2 p-3 transition ${animated ? "border-cyan/60 bg-cyan/5" : "border-ink/15 bg-black/20 opacity-60"}`}>
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">
+              <span>Randomness Seed</span>
+              <button
+                type="button"
+                onClick={() => setLockSeed((v) => !v)}
+                disabled={!animated}
+                className={`rounded border px-1.5 py-0.5 font-display text-[9px] tracking-widest transition ${lockSeed ? "border-mustard bg-mustard/20 text-mustard" : "border-ink/30 text-ink/50 hover:text-ink"}`}
+                aria-pressed={lockSeed}
+                title={lockSeed ? "Seed locked — same jitter/blink pattern every export" : "Seed unlocked — a fresh random pattern each render"}
+              >
+                {lockSeed ? "🔒 LOCKED" : "🔓 UNLOCKED"}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={seed}
+                min={0}
+                max={999999}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setSeed(Number.isFinite(n) ? Math.max(0, Math.min(999999, n)) : 0);
+                }}
+                disabled={!animated || lockSeed}
+                className="w-full rounded-md border-2 border-ink/20 bg-black/40 px-2 py-1.5 font-mono text-sm text-ink outline-none focus:border-cyan disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Randomness seed"
+              />
+              <button
+                type="button"
+                onClick={() => { setLockSeed(false); setSeed(Math.floor(Math.random() * 1_000_000)); }}
+                disabled={!animated}
+                className="rounded-md border-2 border-cyan bg-cyan/10 px-2 py-1.5 font-display text-[10px] tracking-widest text-cyan hover:bg-cyan/20 transition disabled:cursor-not-allowed disabled:opacity-50"
+                title="Roll a fresh seed"
+              >🎲 ROLL</button>
+            </div>
+            <div className="mt-1 font-mono text-[9px] uppercase tracking-widest text-ink/50">
+              {lockSeed
+                ? "Locked — this exact jitter/blink pattern reproduces on every export"
+                : "Unlocked — edit or roll to preview a new pattern, then lock to save it"}
+            </div>
+          </div>
+
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button onClick={download} className="rounded-md border-2 border-mustard bg-mustard px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
               PNG
