@@ -326,7 +326,9 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
 
   // Persistent refs (game loop reads/writes)
   const keysRef = useRef<Record<string, boolean>>({});
-  const playerRef = useRef({ x: 0.4, y: 0.55, vx: 0, vy: 0, dashCd: 0, slipT: 0, face: 1, moveT: 0, hopPhase: 0, landT: 0, hopIdx: -1, idleT: 0, lean: 0, leanDir: 0 });
+  const playerRef = useRef({ x: 0.4, y: 0.55, vx: 0, vy: 0, dashCd: 0, slipT: 0, face: 1, faceVel: 0, dirAvg: 1, moveT: 0, hopPhase: 0, landT: 0, hopIdx: -1, idleT: 0, lean: 0, leanDir: 0 });
+  // Ring buffer of recent horizontal input for weighted-average facing (kills jitter on quick flips)
+  const dirHistoryRef = useRef<{ dx: number; w: number }[]>([]);
   const carryRef = useRef<Ing[]>([]);
   const ordersRef = useRef<Order[]>([]);
   const orderIdRef = useRef(1);
