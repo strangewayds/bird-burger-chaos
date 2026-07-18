@@ -982,11 +982,11 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
               PNG
             </button>
             <button
-              onClick={downloadGif}
+              onClick={renderGif}
               disabled={exporting}
               className="rounded-md border-2 border-robin bg-robin px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
             >
-              {exporting ? `RENDERING ${exportPct}%` : "ANIMATED GIF"}
+              {exporting ? `RENDERING ${exportPct}%` : "PREVIEW GIF LOOP"}
             </button>
           </div>
           <button onClick={share} className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-3 py-2 font-display text-xs tracking-widest text-cyan">
