@@ -473,7 +473,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     ctx.fillRect(0, 0, size, size);
 
     ctx.globalAlpha = 0.08;
-    const shift = animated ? frame % 3 : 0;
+    const shift = anim ? frame % 3 : 0;
     for (let y = shift; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
     ctx.globalAlpha = 1;
 
@@ -504,7 +504,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       ctx.fillText("🐦", size/2, size*0.65);
     }
 
-    const hatBob = animated ? Math.sin(frame / 8) * 3 : 0;
+    const hatBob = anim ? Math.sin(frame / 8) * 3 : 0;
     ctx.font = `bold ${size*0.176}px 'Apple Color Emoji','Segoe UI Emoji',sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(employee.hat, size*0.72 + jx, size*0.32 + hatBob);
