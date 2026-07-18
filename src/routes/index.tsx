@@ -396,10 +396,18 @@ const MEME_TRACKS: MemeTrack[] = [
   },
 ];
 
-function useFartSong(muted: boolean, trackId: string) {
+function useFartSong(muted: boolean, trackId: string, volume: number) {
   const ctxRef = useRef<AudioContext | null>(null);
+  const masterRef = useRef<GainNode | null>(null);
   const stoppedRef = useRef(true);
   const timerRef = useRef<number | null>(null);
+
+  // Live-update master gain without tearing down the schedule loop.
+  useEffect(() => {
+    if (!masterRef.current || !ctxRef.current) return;
+    const now = ctxRef.current.currentTime;
+    masterRef.current.gain.setTargetAtTime(muted ? 0 : Math.max(0, Math.min(1, volume)) * 0.9, now, 0.05);
+  }, [volume, muted]);
 
   useEffect(() => {
     if (muted) {
@@ -413,6 +421,12 @@ function useFartSong(muted: boolean, trackId: string) {
     } catch { return; }
     const ctx = ctxRef.current!;
     if (ctx.state === "suspended") ctx.resume();
+    if (!masterRef.current) {
+      masterRef.current = ctx.createGain();
+      masterRef.current.gain.value = Math.max(0, Math.min(1, volume)) * 0.9;
+      masterRef.current.connect(ctx.destination);
+    }
+    const out = masterRef.current;
     stoppedRef.current = false;
 
     const track = MEME_TRACKS.find((t) => t.id === trackId) ?? MEME_TRACKS[0];
@@ -437,7 +451,7 @@ function useFartSong(muted: boolean, trackId: string) {
       g.gain.exponentialRampToValueAtTime(0.14, when + 0.02);
       g.gain.setValueAtTime(0.12, when + Math.max(0.03, dur * 0.6));
       g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-      osc.connect(bp); osc2.connect(bp); bp.connect(g); g.connect(ctx.destination);
+      osc.connect(bp); osc2.connect(bp); bp.connect(g); g.connect(out);
       osc.start(when); osc2.start(when); vib.start(when);
       const s = when + dur + 0.02;
       osc.stop(s); osc2.stop(s); vib.stop(s);
@@ -454,7 +468,7 @@ function useFartSong(muted: boolean, trackId: string) {
       g.gain.setValueAtTime(0.0001, when);
       g.gain.exponentialRampToValueAtTime(0.18, when + 0.03);
       g.gain.exponentialRampToValueAtTime(0.0001, when + dur * 0.85);
-      osc.connect(lp); lp.connect(g); g.connect(ctx.destination);
+      osc.connect(lp); lp.connect(g); g.connect(out);
       osc.start(when); osc.stop(when + dur);
     };
 
@@ -468,7 +482,7 @@ function useFartSong(muted: boolean, trackId: string) {
       g.gain.setValueAtTime(0.0001, when);
       g.gain.exponentialRampToValueAtTime(0.12, when + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, when + 0.22);
-      o.connect(g); g.connect(ctx.destination);
+      o.connect(g); g.connect(out);
       o.start(when); o.stop(when + 0.24);
     };
 
@@ -503,6 +517,162 @@ function useFartSong(muted: boolean, trackId: string) {
   }, [muted, trackId]);
 }
 
+/* Shitty-restaurant ambience: fryer sizzle, soda pop hiss, doorbell clang,
+   and low mumbling "complaints" — synthesized with Web Audio, no assets. */
+function useKitchenAmbience(muted: boolean, volume: number) {
+  const ctxRef = useRef<AudioContext | null>(null);
+  const masterRef = useRef<GainNode | null>(null);
+  const noiseBufRef = useRef<AudioBuffer | null>(null);
+  const stoppedRef = useRef(true);
+  const nextTimerRef = useRef<number | null>(null);
+  const sizzleStopRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (!masterRef.current || !ctxRef.current) return;
+    const now = ctxRef.current.currentTime;
+    // Ambience sits under the music — cap at ~0.55 of the slider.
+    masterRef.current.gain.setTargetAtTime(muted ? 0 : Math.max(0, Math.min(1, volume)) * 0.55, now, 0.08);
+  }, [volume, muted]);
+
+  useEffect(() => {
+    if (muted) {
+      stoppedRef.current = true;
+      if (nextTimerRef.current) { window.clearTimeout(nextTimerRef.current); nextTimerRef.current = null; }
+      if (sizzleStopRef.current) { sizzleStopRef.current(); sizzleStopRef.current = null; }
+      if (ctxRef.current) { try { ctxRef.current.suspend(); } catch {} }
+      return;
+    }
+    try {
+      if (!ctxRef.current) ctxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch { return; }
+    const ctx = ctxRef.current!;
+    if (ctx.state === "suspended") ctx.resume();
+    if (!masterRef.current) {
+      masterRef.current = ctx.createGain();
+      masterRef.current.gain.value = Math.max(0, Math.min(1, volume)) * 0.55;
+      masterRef.current.connect(ctx.destination);
+    }
+    if (!noiseBufRef.current) {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      noiseBufRef.current = buf;
+    }
+    const out = masterRef.current;
+    const noiseBuf = noiseBufRef.current;
+    stoppedRef.current = false;
+
+    // Constant low fryer sizzle bed
+    const sizzleSrc = ctx.createBufferSource();
+    sizzleSrc.buffer = noiseBuf; sizzleSrc.loop = true;
+    const sizzleBp = ctx.createBiquadFilter();
+    sizzleBp.type = "bandpass"; sizzleBp.frequency.value = 3200; sizzleBp.Q.value = 0.8;
+    const sizzleHp = ctx.createBiquadFilter();
+    sizzleHp.type = "highpass"; sizzleHp.frequency.value = 1800;
+    const sizzleG = ctx.createGain();
+    sizzleG.gain.value = 0.06;
+    // Slow LFO to make it wobble like a tired fryer
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
+    lfo.frequency.value = 0.13; lfoG.gain.value = 0.03;
+    lfo.connect(lfoG); lfoG.connect(sizzleG.gain);
+    sizzleSrc.connect(sizzleBp); sizzleBp.connect(sizzleHp); sizzleHp.connect(sizzleG); sizzleG.connect(out);
+    sizzleSrc.start(); lfo.start();
+    sizzleStopRef.current = () => {
+      try { sizzleSrc.stop(); } catch {}
+      try { lfo.stop(); } catch {}
+    };
+
+    // One-shots
+    const sodaHiss = (when: number) => {
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuf;
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass"; hp.frequency.value = 4000;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(0.35, when + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + 0.85);
+      src.connect(hp); hp.connect(g); g.connect(out);
+      src.start(when); src.stop(when + 0.9);
+    };
+
+    const doorBell = (when: number) => {
+      // Two-tone shop bell "ding"
+      [1760, 2637].forEach((f, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = f;
+        const t0 = when + i * 0.12;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.28, t0 + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
+        o.connect(g); g.connect(out);
+        o.start(t0); o.stop(t0 + 1.15);
+      });
+    };
+
+    const complaint = (when: number) => {
+      // Muffled "wah-wah-wah" grumble through heavy lowpass
+      const syllables = 3 + Math.floor(Math.random() * 3);
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = 520; lp.Q.value = 0.7;
+      const bus = ctx.createGain();
+      bus.gain.value = 0.22;
+      lp.connect(bus); bus.connect(out);
+      let t = when;
+      for (let i = 0; i < syllables; i++) {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sawtooth";
+        const base = 110 + Math.random() * 90;
+        o.frequency.setValueAtTime(base, t);
+        o.frequency.linearRampToValueAtTime(base * (0.6 + Math.random() * 0.7), t + 0.28);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.5, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+        o.connect(g); g.connect(lp);
+        o.start(t); o.stop(t + 0.34);
+        t += 0.22 + Math.random() * 0.18;
+      }
+    };
+
+    const fryDrop = (when: number) => {
+      // "psssssshhh" of frozen fries hitting oil — burst of filtered noise
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass"; bp.frequency.value = 2400; bp.Q.value = 0.6;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(0.5, when + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.08, when + 0.6);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + 1.6);
+      src.connect(bp); bp.connect(g); g.connect(out);
+      src.start(when); src.stop(when + 1.7);
+    };
+
+    const oneShots = [sodaHiss, doorBell, complaint, fryDrop];
+
+    const scheduleNext = () => {
+      if (stoppedRef.current || !ctxRef.current) return;
+      const pick = oneShots[Math.floor(Math.random() * oneShots.length)];
+      pick(ctx.currentTime + 0.05);
+      const delay = 2600 + Math.random() * 5200; // 2.6–7.8s
+      nextTimerRef.current = window.setTimeout(scheduleNext, delay);
+    };
+    // First one-shot after a short delay so it doesn't collide with track start.
+    nextTimerRef.current = window.setTimeout(scheduleNext, 1400);
+
+    return () => {
+      stoppedRef.current = true;
+      if (nextTimerRef.current) { window.clearTimeout(nextTimerRef.current); nextTimerRef.current = null; }
+      if (sizzleStopRef.current) { sizzleStopRef.current(); sizzleStopRef.current = null; }
+    };
+  }, [muted]);
+}
+
+
 
 /* ─────────────────────────  PAGE  ───────────────────────── */
 
@@ -515,9 +685,17 @@ function BirdBurgerPage() {
   const [wrongNet, setWrongNet] = useState(false);
   const [bucks, setBucks] = useState(0);
   const [trackId, setTrackId] = useState<string>(MEME_TRACKS[0].id);
+  const [volume, setVolume] = useState<number>(() => {
+    if (typeof window === "undefined") return 0.6;
+    const saved = window.localStorage.getItem("bb_volume");
+    const n = saved ? parseFloat(saved) : NaN;
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.6;
+  });
+  useEffect(() => { try { localStorage.setItem("bb_volume", String(volume)); } catch {} }, [volume]);
 
   const play = useSound(muted);
-  useFartSong(muted, trackId);
+  useFartSong(muted, trackId, volume);
+  useKitchenAmbience(muted, volume);
 
   const randomizeTrack = () => {
     const others = MEME_TRACKS.filter((t) => t.id !== trackId);
@@ -546,6 +724,8 @@ function BirdBurgerPage() {
         setMuted={setMuted}
         onRandomizeTrack={randomizeTrack}
         trackName={MEME_TRACKS.find((t) => t.id === trackId)?.name ?? ""}
+        volume={volume}
+        setVolume={setVolume}
         onConnect={() => setWalletOpen(true)}
         wallet={wallet}
         wrongNet={wrongNet}
@@ -1953,11 +2133,13 @@ function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: stri
 
 
 
-function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, onConnect, wallet, wrongNet }: {
+function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volume, setVolume, onConnect, wallet, wrongNet }: {
   open: boolean; setOpen: (b: boolean) => void; muted: boolean; setMuted: (b: boolean) => void;
   onRandomizeTrack: () => void; trackName: string;
+  volume: number; setVolume: (n: number) => void;
   onConnect: () => void; wallet: string | null; wrongNet: boolean;
 }) {
+  const volPct = Math.round(volume * 100);
   return (
     <header className="sticky top-0 z-50 border-b-2 border-grape/40 bg-bg/85 backdrop-blur-md">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
@@ -1986,9 +2168,34 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, onCo
           >
             <Shuffle className="h-4 w-4" />
           </button>
-          <button onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute sounds" : "Mute sounds"} className="grid h-10 w-10 place-items-center rounded-md border border-ink/20 text-ink/70 hover:bg-ink/10">
-            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-          </button>
+          <div className="flex items-center gap-2 rounded-md border border-ink/20 bg-bg/60 px-2 py-1.5">
+            <button
+              onClick={() => setMuted(!muted)}
+              aria-label={muted ? "Unmute sounds" : "Mute sounds"}
+              className="grid h-7 w-7 place-items-center rounded text-ink/80 hover:bg-ink/10"
+            >
+              {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={muted ? 0 : volPct}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10) / 100;
+                setVolume(v);
+                if (muted && v > 0) setMuted(false);
+                if (!muted && v === 0) setMuted(true);
+              }}
+              aria-label="Volume"
+              title={`Volume ${muted ? 0 : volPct}%`}
+              className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-ink/20 accent-mustard sm:w-24"
+              style={{
+                backgroundImage: `linear-gradient(to right, var(--color-mustard, #f4b400) 0%, var(--color-mustard, #f4b400) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) 100%)`,
+              }}
+            />
+          </div>
           <button
             onClick={onConnect}
             className={`hidden items-center gap-2 rounded-md border-2 px-3 py-2 text-xs font-bold uppercase tracking-wider transition-all sm:inline-flex ${
