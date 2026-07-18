@@ -430,32 +430,37 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   const [platform, setPlatform] = useState<Platform>("x");
   const [handle, setHandle] = useState("@bird_burger");
   const [showBadge, setShowBadge] = useState(true);
+  const [animated, setAnimated] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportPct, setExportPct] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const imgReady = useRef(false);
+  const rafRef = useRef<number | null>(null);
+  const frameRef = useRef(0);
 
   const employee = PFP_CREW.find((e) => e.id === empId)!;
   const bg = PFP_BGS.find((b) => b.id === bgId)!;
 
-  // Preload mascot image once
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = mascotHero.url;
-    img.onload = () => { imgRef.current = img; draw(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
-  const draw = () => {
-    const c = canvasRef.current; if (!c) return;
-    const size = 512; c.width = size; c.height = size;
-    const ctx = c.getContext("2d"); if (!ctx) return;
+  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated) => {
+    const jx = anim ? ((frame * 73) % 5) - 2 : 0;
+    const jy = anim ? ((frame * 131) % 5) - 2 : 0;
+    const blinking = anim && (frame % 60) < 4;
+    const pulse = anim ? 0.5 + 0.5 * Math.sin(frame / 6) : 0.7;
 
-    // Background
     ctx.save();
+    ctx.clearRect(0, 0, size, size);
     if (platform === "x") {
       ctx.beginPath(); ctx.arc(size/2, size/2, size/2, 0, Math.PI*2); ctx.clip();
     } else {
-      const r = 96; roundRect(ctx, 0, 0, size, size, r); ctx.clip();
+      roundRect(ctx, 0, 0, size, size, size * 0.1875); ctx.clip();
     }
     if (bg.value.startsWith("linear:")) {
       const stops = bg.value.slice(7).split(",");
@@ -467,72 +472,102 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     }
     ctx.fillRect(0, 0, size, size);
 
-    // Grain / scanlines
     ctx.globalAlpha = 0.08;
-    for (let y = 0; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
+    const shift = anim ? frame % 3 : 0;
+    for (let y = shift; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
     ctx.globalAlpha = 1;
 
-    // Tint halo behind mascot
+    const haloAlpha = Math.floor(0x99 + pulse * 0x40).toString(16).padStart(2, "0");
     const halo = ctx.createRadialGradient(size/2, size*0.55, 20, size/2, size*0.55, size*0.55);
-    halo.addColorStop(0, employee.tint + "cc");
+    halo.addColorStop(0, employee.tint + haloAlpha);
     halo.addColorStop(1, "transparent");
     ctx.fillStyle = halo; ctx.fillRect(0, 0, size, size);
 
-    // Mascot
     const img = imgRef.current;
     if (img) {
       const mSize = size * 0.82;
-      const mx = (size - mSize) / 2;
-      const my = size - mSize + 20;
-      // Tinted shadow
+      const mx = (size - mSize) / 2 + jx;
+      const my = size - mSize + 20 + jy;
       ctx.save();
-      ctx.shadowColor = employee.tint; ctx.shadowBlur = 40;
+      ctx.shadowColor = employee.tint; ctx.shadowBlur = 30 + pulse * 20;
       ctx.drawImage(img, mx, my, mSize, mSize);
       ctx.restore();
+
+      if (blinking) {
+        ctx.save();
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillRect(mx + mSize * 0.28, my + mSize * 0.30, mSize * 0.45, mSize * 0.045);
+        ctx.restore();
+      }
     } else {
-      ctx.fillStyle = "#fff"; ctx.font = "bold 180px sans-serif"; ctx.textAlign = "center";
+      ctx.fillStyle = "#fff"; ctx.font = `bold ${size*0.35}px sans-serif`; ctx.textAlign = "center";
       ctx.fillText("🐦", size/2, size*0.65);
     }
 
-    // Hat/prop emoji
-    ctx.font = "bold 90px 'Apple Color Emoji','Segoe UI Emoji',sans-serif";
+    const hatBob = anim ? Math.sin(frame / 8) * 3 : 0;
+    ctx.font = `bold ${size*0.176}px 'Apple Color Emoji','Segoe UI Emoji',sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText(employee.hat, size*0.72, size*0.32);
+    ctx.fillText(employee.hat, size*0.72 + jx, size*0.32 + hatBob);
 
-    // Name badge
+    if (anim && (frame % 30) < 18) {
+      ctx.save();
+      ctx.fillStyle = "#ff2e63";
+      ctx.shadowColor = "#ff2e63"; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(size*0.12, size*0.11, size*0.018, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = "#fff";
+      ctx.font = `bold ${size*0.028}px 'Bungee', Impact, sans-serif`;
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText("LIVE", size*0.15, size*0.11);
+    }
+
     if (showBadge) {
       ctx.save();
       ctx.translate(size*0.16, size*0.82);
       ctx.rotate(-0.06);
-      const w = size*0.68, h = 74;
+      const w = size*0.68, h = size*0.144;
       roundRect(ctx, 0, 0, w, h, 8);
       ctx.fillStyle = "#facc15"; ctx.fill();
       ctx.fillStyle = "#0a0a0a";
-      ctx.font = "bold 30px 'Bungee', Impact, sans-serif";
+      ctx.font = `bold ${size*0.058}px 'Bungee', Impact, sans-serif`;
       ctx.textAlign = "left"; ctx.textBaseline = "middle";
-      ctx.fillText(employee.name.toUpperCase(), 18, 26);
-      ctx.font = "bold 16px monospace";
-      ctx.fillText(employee.role.toUpperCase(), 18, 54);
-      // handle
+      ctx.fillText(employee.name.toUpperCase(), size*0.035, size*0.05);
+      ctx.font = `bold ${size*0.031}px monospace`;
+      ctx.fillText(employee.role.toUpperCase(), size*0.035, size*0.105);
       ctx.textAlign = "right";
-      ctx.fillText(handle, w - 18, 40);
+      ctx.fillText(handle, w - size*0.035, size*0.078);
       ctx.restore();
     }
 
-    // Frame ring
     ctx.save();
-    ctx.lineWidth = 14;
+    ctx.lineWidth = size * 0.027;
     ctx.strokeStyle = employee.tint;
     if (platform === "x") {
-      ctx.beginPath(); ctx.arc(size/2, size/2, size/2 - 7, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(size/2, size/2, size/2 - size*0.0137, 0, Math.PI*2); ctx.stroke();
     } else {
-      roundRect(ctx, 7, 7, size - 14, size - 14, 90); ctx.stroke();
+      roundRect(ctx, size*0.0137, size*0.0137, size - size*0.0273, size - size*0.0273, size*0.176); ctx.stroke();
     }
     ctx.restore();
     ctx.restore();
   };
 
-  useEffect(() => { draw(); /* eslint-disable-next-line */ }, [empId, bgId, platform, handle, showBadge]);
+  useEffect(() => {
+    const c = canvasRef.current; if (!c) return;
+    const size = 512; c.width = size; c.height = size;
+    const ctx = c.getContext("2d"); if (!ctx) return;
+    let last = 0;
+    const tick = (t: number) => {
+      if (t - last > 66) {
+        drawFrame(ctx, size, frameRef.current);
+        frameRef.current = (frameRef.current + 1) % 600;
+        last = t;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empId, bgId, platform, handle, showBadge, animated]);
 
   const download = () => {
     const c = canvasRef.current; if (!c) return;
@@ -540,6 +575,58 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     a.download = `bird-burger-${employee.id}-${platform}.png`;
     a.href = c.toDataURL("image/png"); a.click();
     onDownload();
+  };
+
+  const downloadGif = async () => {
+    if (exporting) return;
+    setExporting(true); setExportPct(0);
+    try {
+      const [{ default: GIF }, workerUrlMod] = await Promise.all([
+        import("gif.js"),
+        import("gif.js/dist/gif.worker.js?url"),
+      ]);
+      const size = 320;
+      const off = document.createElement("canvas");
+      off.width = size; off.height = size;
+      const octx = off.getContext("2d")!;
+      const frames = 30;
+      const delay = 66;
+      if (!imgReady.current) {
+        await new Promise<void>((res) => {
+          const check = () => imgReady.current ? res() : setTimeout(check, 50);
+          check();
+        });
+      }
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: size,
+        height: size,
+        workerScript: (workerUrlMod as { default: string }).default,
+      });
+      const wasAnimated = animated;
+      // force animated on for export regardless of toggle
+      for (let i = 0; i < frames; i++) {
+        drawFrame(octx, size, i, true);
+        gif.addFrame(octx, { copy: true, delay });
+      }
+      void wasAnimated;
+      gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
+      gif.on("finished", (blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `bird-burger-${employee.id}-${platform}.gif`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setExporting(false); setExportPct(0);
+        onDownload();
+      });
+      gif.render();
+    } catch (err) {
+      console.error("GIF export failed", err);
+      setExporting(false); setExportPct(0);
+    }
   };
 
   const share = async () => {
@@ -572,12 +659,27 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
             <div className="absolute -bottom-2 -right-2 rotate-[-4deg] rounded bg-grease px-2 py-1 font-display text-[10px] tracking-widest text-white shadow-md">512 × 512</div>
           </div>
           <p className="mt-4 text-center font-mono text-[11px] italic text-ink/60">"{employee.quote}"</p>
-          <div className="mt-4 flex gap-2">
-            <button onClick={download} className="flex-1 rounded-md border-2 border-mustard bg-mustard px-4 py-3 font-display text-sm tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
-              DOWNLOAD PFP
+          <button
+            onClick={() => setAnimated((v) => !v)}
+            className={`mt-3 w-full rounded-md border-2 px-3 py-2 font-mono text-[11px] uppercase tracking-widest transition ${animated ? "border-robin bg-robin/15 text-robin" : "border-ink/20 text-ink/60 hover:bg-ink/5"}`}
+          >
+            {animated ? "◉ Live preview: ON (blink + jitter)" : "○ Live preview: OFF"}
+          </button>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button onClick={download} className="rounded-md border-2 border-mustard bg-mustard px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
+              PNG
             </button>
-            <button onClick={share} className="rounded-md border-2 border-cyan bg-cyan/10 px-4 py-3 font-display text-sm tracking-widest text-cyan"><Share2 className="h-4 w-4"/></button>
+            <button
+              onClick={downloadGif}
+              disabled={exporting}
+              className="rounded-md border-2 border-robin bg-robin px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
+            >
+              {exporting ? `RENDERING ${exportPct}%` : "ANIMATED GIF"}
+            </button>
           </div>
+          <button onClick={share} className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-3 py-2 font-display text-xs tracking-widest text-cyan">
+            <Share2 className="h-4 w-4"/> SHARE THE SHAME
+          </button>
         </div>
 
         {/* Controls */}
