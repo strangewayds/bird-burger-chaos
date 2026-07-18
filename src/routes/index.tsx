@@ -607,7 +607,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       const wasAnimated = animated;
       // force animated on for export regardless of toggle
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i);
+        drawFrame(octx, size, i, true);
         gif.addFrame(octx, { copy: true, delay });
       }
       void wasAnimated;
