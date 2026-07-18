@@ -658,13 +658,28 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
             <canvas ref={canvasRef} className="h-full w-full" style={{ imageRendering: "auto" }} />
             <div className="absolute -bottom-2 -right-2 rotate-[-4deg] rounded bg-grease px-2 py-1 font-display text-[10px] tracking-widest text-white shadow-md">512 × 512</div>
           </div>
-          <p className="mt-4 text-center font-mono text-[11px] italic text-ink/60">"{employee.quote}"</p>
-          <div className="mt-4 flex gap-2">
-            <button onClick={download} className="flex-1 rounded-md border-2 border-mustard bg-mustard px-4 py-3 font-display text-sm tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
-              DOWNLOAD PFP
+          <p className="mt-4 text-center font-mono to text-[11px] italic text-ink/60">"{employee.quote}"</p>
+          <button
+            onClick={() => setAnimated((v) => !v)}
+            className={`mt-3 w-full rounded-md border-2 px-3 py-2 font-mono text-[11px] uppercase tracking-widest transition ${animated ? "border-robin bg-robin/15 text-robin" : "border-ink/20 text-ink/60 hover:bg-ink/5"}`}
+          >
+            {animated ? "◉ Live preview: ON (blink + jitter)" : "○ Live preview: OFF"}
+          </button>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button onClick={download} className="rounded-md border-2 border-mustard bg-mustard px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
+              PNG
             </button>
-            <button onClick={share} className="rounded-md border-2 border-cyan bg-cyan/10 px-4 py-3 font-display text-sm tracking-widest text-cyan"><Share2 className="h-4 w-4"/></button>
+            <button
+              onClick={downloadGif}
+              disabled={exporting}
+              className="rounded-md border-2 border-robin bg-robin px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
+            >
+              {exporting ? `RENDERING ${exportPct}%` : "ANIMATED GIF"}
+            </button>
           </div>
+          <button onClick={share} className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-3 py-2 font-display text-xs tracking-widest text-cyan">
+            <Share2 className="h-4 w-4"/> SHARE THE SHAME
+          </button>
         </div>
 
         {/* Controls */}
