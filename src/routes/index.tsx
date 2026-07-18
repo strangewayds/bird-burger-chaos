@@ -1323,6 +1323,24 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
               {exporting ? `RENDERING ${exportPct}%` : "PREVIEW GIF LOOP"}
             </button>
           </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => renderVideo("mp4")}
+              disabled={!!videoExporting}
+              className="rounded-md border-2 border-grape bg-grape px-3 py-3 font-display text-xs tracking-widest text-white shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
+              title="Export a looping MP4 (best for X, iMessage, TikTok)"
+            >
+              {videoExporting === "mp4" ? `MP4 ${videoPct}%` : "🎬 MP4"}
+            </button>
+            <button
+              onClick={() => renderVideo("webm")}
+              disabled={!!videoExporting}
+              className="rounded-md border-2 border-cyan bg-cyan/20 px-3 py-3 font-display text-xs tracking-widest text-cyan shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
+              title="Export a looping WebM (smaller file, best for Discord)"
+            >
+              {videoExporting === "webm" ? `WEBM ${videoPct}%` : "🎞 WEBM"}
+            </button>
+          </div>
           <div className="mt-3 rounded-md border-2 border-robin/40 bg-black/30 p-3">
             <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">GIF export frame</div>
             <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="GIF export frame shape">
