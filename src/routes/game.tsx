@@ -963,6 +963,21 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
         pushFloat("EXTINGUISHER!", "#EF4444");
         break;
       }
+      case "mop": {
+        const mop = mopRef.current;
+        if (!mop.has) {
+          mop.has = true;
+          mop.charges = mop.max;
+          pushFloat("MOP BUCKET!", "#22D3EE");
+        } else if (mop.charges < mop.max) {
+          mop.charges = mop.max;
+          pushFloat("REFILLED", "#22D3EE");
+        } else {
+          pushFloat("BUCKET FULL", "#22D3EE");
+        }
+        setMopTick((t) => t + 1);
+        break;
+      }
     }
     setTick((t) => t + 1);
   }
