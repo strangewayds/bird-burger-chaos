@@ -58,7 +58,6 @@ const NAV_LINKS = [
 ];
 
 const MENU_ITEMS = [
-const MENU_ITEMS = [
   { name: "McRug Pull", price: "$6.90", desc: "The burger disappears immediately after purchase.", img: menuMcrug.url, rating: 0.3 },
   { name: "Liquidity Fries", price: "$4.20", desc: "Your fries have been permanently locked.", img: menuFries.url, rating: 1.1 },
   { name: "Pump & Shake", price: "$8.88", desc: "Goes straight up before violently coming back down.", img: menuShake.url, rating: 0.7 },
