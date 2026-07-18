@@ -49,17 +49,17 @@ type Station = {
 
 // Positions calibrated to game-kitchen.jpg (1920x1080)
 const STATIONS: Station[] = [
-  { id: "fridge", kind: "fridge", x: 0.08, y: 0.34, w: 0.10, h: 0.30, label: "FRIDGE", color: "#00C805" },
-  { id: "raw_patty", kind: "raw_patty", x: 0.04, y: 0.78, w: 0.11, h: 0.14, label: "PATTIES", color: "#EF4444" },
-  { id: "cutting", kind: "cutting", x: 0.19, y: 0.62, w: 0.13, h: 0.16, label: "CHOP", color: "#22D3EE" },
-  { id: "cheese", kind: "cheese", x: 0.27, y: 0.22, w: 0.11, h: 0.16, label: "CHEESE", color: "#FACC15" },
-  { id: "grill", kind: "grill", x: 0.46, y: 0.28, w: 0.14, h: 0.18, label: "GRILL", color: "#EF4444" },
-  { id: "fryer", kind: "fryer", x: 0.63, y: 0.32, w: 0.11, h: 0.18, label: "FRYER", color: "#F97316" },
-  { id: "drink", kind: "drink", x: 0.82, y: 0.55, w: 0.10, h: 0.20, label: "DRINKS", color: "#22D3EE" },
-  { id: "sauce", kind: "sauce", x: 0.45, y: 0.72, w: 0.14, h: 0.14, label: "SAUCE", color: "#EC4899" },
-  { id: "assembly", kind: "assembly", x: 0.36, y: 0.86, w: 0.15, h: 0.08, label: "ASSEMBLY", color: "#7C3AED" },
-  { id: "pickup", kind: "pickup", x: 0.91, y: 0.28, w: 0.07, h: 0.20, label: "PICK UP", color: "#EC4899" },
-  { id: "extinguisher", kind: "extinguisher", x: 0.72, y: 0.60, w: 0.05, h: 0.09, label: "EXT.", color: "#EF4444" },
+  { id: "fridge", kind: "fridge", x: 0.095, y: 0.385, w: 0.070, h: 0.210, label: "FRIDGE", color: "#00C805" },
+  { id: "raw_patty", kind: "raw_patty", x: 0.057, y: 0.801, w: 0.077, h: 0.098, label: "PATTIES", color: "#EF4444" },
+  { id: "cutting", kind: "cutting", x: 0.210, y: 0.644, w: 0.091, h: 0.112, label: "CHOP", color: "#22D3EE" },
+  { id: "cheese", kind: "cheese", x: 0.287, y: 0.244, w: 0.077, h: 0.112, label: "CHEESE", color: "#FACC15" },
+  { id: "grill", kind: "grill", x: 0.481, y: 0.307, w: 0.098, h: 0.126, label: "GRILL", color: "#EF4444" },
+  { id: "fryer", kind: "fryer", x: 0.647, y: 0.347, w: 0.077, h: 0.126, label: "FRYER", color: "#F97316" },
+  { id: "drink", kind: "drink", x: 0.835, y: 0.580, w: 0.070, h: 0.140, label: "DRINKS", color: "#22D3EE" },
+  { id: "sauce", kind: "sauce", x: 0.471, y: 0.741, w: 0.098, h: 0.098, label: "SAUCE", color: "#EC4899" },
+  { id: "assembly", kind: "assembly", x: 0.383, y: 0.872, w: 0.105, h: 0.056, label: "ASSEMBLY", color: "#7C3AED" },
+  { id: "pickup", kind: "pickup", x: 0.921, y: 0.310, w: 0.049, h: 0.140, label: "PICK UP", color: "#EC4899" },
+  { id: "extinguisher", kind: "extinguisher", x: 0.725, y: 0.605, w: 0.040, h: 0.070, label: "EXT.", color: "#EF4444" },
 ];
 
 /* ─────────────────────────  ORDER RECIPES  ───────────────────────── */
@@ -324,6 +324,11 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   const hasExtinguisherRef = useRef(false);
   const grillRef = useRef({ progress: 0, item: null as Ing | null });
   const fryerRef = useRef({ progress: 0, item: null as Ing | null });
+  const minimapRef = useRef<HTMLDivElement | null>(null);
+  const shakeRef = useRef(0); // seconds remaining
+  const explosionRef = useRef(0); // 0..1 flash intensity remaining
+  const viceRef = useRef({ smokeCd: 0, drinkCd: 0, buzz: 0 });
+  const [_viceTick, setViceTick] = useState(0);
 
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
@@ -400,7 +405,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       const cx = s.x + s.w / 2;
       const cy = s.y + s.h / 2;
       const d = Math.hypot(p.x - cx, p.y - cy);
-      const range = Math.max(s.w, s.h) * 0.9 + 0.04;
+      const range = Math.max(s.w, s.h) * 0.85 + 0.025;
       if (d < range && (!best || d < best.d)) best = { s, d };
     }
     return best?.s ?? null;
@@ -632,18 +637,52 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         }
       }
 
-      // Fires
+      // Fires + mishaps
       fireCd -= dt;
       if (fireCd <= 0) {
-        // random chance of fire at grill or fryer
-        const target = Math.random() < 0.5 ? "grill" : "fryer";
+        // random chance of fire at grill or fryer; small chance of GRILL EXPLOSION
+        const explode = Math.random() < 0.28;
+        const target = explode ? "grill" : (Math.random() < 0.5 ? "grill" : "fryer");
         const st = STATIONS.find((s) => s.id === target)!;
         if (!firesRef.current.some((fi) => fi.stationId === target)) {
           firesRef.current.push({ x: st.x + st.w/2, y: st.y + st.h/2, stationId: target, life: 12 });
           statsRef.current.fires++;
-          chaosRef.current = Math.min(6, chaosRef.current + 1);
+          chaosRef.current = Math.min(6, chaosRef.current + (explode ? 1.5 : 1));
+          if (explode) {
+            // knockback player away from station center, screen shake, flash
+            const px = playerRef.current.x, py = playerRef.current.y;
+            const dxk = px - (st.x + st.w/2);
+            const dyk = py - (st.y + st.h/2);
+            const dk = Math.hypot(dxk, dyk) || 1;
+            const dist = Math.min(0.22, 0.25 / (dk + 0.4));
+            playerRef.current.x = clamp(px + (dxk/dk) * dist, 0.02, 0.98);
+            playerRef.current.y = clamp(py + (dyk/dk) * dist, 0.10, 0.96);
+            playerRef.current.slipT = 0.6;
+            shakeRef.current = 0.55;
+            explosionRef.current = 1;
+            floatsRef.current.push({ x: st.x + st.w/2, y: st.y - 0.02, text: "💥 BOOM!", color: "#FACC15", life: 1.2 });
+            floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "OSHA WHO?", color: "#EF4444", life: 1.2 });
+          }
         }
-        fireCd = 10 + Math.random() * 10;
+        fireCd = (explode ? 14 : 10) + Math.random() * 10;
+      }
+      // shake / flash decay
+      shakeRef.current = Math.max(0, shakeRef.current - dt);
+      explosionRef.current = Math.max(0, explosionRef.current - dt * 1.6);
+      // vice cooldowns
+      viceRef.current.smokeCd = Math.max(0, viceRef.current.smokeCd - dt);
+      viceRef.current.drinkCd = Math.max(0, viceRef.current.drinkCd - dt);
+      viceRef.current.buzz = Math.max(0, viceRef.current.buzz - dt);
+      // fade minimap when player is near it (bottom-left)
+      if (minimapRef.current) {
+        const px = playerRef.current.x, py = playerRef.current.y;
+        // minimap approx region 0..0.15 x, 0.75..1 y
+        const nx = Math.max(0, Math.min(1, (0.18 - px) / 0.10));
+        const ny = Math.max(0, Math.min(1, (py - 0.72) / 0.10));
+        const near = Math.min(nx, ny);
+        const op = 1 - near * 0.85;
+        minimapRef.current.style.opacity = op.toFixed(3);
+        minimapRef.current.style.pointerEvents = near > 0.5 ? "none" : "auto";
       }
       // fire life
       firesRef.current.forEach((fi) => { fi.life -= dt; });
@@ -755,6 +794,14 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     if (!ctx) return;
     const W = cv.width, H = cv.height;
     ctx.clearRect(0, 0, W, H);
+    // Screen shake + drunk-cam wobble
+    const shakeAmt = shakeRef.current;
+    const buzz = viceRef.current.buzz;
+    const t = performance.now() / 1000;
+    const sx = (shakeAmt > 0 ? (Math.random() - 0.5) * shakeAmt * 24 : 0) + (buzz > 0 ? Math.sin(t * 1.7) * 6 * Math.min(1, buzz) : 0);
+    const sy = (shakeAmt > 0 ? (Math.random() - 0.5) * shakeAmt * 24 : 0) + (buzz > 0 ? Math.cos(t * 1.3) * 4 * Math.min(1, buzz) : 0);
+    ctx.save();
+    ctx.translate(sx, sy);
 
     // Background
     const bg = bgImgRef.current;
@@ -933,6 +980,12 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.textAlign = "center";
       ctx.fillText(s.label, cx, cy + 12);
     }
+    ctx.restore();
+    // Explosion flash overlay (drawn without transform)
+    if (explosionRef.current > 0) {
+      ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current})`;
+      ctx.fillRect(0, 0, W, H);
+    }
   }, [employee]);
 
   // Resize canvas
@@ -981,6 +1034,44 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
               <div className="text-white/70">PUT IT OUT!</div>
             </motion.div>
           )}
+          {/* Vices — because the place has 1★ reviews anyway */}
+          <div className="rounded-lg border-2 border-[#FACC15]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+            <div className="mb-1 font-black text-[#FACC15]">SHIFT VICES</div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => {
+                  const v = viceRef.current;
+                  if (v.smokeCd > 0) return;
+                  v.smokeCd = 12; v.buzz = Math.min(2.5, v.buzz + 1.2);
+                  scoreRef.current += 15;
+                  chaosRef.current = Math.max(0, chaosRef.current - 0.75);
+                  setChaos(chaosRef.current);
+                  floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🚬 SMOKE BREAK", color: "#FACC15", life: 1.3 });
+                  setViceTick((n) => n + 1);
+                }}
+                disabled={viceRef.current.smokeCd > 0}
+                className="rounded border-2 border-[#FACC15]/70 bg-[#FACC15]/10 px-2 py-1 text-[10px] font-black text-[#FACC15] transition hover:bg-[#FACC15]/25 disabled:opacity-40"
+                title="Smoke a dart. Calms the chaos. Makes the room wobble."
+              >🚬 SMOKE</button>
+              <button
+                onClick={() => {
+                  const v = viceRef.current;
+                  if (v.drinkCd > 0) return;
+                  v.drinkCd = 15; v.buzz = Math.min(3, v.buzz + 2);
+                  scoreRef.current += 25;
+                  chaosRef.current = Math.max(0, chaosRef.current - 1);
+                  setChaos(chaosRef.current);
+                  playerRef.current.slipT = 0.8; // drunk feet
+                  floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🍺 CRACK OPEN", color: "#22D3EE", life: 1.3 });
+                  setViceTick((n) => n + 1);
+                }}
+                disabled={viceRef.current.drinkCd > 0}
+                className="rounded border-2 border-[#22D3EE]/70 bg-[#22D3EE]/10 px-2 py-1 text-[10px] font-black text-[#22D3EE] transition hover:bg-[#22D3EE]/25 disabled:opacity-40"
+                title="Crack a cold one. Chaos drops. So does your motor control."
+              >🍺 BEER</button>
+            </div>
+            <div className="mt-1 text-[8px] leading-tight text-white/50">Reviews are already 1★. Live a little.</div>
+          </div>
         </div>
 
         {/* Top: order queue */}
@@ -998,8 +1089,11 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           <button onClick={onQuit} className="self-end rounded border border-[#EF4444] bg-[#EF4444]/20 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#EF4444] hover:bg-[#EF4444]/40">Clock Out</button>
         </div>
 
-        {/* Bottom-left: minimap */}
-        <div className="absolute bottom-2 left-2 h-[110px] w-[160px] rounded-lg border-2 border-[#7C3AED] bg-[#09090B]/80 p-1 backdrop-blur md:bottom-4 md:left-4">
+        {/* Bottom-left: minimap (fades when player walks over it) */}
+        <div
+          ref={minimapRef}
+          className="absolute bottom-2 left-2 h-[110px] w-[160px] rounded-lg border-2 border-[#7C3AED] bg-[#09090B]/80 p-1 backdrop-blur transition-opacity duration-150 md:bottom-4 md:left-4"
+        >
           <div className="mb-0.5 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-[#EC4899]"><span>PIGEON MENACE</span><span className="text-[#FACC15]">MAP</span></div>
           <Minimap
             player={playerRef.current}
