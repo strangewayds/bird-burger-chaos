@@ -1723,10 +1723,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         ctx.rotate(tilt);
         ctx.translate(-pxs, -(py + 16));
       }
-      ctx.drawImage(m, pxs - size/2, drawY, size, size);
+      ctx.drawImage(m, drawX, drawY, size, size);
       ctx.globalCompositeOperation = "source-atop";
       ctx.fillStyle = employee.tint + "40";
-      ctx.fillRect(pxs - size/2, drawY, size, size);
+      ctx.fillRect(drawX, drawY, size, size);
       ctx.restore();
     } else {
       ctx.fillStyle = employee.tint;
