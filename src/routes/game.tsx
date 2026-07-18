@@ -87,6 +87,17 @@ type Fire = { x: number; y: number; stationId: string; life: number };
 type Pigeon = { x: number; y: number; vx: number; vy: number; hp: number };
 type Spill = { x: number; y: number; r: number; life: number; cleanT: number; hue: number; wob: number };
 type FloatText = { x: number; y: number; text: string; color: string; life: number };
+type FallingSign = {
+  x: number;
+  y: number;
+  phase: "warn" | "falling" | "landed";
+  t: number;
+  landT: number;
+  text: string;
+  color: string;
+  spin: number;
+  spinSpd: number;
+};
 
 const EMPLOYEES = [
   { id: "larry", name: "Larry", tint: "#C4A9F5", desc: "Tired. Always tired." },
@@ -330,6 +341,11 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   const shakeRef = useRef(0); // seconds remaining
   const explosionRef = useRef(0); // 0..1 flash intensity remaining
   const viceRef = useRef({ smokeCd: 0, drinkCd: 0, buzz: 0 });
+  // Kitchen disasters
+  const alarmRef = useRef({ life: 0, strobe: 0 }); // life > 0 = smoke alarm blaring
+  const flareRef = useRef({ x: 0, y: 0, r: 0, life: 0, max: 0 }); // fryer flare-up radial burst
+  const signsRef = useRef<FallingSign[]>([]);
+  const [_disasterTick, setDisasterTick] = useState(0);
   const [_viceTick, setViceTick] = useState(0);
   // Movement particles: pixel dust puffs + impact flashes at feet
   type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; color: string; kind: "dust" | "flash" };
@@ -599,6 +615,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     let fireCd = 8;
     let pigeonCd = 15;
     let spillCd = 6;
+    let disasterCd = 18 + Math.random() * 8;
     let orderTickAcc = 0;
     let uiTickAcc = 0;
 
@@ -771,6 +788,139 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       // spill decay: shrink slowly + expire
       spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.15); });
       spillsRef.current = spillsRef.current.filter((sp) => sp.life > 0);
+
+      // ─── KITCHEN DISASTERS ───
+      disasterCd -= dt;
+      if (disasterCd <= 0) {
+        const roll = Math.random();
+        if (roll < 0.4) {
+          // SMOKE ALARM
+          alarmRef.current.life = 4.5 + Math.random() * 2;
+          chaosRef.current = Math.min(6, chaosRef.current + 0.8);
+          shakeRef.current = Math.max(shakeRef.current, 0.25);
+          floatsRef.current.push({ x: 0.5, y: 0.18, text: "🚨 SMOKE ALARM!", color: "#EF4444", life: 1.4 });
+          setDisasterTick((t) => t + 1);
+        } else if (roll < 0.72) {
+          // FRYER FLARE-UP
+          const fs = STATIONS.find((s) => s.id === "fryer")!;
+          flareRef.current = { x: fs.x + fs.w / 2, y: fs.y + fs.h / 2, r: 0, life: 3.2, max: 3.2 };
+          chaosRef.current = Math.min(6, chaosRef.current + 1.2);
+          shakeRef.current = Math.max(shakeRef.current, 0.4);
+          explosionRef.current = Math.max(explosionRef.current, 0.8);
+          statsRef.current.fires++;
+          floatsRef.current.push({ x: fs.x + fs.w / 2, y: fs.y - 0.03, text: "🔥 FLARE-UP!", color: "#F97316", life: 1.4 });
+          // splash grease around fryer
+          for (let i = 0; i < 4; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const rad = 0.06 + Math.random() * 0.08;
+            spillsRef.current.push({
+              x: clamp(fs.x + fs.w / 2 + Math.cos(ang) * rad, 0.05, 0.95),
+              y: clamp(fs.y + fs.h / 2 + Math.sin(ang) * rad, 0.14, 0.94),
+              r: 0.032 + Math.random() * 0.02,
+              life: 16 + Math.random() * 6,
+              cleanT: 0,
+              hue: 32,
+              wob: Math.random() * Math.PI * 2,
+            });
+          }
+        } else {
+          // FALLING SIGNAGE
+          const signs = [
+            { text: "☠ HEALTH INSPECTOR", color: "#EF4444" },
+            { text: "★ EMPLOYEE OF THE MONTH", color: "#FACC15" },
+            { text: "$BRGR TO THE MOON", color: "#7C3AED" },
+            { text: "NOW HIRING (DESPERATELY)", color: "#22D3EE" },
+            { text: "⚠ CEILING TILES", color: "#F97316" },
+          ];
+          const pick = signs[Math.floor(Math.random() * signs.length)];
+          const sx = 0.18 + Math.random() * 0.6;
+          const sy = 0.32 + Math.random() * 0.5;
+          signsRef.current.push({
+            x: sx, y: sy, phase: "warn", t: 0, landT: 0,
+            text: pick.text, color: pick.color,
+            spin: (Math.random() - 0.5) * 0.6,
+            spinSpd: (Math.random() - 0.5) * 6,
+          });
+          floatsRef.current.push({ x: sx, y: sy - 0.08, text: "⚠ LOOK OUT!", color: "#FACC15", life: 1 });
+        }
+        disasterCd = 14 + Math.random() * 12;
+      }
+
+      // Smoke alarm tick
+      if (alarmRef.current.life > 0) {
+        alarmRef.current.life -= dt;
+        alarmRef.current.strobe += dt * 8;
+        // slow chaos bleed while it blares
+        chaosRef.current = Math.min(6, chaosRef.current + dt * 0.15);
+        if (alarmRef.current.life <= 0) {
+          alarmRef.current.life = 0;
+          setDisasterTick((t) => t + 1);
+        }
+      }
+
+      // Fryer flare-up tick — expanding heat ring, pushes/slips player
+      if (flareRef.current.life > 0) {
+        const fl = flareRef.current;
+        fl.life -= dt;
+        const t = 1 - fl.life / fl.max;
+        // ring expands then holds
+        fl.r = 0.02 + Math.min(1, t * 2.2) * 0.12;
+        const pl = playerRef.current;
+        const dx = pl.x - fl.x, dy = pl.y - fl.y;
+        const d = Math.hypot(dx, dy);
+        if (d < fl.r + 0.02 && d > 0.0001) {
+          pl.slipT = Math.max(pl.slipT, 0.5);
+          const push = 0.6 * dt;
+          pl.x = clamp(pl.x + (dx / d) * push, 0.02, 0.98);
+          pl.y = clamp(pl.y + (dy / d) * push, 0.10, 0.96);
+        }
+      }
+
+      // Falling signage tick
+      for (const sg of signsRef.current) {
+        sg.t += dt;
+        if (sg.phase === "warn") {
+          if (sg.t >= 1.1) { sg.phase = "falling"; sg.t = 0; }
+        } else if (sg.phase === "falling") {
+          sg.spin += sg.spinSpd * dt;
+          if (sg.t >= 0.55) {
+            sg.phase = "landed";
+            sg.landT = 4 + Math.random() * 2;
+            shakeRef.current = Math.max(shakeRef.current, 0.35);
+            floatsRef.current.push({ x: sg.x, y: sg.y - 0.02, text: "CRASH!", color: sg.color, life: 1 });
+            // knock player if too close on impact
+            const pl = playerRef.current;
+            const dx = pl.x - sg.x, dy = pl.y - sg.y;
+            const d = Math.hypot(dx, dy);
+            if (d < 0.09 && d > 0.0001) {
+              const push = 0.14;
+              pl.x = clamp(pl.x + (dx / d) * push, 0.02, 0.98);
+              pl.y = clamp(pl.y + (dy / d) * push, 0.10, 0.96);
+              pl.slipT = Math.max(pl.slipT, 0.7);
+              // drop one carried item
+              if (carryRef.current.length > 0) {
+                const dropped = carryRef.current.pop()!;
+                pushFloat(`− ${dropped.replace(/_/g, " ").toUpperCase()}`, "#EF4444");
+                chaosRef.current = Math.min(6, chaosRef.current + 0.3);
+              }
+            }
+          }
+        } else if (sg.phase === "landed") {
+          sg.landT -= dt;
+          // landed sign blocks the player: push them out gently
+          const pl = playerRef.current;
+          const dx = pl.x - sg.x, dy = pl.y - sg.y;
+          const d = Math.hypot(dx, dy);
+          const R = 0.055;
+          if (d < R && d > 0.0001) {
+            const push = (R - d) * 4 * dt + 0.008;
+            pl.x = clamp(pl.x + (dx / d) * push, 0.02, 0.98);
+            pl.y = clamp(pl.y + (dy / d) * push, 0.10, 0.96);
+          }
+        }
+      }
+      signsRef.current = signsRef.current.filter((sg) => !(sg.phase === "landed" && sg.landT <= 0));
+
       // shake / flash decay
       shakeRef.current = Math.max(0, shakeRef.current - dt);
       explosionRef.current = Math.max(0, explosionRef.current - dt * 1.6);
@@ -1020,6 +1170,122 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.fillText("🔥 FIRE!", cx, cy + 30);
     }
 
+    // Fryer flare-up ring (expanding radial burst)
+    if (flareRef.current.life > 0) {
+      const fl = flareRef.current;
+      const cx = fl.x * W, cy = fl.y * H;
+      const rr = fl.r * Math.min(W, H) * 1.8;
+      const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 90);
+      ctx.save();
+      const g = ctx.createRadialGradient(cx, cy, rr * 0.15, cx, cy, rr);
+      g.addColorStop(0, `rgba(255,240,140,${0.75 * pulse})`);
+      g.addColorStop(0.35, `rgba(249,115,22,${0.55 * pulse})`);
+      g.addColorStop(0.8, `rgba(239,68,68,${0.25 * pulse})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+      ctx.fill();
+      // hot licks
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 8; i++) {
+        const a = (performance.now() / 200 + i) % (Math.PI * 2);
+        const rx = cx + Math.cos(a) * rr * 0.55;
+        const ry = cy + Math.sin(a) * rr * 0.55;
+        ctx.fillStyle = i % 2 ? "#FACC15" : "#F97316";
+        ctx.beginPath();
+        ctx.arc(rx, ry, 6 + (i % 3) * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = "#FACC15";
+      ctx.font = "bold 12px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("🔥 FRYER FLARE-UP", cx, cy - rr - 6);
+    }
+
+    // Falling signage
+    for (const sg of signsRef.current) {
+      const cx = sg.x * W, cy = sg.y * H;
+      if (sg.phase === "warn") {
+        // pulsing ground-shadow target
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 90);
+        ctx.save();
+        ctx.globalAlpha = 0.35 + 0.35 * pulse;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 46, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2 + pulse * 2;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      } else if (sg.phase === "falling") {
+        const t = sg.t / 0.55;
+        // ground shadow still
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 46 * (0.6 + t * 0.4), 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        // sign falling from top
+        const yOff = -260 * (1 - t) * (1 - t);
+        ctx.save();
+        ctx.translate(cx, cy + yOff);
+        ctx.rotate(sg.spin);
+        const tw = 12 + sg.text.length * 7;
+        ctx.fillStyle = "#09090B";
+        ctx.strokeStyle = sg.color;
+        ctx.lineWidth = 3;
+        ctx.fillRect(-tw / 2, -14, tw, 28);
+        ctx.strokeRect(-tw / 2, -14, tw, 28);
+        ctx.fillStyle = sg.color;
+        ctx.font = "bold 12px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(sg.text, 0, 0);
+        ctx.textBaseline = "alphabetic";
+        ctx.restore();
+      } else {
+        // landed — sits and blocks the tile
+        const alpha = Math.min(1, sg.landT / 1.2);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(cx, cy);
+        ctx.rotate(sg.spin + Math.sin(performance.now() / 400) * 0.03);
+        const tw = 12 + sg.text.length * 7;
+        // splat crack under sign
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.beginPath();
+        ctx.ellipse(0, 12, tw * 0.7, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#09090B";
+        ctx.strokeStyle = sg.color;
+        ctx.lineWidth = 3;
+        ctx.fillRect(-tw / 2, -14, tw, 28);
+        ctx.strokeRect(-tw / 2, -14, tw, 28);
+        // broken corner
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-tw / 2 + 4, -10);
+        ctx.lineTo(-tw / 2 + 10, -2);
+        ctx.lineTo(-tw / 2 + 4, 4);
+        ctx.stroke();
+        ctx.fillStyle = sg.color;
+        ctx.font = "bold 12px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(sg.text, 0, 0);
+        ctx.textBaseline = "alphabetic";
+        ctx.restore();
+      }
+    }
+
     // Pigeons
     for (const pg of pigeonsRef.current) {
       const cx = pg.x * W, cy = pg.y * H;
@@ -1255,6 +1521,51 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     if (explosionRef.current > 0) {
       ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current})`;
       ctx.fillRect(0, 0, W, H);
+    }
+    // Smoke alarm overlay: pulsing red vignette + strobe banner
+    if (alarmRef.current.life > 0) {
+      const pulse = 0.5 + 0.5 * Math.sin(alarmRef.current.strobe);
+      // red edge vignette
+      const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+      vg.addColorStop(0, "rgba(239,68,68,0)");
+      vg.addColorStop(1, `rgba(239,68,68,${0.55 * pulse})`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, W, H);
+      // top strobe banner
+      const bh = 34;
+      ctx.fillStyle = pulse > 0.5 ? "#EF4444" : "#09090B";
+      ctx.fillRect(0, 0, W, bh);
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 2;
+      // hazard stripes
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, bh - 6, W, 6);
+      ctx.clip();
+      const off = (performance.now() / 40) % 24;
+      for (let x = -24 - off; x < W + 24; x += 24) {
+        ctx.fillStyle = "#FACC15";
+        ctx.beginPath();
+        ctx.moveTo(x, bh - 6);
+        ctx.lineTo(x + 12, bh - 6);
+        ctx.lineTo(x + 6, bh);
+        ctx.lineTo(x - 6, bh);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = pulse > 0.5 ? "#09090B" : "#FACC15";
+      ctx.font = "bold 16px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(`🚨 SMOKE ALARM — ${alarmRef.current.life.toFixed(1)}s`, W / 2, 22);
+      // corner strobe circle
+      const sx = W - 26, sy = 20;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 10 + pulse * 4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(239,68,68,${0.6 + 0.4 * pulse})`;
+      ctx.fill();
+      ctx.strokeStyle = "#FACC15";
+      ctx.stroke();
     }
   }, [employee]);
 
