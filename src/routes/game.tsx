@@ -314,7 +314,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
 
   // Persistent refs (game loop reads/writes)
   const keysRef = useRef<Record<string, boolean>>({});
-  const playerRef = useRef({ x: 0.4, y: 0.55, vx: 0, vy: 0, dashCd: 0, slipT: 0, face: 1, moveT: 0, hopPhase: 0 });
+  const playerRef = useRef({ x: 0.4, y: 0.55, vx: 0, vy: 0, dashCd: 0, slipT: 0, face: 1, moveT: 0, hopPhase: 0, landT: 0, hopIdx: -1, idleT: 0 });
   const carryRef = useRef<Ing[]>([]);
   const ordersRef = useRef<Order[]>([]);
   const orderIdRef = useRef(1);
@@ -641,8 +641,11 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           });
         }
         particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: dashing ? 22 : 16, color: "#FFF6C2", kind: "flash" });
+        p.landT = dashing ? 0.16 : 0.13;
       }
       lastHopSinRef.current = curSin;
+      p.landT = Math.max(0, p.landT - dt);
+      if (mag <= 0) p.idleT += dt; else p.idleT = 0;
 
       // Grill cooking
       const g = grillRef.current;
@@ -958,56 +961,77 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     const p = playerRef.current;
     const px = p.x * W, py = p.y * H;
     const moving = Math.hypot(p.vx, p.vy) > 0.001;
-    // Hop height (positive = arc up). sin(phase) gives smooth 0..1..0 arcs.
-    const hopSin = Math.sin(p.hopPhase);
-    const hopUp = moving ? Math.max(0, hopSin) : 0; // only up-arcs, feet planted on downbeats
-    const hopY = -hopUp * 22;
-    // Squash on landing (when sin is near 0 going down), stretch mid-air
-    const airT = hopUp; // 0..1
-    const scaleY = 1 + airT * 0.10 - (moving && hopSin < 0 ? 0.08 * -hopSin : 0);
-    const scaleX = 1 - airT * 0.06 + (moving && hopSin < 0 ? 0.06 * -hopSin : 0);
-    // shadow (shrinks when airborne)
-    const shadowScale = 1 - airT * 0.55;
+    // Hop variations: per-hop amplitude, occasional big hop, gentle sway
+    const hopIndex = Math.max(0, Math.floor(p.hopPhase / Math.PI));
+    // deterministic pseudo-random amp per hop (0.85..1.35), every 7th is a bigger hop (1.55)
+    const hopSeed = (hopIndex * 2654435761) >>> 0;
+    const rand01 = ((hopSeed ^ (hopSeed >>> 16)) & 0xffff) / 0xffff;
+    const isBig = hopIndex > 0 && hopIndex % 7 === 0;
+    const hopAmp = isBig ? 1.55 : (0.85 + rand01 * 0.5);
+    const sway = isBig ? Math.sin(p.hopPhase) * 4 * p.face : 0;
+    const rawSin = Math.sin(p.hopPhase);
+    // shaped arc: peakier at apex, gentler at ends (feels more organic)
+    const hopSin = rawSin >= 0 ? Math.pow(rawSin, 0.72) : rawSin;
+    const hopUp = moving ? Math.max(0, hopSin) : 0;
+    const hopY = -hopUp * 22 * hopAmp;
+    const airT = hopUp;
+    // Landing squash (crisp compression right after touchdown)
+    const landDur = 0.14;
+    const landK = Math.max(0, Math.min(1, p.landT / landDur));
+    const landSquashY = landK * 0.22;
+    const landStretchX = landK * 0.18;
+    // Anticipation squash right as a new hop starts (first ~15% of arc)
+    const antiT = rawSin > 0 && rawSin < 0.25 ? (1 - rawSin / 0.25) * 0.10 : 0;
+    // Idle breathing when standing still
+    const breatheY = !moving ? Math.sin(p.idleT * 2.6) * 0.03 : 0;
+    const breatheX = !moving ? -Math.sin(p.idleT * 2.6) * 0.02 : 0;
+    const scaleY = 1 + airT * 0.14 * hopAmp - landSquashY - antiT + breatheY;
+    const scaleX = 1 - airT * 0.07 * hopAmp + landStretchX + antiT * 0.6 + breatheX;
+    // shadow (shrinks when airborne; expands briefly on landing)
+    const shadowScale = (1 - airT * 0.55) * (1 + landK * 0.15);
     ctx.fillStyle = `rgba(0,0,0,${0.5 - airT * 0.25})`;
     ctx.beginPath();
     ctx.ellipse(px, py + 28, 24 * shadowScale, 8 * shadowScale, 0, 0, Math.PI*2);
     ctx.fill();
+    const pxs = px + sway;
     const m = mascotImgRef.current;
     if (m) {
       const size = 76;
       const drawY = py - size + 16 + hopY;
       ctx.save();
-      ctx.translate(px, py + 16);
+      ctx.translate(pxs, py + 16);
       ctx.scale(p.face * scaleX, scaleY);
-      ctx.translate(-px, -(py + 16));
-      // slight tilt into direction of travel
+      ctx.translate(-pxs, -(py + 16));
+      // slight tilt into direction of travel + subtle roll on big hops
       if (moving) {
-        const tilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
-        ctx.translate(px, py + 16);
+        const baseTilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
+        const bigRoll = isBig ? Math.sin(p.hopPhase) * 0.08 * p.face : 0;
+        const tilt = baseTilt + bigRoll;
+        ctx.translate(pxs, py + 16);
         ctx.rotate(tilt);
-        ctx.translate(-px, -(py + 16));
+        ctx.translate(-pxs, -(py + 16));
       }
-      ctx.drawImage(m, px - size/2, drawY, size, size);
+      ctx.drawImage(m, pxs - size/2, drawY, size, size);
       ctx.globalCompositeOperation = "source-atop";
       ctx.fillStyle = employee.tint + "40";
-      ctx.fillRect(px - size/2, drawY, size, size);
+      ctx.fillRect(pxs - size/2, drawY, size, size);
       ctx.restore();
     } else {
       ctx.fillStyle = employee.tint;
       ctx.beginPath();
-      ctx.arc(px, py + hopY, 18, 0, Math.PI*2);
+      ctx.arc(pxs, py + hopY, 18, 0, Math.PI*2);
       ctx.fill();
     }
     // Name tag (follows hop)
     const tagY = py - 78 + hopY;
     ctx.fillStyle = "#7C3AED";
-    ctx.fillRect(px - 42, tagY, 84, 18);
+    ctx.fillRect(pxs - 42, tagY, 84, 18);
     ctx.strokeStyle = "#FACC15";
-    ctx.strokeRect(px - 42, tagY, 84, 18);
+    ctx.strokeRect(pxs - 42, tagY, 84, 18);
     ctx.fillStyle = "#FFF";
     ctx.font = "bold 11px system-ui";
     ctx.textAlign = "center";
-    ctx.fillText(employee.name.toUpperCase(), px, tagY + 13);
+    ctx.fillText(employee.name.toUpperCase(), pxs, tagY + 13);
 
     // Carrying stack
     const carry = carryRef.current;
