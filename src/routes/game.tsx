@@ -772,6 +772,47 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           p.face = faceTarget;
           p.faceVel = 0;
         }
+
+        // ---- Turnaround dust burst ----
+        // Emit a one-shot spray when the sprite's face sign actually flips (i.e., the
+        // rotation crossed zero). Fires OPPOSITE the new direction so it reads as pushed-off dust.
+        const nowSign = p.face > 0.15 ? 1 : p.face < -0.15 ? -1 : 0;
+        if (nowSign !== 0 && nowSign !== te.lastFaceSign) {
+          const away = -nowSign; // spray behind the bird
+          const fx = p.x;
+          const fy = p.y + 0.03;
+          const scale2 = perfRef.current.scale;
+          const wasDash = p.dashCd > 0.5;
+          const count = Math.max(2, Math.round((wasDash ? 12 : 7) * scale2));
+          for (let i = 0; i < count; i++) {
+            const spread = (Math.random() - 0.5) * 0.7; // narrow horizontal fan
+            const ang = spread; // ~horizontal
+            const spd = 0.08 + Math.random() * (wasDash ? 0.14 : 0.09);
+            particlesRef.current.push({
+              x: fx + away * 0.006 + (Math.random() - 0.5) * 0.006,
+              y: fy + (Math.random() - 0.5) * 0.004,
+              vx: away * (Math.cos(ang) * spd) + p.vx * -0.12,
+              vy: -Math.abs(Math.sin(ang)) * spd * 0.4 - 0.02 - Math.random() * 0.015,
+              life: 0,
+              max: 0.32 + Math.random() * 0.22,
+              size: 2 + Math.floor(Math.random() * 3),
+              color: Math.random() < 0.35 ? "#FACC15" : (Math.random() < 0.5 ? "#E7D9B8" : "#B8A98A"),
+              kind: "dust",
+            });
+          }
+          // Small crisp pixel-flash at the pivot point (skipped under perf pressure)
+          if (scale2 > 0.55 || Math.random() < scale2) {
+            particlesRef.current.push({
+              x: fx, y: fy, vx: 0, vy: 0, life: 0,
+              max: 0.14,
+              size: (wasDash ? 18 : 12) * (0.7 + 0.3 * scale2),
+              color: "#FFF6C2", kind: "flash",
+            });
+          }
+          te.lastFaceSign = nowSign;
+        } else if (nowSign !== 0) {
+          te.lastFaceSign = nowSign;
+        }
       }
       // Hop animation: advance phase only while moving; faster when dashing
       const prevSin = lastHopSinRef.current;
