@@ -83,7 +83,7 @@ type Order = { id: number; template: OrderTemplate; remaining: number; };
 
 type Phase = "start" | "playing" | "results";
 
-type Fire = { x: number; y: number; stationId: string; life: number };
+type Fire = { x: number; y: number; stationId: string; life: number; danger: number; dangerMax: number; sprayT: number };
 type Pigeon = { x: number; y: number; vx: number; vy: number; hp: number };
 type Spill = { x: number; y: number; r: number; life: number; cleanT: number; hue: number; wob: number };
 type FloatText = { x: number; y: number; text: string; color: string; life: number };
