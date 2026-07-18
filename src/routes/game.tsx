@@ -313,7 +313,137 @@ type GameStats = {
   gradeSub: string;
 };
 
-function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
+/* ─────────────────────────  GAME SFX (synth)  ─────────────────────────
+   Punchy, low-cost impact sounds via WebAudio. Master gain is hard-clamped
+   and each shot is rate-limited so rapid hops/booms can't stack into clipping. */
+function useGameSfx(muted: boolean) {
+  const ctxRef = useRef<AudioContext | null>(null);
+  const masterRef = useRef<GainNode | null>(null);
+  const compRef = useRef<DynamicsCompressorNode | null>(null);
+  const lastRef = useRef<Record<string, number>>({});
+
+  const ensure = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    if (!ctxRef.current) {
+      const AC = (window.AudioContext || (window as any).webkitAudioContext);
+      if (!AC) return null;
+      const ctx: AudioContext = new AC();
+      const master = ctx.createGain();
+      master.gain.value = 0.55;
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -14;
+      comp.knee.value = 22;
+      comp.ratio.value = 6;
+      comp.attack.value = 0.003;
+      comp.release.value = 0.15;
+      master.connect(comp).connect(ctx.destination);
+      ctxRef.current = ctx;
+      masterRef.current = master;
+      compRef.current = comp;
+    }
+    if (ctxRef.current.state === "suspended") ctxRef.current.resume().catch(() => {});
+    return ctxRef.current;
+  }, []);
+
+  useEffect(() => {
+    if (masterRef.current) masterRef.current.gain.value = muted ? 0 : 0.55;
+  }, [muted]);
+
+  useEffect(() => () => { try { ctxRef.current?.close(); } catch {} }, []);
+
+  const rateOk = (key: string, minGap: number) => {
+    const now = performance.now();
+    const last = lastRef.current[key] || 0;
+    if (now - last < minGap) return false;
+    lastRef.current[key] = now;
+    return true;
+  };
+
+  const hop = useCallback((intensity = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk("hop", 55)) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    const base = 320 + Math.random() * 60;
+    osc.frequency.setValueAtTime(base, t);
+    osc.frequency.exponentialRampToValueAtTime(base * 1.9, t + 0.06);
+    const g = ctx.createGain();
+    const peak = Math.min(0.28, 0.18 * intensity);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.11);
+    osc.connect(g).connect(masterRef.current);
+    osc.start(t); osc.stop(t + 0.13);
+  }, [muted, ensure]);
+
+  const land = useCallback((intensity = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk("land", 45)) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.09);
+    const g = ctx.createGain();
+    const peak = Math.min(0.34, 0.22 * intensity);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.14);
+    osc.connect(g).connect(masterRef.current);
+    const bufLen = Math.floor(ctx.sampleRate * 0.09);
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 900;
+    const ng = ctx.createGain(); ng.gain.value = Math.min(0.18, 0.12 * intensity);
+    noise.connect(hp).connect(ng).connect(masterRef.current);
+    osc.start(t); osc.stop(t + 0.16);
+    noise.start(t); noise.stop(t + 0.1);
+  }, [muted, ensure]);
+
+  const boom = useCallback((intensity = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk("boom", 120)) return;
+    const t = ctx.currentTime;
+    const bufLen = Math.floor(ctx.sampleRate * 0.55);
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      const env = Math.pow(1 - i / bufLen, 1.6);
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass";
+    lp.frequency.setValueAtTime(2200, t);
+    lp.frequency.exponentialRampToValueAtTime(300, t + 0.5);
+    const ng = ctx.createGain();
+    const peak = Math.min(0.5, 0.36 * intensity);
+    ng.gain.setValueAtTime(0, t);
+    ng.gain.linearRampToValueAtTime(peak, t + 0.008);
+    ng.gain.exponentialRampToValueAtTime(0.0008, t + 0.6);
+    noise.connect(lp).connect(ng).connect(masterRef.current);
+    const sub = ctx.createOscillator(); sub.type = "sine";
+    sub.frequency.setValueAtTime(120, t);
+    sub.frequency.exponentialRampToValueAtTime(35, t + 0.35);
+    const sg = ctx.createGain();
+    const subPeak = Math.min(0.55, 0.38 * intensity);
+    sg.gain.setValueAtTime(0, t);
+    sg.gain.linearRampToValueAtTime(subPeak, t + 0.01);
+    sg.gain.exponentialRampToValueAtTime(0.0008, t + 0.45);
+    sub.connect(sg).connect(masterRef.current);
+    noise.start(t); noise.stop(t + 0.6);
+    sub.start(t); sub.stop(t + 0.5);
+  }, [muted, ensure]);
+
+  return { hop, land, boom, ensure };
+}
+
+function GameScreen({ employee, muted, onEnd, onQuit }: {
   employee: typeof EMPLOYEES[number];
   muted: boolean;
   onEnd: (s: GameStats) => void;
