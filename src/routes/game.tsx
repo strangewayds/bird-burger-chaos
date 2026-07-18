@@ -522,7 +522,67 @@ function useGameSfx(muted: boolean) {
     noise.start(t); noise.stop(t + 0.14);
   }, [muted, ensure]);
 
-  return { hop, land, boom, whoosh, dashLand, ensure };
+  // Wet mop swish — short filtered noise, pitch rises with combo for satisfying feedback.
+  const mop = useCallback((intensity = 1, pitch = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk("mop", 70)) return;
+    const t = ctx.currentTime;
+    const bufLen = Math.floor(ctx.sampleRate * 0.14);
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      const k = i / bufLen;
+      data[i] = (Math.random() * 2 - 1) * Math.pow(Math.sin(Math.PI * k), 0.9);
+    }
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass";
+    bp.frequency.setValueAtTime(1400 * pitch, t);
+    bp.frequency.exponentialRampToValueAtTime(3200 * pitch, t + 0.13);
+    bp.Q.value = 1.6;
+    const g = ctx.createGain();
+    const peak = Math.min(0.22, 0.16 * intensity);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.14);
+    src.connect(bp).connect(g).connect(masterRef.current);
+    src.start(t); src.stop(t + 0.16);
+  }, [muted, ensure]);
+
+  // Chime + pop on spill fully cleaned. Combo raises pitch for a rising cash-register feel.
+  const mopDone = useCallback((combo = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk("mopDone", 40)) return;
+    const t = ctx.currentTime;
+    const base = 660 * Math.pow(1.12, Math.min(8, combo - 1)); // rises per combo step
+    // two-note sparkle
+    [0, 0.06].forEach((delay, idx) => {
+      const osc = ctx.createOscillator(); osc.type = "triangle";
+      const f = base * (idx === 0 ? 1 : 1.5);
+      osc.frequency.setValueAtTime(f, t + delay);
+      const g = ctx.createGain();
+      const peak = 0.22;
+      g.gain.setValueAtTime(0, t + delay);
+      g.gain.linearRampToValueAtTime(peak, t + delay + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0006, t + delay + 0.22);
+      osc.connect(g).connect(masterRef.current!);
+      osc.start(t + delay); osc.stop(t + delay + 0.25);
+    });
+    // wet pop
+    const pop = ctx.createOscillator(); pop.type = "sine";
+    pop.frequency.setValueAtTime(280, t);
+    pop.frequency.exponentialRampToValueAtTime(90, t + 0.09);
+    const pg = ctx.createGain();
+    pg.gain.setValueAtTime(0, t);
+    pg.gain.linearRampToValueAtTime(0.24, t + 0.004);
+    pg.gain.exponentialRampToValueAtTime(0.0006, t + 0.12);
+    pop.connect(pg).connect(masterRef.current);
+    pop.start(t); pop.stop(t + 0.14);
+  }, [muted, ensure]);
+
+  return { hop, land, boom, whoosh, dashLand, mop, mopDone, ensure };
+
 }
 
 function GameScreen({ employee, muted, onEnd, onQuit }: {
