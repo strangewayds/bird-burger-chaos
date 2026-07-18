@@ -30,6 +30,8 @@ import {
   Receipt,
   Download,
   Shuffle,
+  UtensilsCrossed,
+
 } from "lucide-react";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
@@ -691,11 +693,19 @@ function BirdBurgerPage() {
     const n = saved ? parseFloat(saved) : NaN;
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.6;
   });
+  const [ambVolume, setAmbVolume] = useState<number>(() => {
+    if (typeof window === "undefined") return 0.55;
+    const saved = window.localStorage.getItem("bb_amb_volume");
+    const n = saved ? parseFloat(saved) : NaN;
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.55;
+  });
   useEffect(() => { try { localStorage.setItem("bb_volume", String(volume)); } catch {} }, [volume]);
+  useEffect(() => { try { localStorage.setItem("bb_amb_volume", String(ambVolume)); } catch {} }, [ambVolume]);
 
   const play = useSound(muted);
   useFartSong(muted, trackId, volume);
-  useKitchenAmbience(muted, volume);
+  useKitchenAmbience(muted, ambVolume);
+
 
   const randomizeTrack = () => {
     const others = MEME_TRACKS.filter((t) => t.id !== trackId);
@@ -726,6 +736,9 @@ function BirdBurgerPage() {
         trackName={MEME_TRACKS.find((t) => t.id === trackId)?.name ?? ""}
         volume={volume}
         setVolume={setVolume}
+        ambVolume={ambVolume}
+        setAmbVolume={setAmbVolume}
+
         onConnect={() => setWalletOpen(true)}
         wallet={wallet}
         wrongNet={wrongNet}
@@ -2133,13 +2146,16 @@ function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: stri
 
 
 
-function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volume, setVolume, onConnect, wallet, wrongNet }: {
+function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volume, setVolume, ambVolume, setAmbVolume, onConnect, wallet, wrongNet }: {
   open: boolean; setOpen: (b: boolean) => void; muted: boolean; setMuted: (b: boolean) => void;
   onRandomizeTrack: () => void; trackName: string;
   volume: number; setVolume: (n: number) => void;
+  ambVolume: number; setAmbVolume: (n: number) => void;
   onConnect: () => void; wallet: string | null; wrongNet: boolean;
 }) {
   const volPct = Math.round(volume * 100);
+  const ambPct = Math.round(ambVolume * 100);
+
   return (
     <header className="sticky top-0 z-50 border-b-2 border-grape/40 bg-bg/85 backdrop-blur-md">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
@@ -2204,6 +2220,33 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
               }}
             />
           </div>
+          <div
+            className="hidden items-center gap-2 rounded-md border border-cyan/30 bg-bg/60 px-2 py-1.5 md:flex"
+            title="Kitchen ambience — fryer, soda, doorbell, complaints"
+          >
+            <button
+              onClick={() => setAmbVolume(ambVolume > 0 ? 0 : 0.55)}
+              aria-label={ambVolume === 0 ? "Enable kitchen ambience" : "Mute kitchen ambience"}
+              className="grid h-7 w-7 place-items-center rounded text-cyan/90 hover:bg-cyan/10"
+            >
+              <UtensilsCrossed className="h-4 w-4" style={{ opacity: ambVolume === 0 ? 0.4 : 1 }} />
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={muted ? 0 : ambPct}
+              onChange={(e) => setAmbVolume(parseInt(e.target.value, 10) / 100)}
+              aria-label="Kitchen ambience volume"
+              title={`Ambience ${muted ? 0 : ambPct}%`}
+              className="h-1.5 w-16 cursor-pointer appearance-none rounded-full bg-ink/20 accent-cyan sm:w-20"
+              style={{
+                backgroundImage: `linear-gradient(to right, var(--color-cyan, #22d3ee) 0%, var(--color-cyan, #22d3ee) ${muted ? 0 : ambPct}%, rgba(255,255,255,0.15) ${muted ? 0 : ambPct}%, rgba(255,255,255,0.15) 100%)`,
+              }}
+            />
+          </div>
+
           <button
             onClick={onConnect}
             className={`hidden items-center gap-2 rounded-md border-2 px-3 py-2 text-xs font-bold uppercase tracking-wider transition-all sm:inline-flex ${
