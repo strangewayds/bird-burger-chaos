@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { toast, Toaster } from "sonner";
 import {
   Menu as MenuIcon,
   X,
@@ -410,6 +411,8 @@ function BirdBurgerPage() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-bg text-ink grain">
+      <Toaster position="bottom-center" theme="dark" richColors />
+
       <Nav
         open={navOpen}
         setOpen={setNavOpen}
@@ -1123,6 +1126,94 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
 
   useEffect(() => () => { if (gifPreview) URL.revokeObjectURL(gifPreview.url); }, [gifPreview]);
 
+  /* ─── Video export (MP4 / WebM) via MediaRecorder ─── */
+  const [videoExporting, setVideoExporting] = useState<null | "mp4" | "webm">(null);
+  const [videoPct, setVideoPct] = useState(0);
+
+  // Pick the best supported mime for a requested container, falling back gracefully.
+  const pickMime = (kind: "mp4" | "webm"): string | null => {
+    const candidates = kind === "mp4"
+      ? ["video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=avc1", "video/mp4"]
+      : ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    for (const m of candidates) {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return null;
+  };
+
+  const renderVideo = async (kind: "mp4" | "webm") => {
+    if (videoExporting) return;
+    const mime = pickMime(kind);
+    if (!mime) {
+      toast.error(kind === "mp4"
+        ? "MP4 recording isn't supported in this browser — try WebM, or use Safari/Chrome desktop."
+        : "WebM recording isn't supported in this browser.");
+      return;
+    }
+    setVideoExporting(kind); setVideoPct(0);
+    try {
+      const size = 512;
+      const off = document.createElement("canvas");
+      off.width = size; off.height = size;
+      const octx = off.getContext("2d")!;
+      if (!imgReady.current) {
+        await new Promise<void>((res) => {
+          const check = () => imgReady.current ? res() : setTimeout(check, 50);
+          check();
+        });
+      }
+      const exportIntensity = animated ? intensity : Math.max(60, intensity);
+      const targetPlatform: Platform = exportPlatform === "match" ? platform : exportPlatform;
+      const exportSeed = seed;
+      const fps = 30;
+      const loops = 3; // ~6s so social players don't cold-cut on hover previews
+      const totalFrames = LOOP_LEN * loops;
+
+      // Prime the canvas so the stream has valid content before recording starts.
+      drawFrame(octx, size, 0, true, exportIntensity, LOOP_LEN, targetPlatform, exportSeed);
+      const stream = (off as HTMLCanvasElement).captureStream(0);
+      const track = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack & { requestFrame?: () => void };
+
+      const chunks: Blob[] = [];
+      const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      const done = new Promise<Blob>((resolve) => {
+        recorder.onstop = () => resolve(new Blob(chunks, { type: mime.split(";")[0] }));
+      });
+      recorder.start();
+
+      const frameMs = 1000 / fps;
+      const started = performance.now();
+      for (let i = 0; i < totalFrames; i++) {
+        const phaseFrame = i % LOOP_LEN;
+        drawFrame(octx, size, phaseFrame, true, exportIntensity, LOOP_LEN, targetPlatform, exportSeed);
+        track.requestFrame?.();
+        setVideoPct(Math.round(((i + 1) / totalFrames) * 100));
+        const target = started + (i + 1) * frameMs;
+        const wait = Math.max(0, target - performance.now());
+        await new Promise((r) => setTimeout(r, wait));
+      }
+      recorder.stop();
+      track.stop();
+      const blob = await done;
+      const url = URL.createObjectURL(blob);
+      const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bird-burger-${employee.id}-${targetPlatform}-seed${exportSeed}.${ext}`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast.success(`${ext.toUpperCase()} saved · ${Math.round(blob.size / 1024)} KB`);
+      onDownload();
+    } catch (err) {
+      console.error("Video export failed", err);
+      toast.error("Video export failed. Try the GIF or WebM option instead.");
+    } finally {
+      setVideoExporting(null); setVideoPct(0);
+    }
+  };
+
+
 
   const share = async () => {
     const text = `I got hired as ${employee.name} (${employee.role}) at Bird Burger 🐦🍔 — "${employee.quote}"`;
@@ -1232,6 +1323,24 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
               className="rounded-md border-2 border-robin bg-robin px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
             >
               {exporting ? `RENDERING ${exportPct}%` : "PREVIEW GIF LOOP"}
+            </button>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => renderVideo("mp4")}
+              disabled={!!videoExporting}
+              className="rounded-md border-2 border-grape bg-grape px-3 py-3 font-display text-xs tracking-widest text-white shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
+              title="Export a looping MP4 (best for X, iMessage, TikTok)"
+            >
+              {videoExporting === "mp4" ? `MP4 ${videoPct}%` : "🎬 MP4"}
+            </button>
+            <button
+              onClick={() => renderVideo("webm")}
+              disabled={!!videoExporting}
+              className="rounded-md border-2 border-cyan bg-cyan/20 px-3 py-3 font-display text-xs tracking-widest text-cyan shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
+              title="Export a looping WebM (smaller file, best for Discord)"
+            >
+              {videoExporting === "webm" ? `WEBM ${videoPct}%` : "🎞 WEBM"}
             </button>
           </div>
           <div className="mt-3 rounded-md border-2 border-robin/40 bg-black/30 p-3">
