@@ -615,6 +615,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     let fireCd = 8;
     let pigeonCd = 15;
     let spillCd = 6;
+    let disasterCd = 18 + Math.random() * 8;
     let orderTickAcc = 0;
     let uiTickAcc = 0;
 
