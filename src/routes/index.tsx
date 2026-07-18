@@ -855,8 +855,10 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     onDownload();
   };
 
-  const downloadGif = async () => {
+  const renderGif = async () => {
     if (exporting) return;
+    // Discard any stale preview when re-rendering.
+    if (gifPreview) { URL.revokeObjectURL(gifPreview.url); setGifPreview(null); }
     setExporting(true); setExportPct(0);
     try {
       const [{ default: GIF }, workerUrlMod] = await Promise.all([
@@ -867,7 +869,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       const off = document.createElement("canvas");
       off.width = size; off.height = size;
       const octx = off.getContext("2d")!;
-      const frames = 30;
+      const frames = LOOP_LEN;
       const delay = 66;
       if (!imgReady.current) {
         await new Promise<void>((res) => {
@@ -883,20 +885,18 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
         workerScript: (workerUrlMod as { default: string }).default,
       });
       const exportIntensity = animated ? intensity : Math.max(60, intensity);
+      // Render frames 0..LOOP_LEN-1. Because every animated quantity in
+      // drawFrame is periodic over LOOP_LEN, frame 0 and frame LOOP_LEN are
+      // pixel-identical → the GIF loops with no visible seam.
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i, true, exportIntensity);
+        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN);
         gif.addFrame(octx, { copy: true, delay });
       }
       gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
       gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `bird-burger-${employee.id}-${platform}.gif`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setGifPreview({ url, blob });
         setExporting(false); setExportPct(0);
-        onDownload();
       });
       gif.render();
     } catch (err) {
@@ -904,6 +904,23 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       setExporting(false); setExportPct(0);
     }
   };
+
+  const confirmDownloadGif = () => {
+    if (!gifPreview) return;
+    const a = document.createElement("a");
+    a.href = gifPreview.url;
+    a.download = `bird-burger-${employee.id}-${platform}.gif`;
+    a.click();
+    onDownload();
+  };
+
+  const closeGifPreview = () => {
+    if (gifPreview) URL.revokeObjectURL(gifPreview.url);
+    setGifPreview(null);
+  };
+
+  useEffect(() => () => { if (gifPreview) URL.revokeObjectURL(gifPreview.url); }, [gifPreview]);
+
 
   const share = async () => {
     const text = `I got hired as ${employee.name} (${employee.role}) at Bird Burger 🐦🍔 — "${employee.quote}"`;
