@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, VolumeX } from "lucide-react";
+import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, VolumeX, Vibrate, VibrateOff } from "lucide-react";
 import kitchenBg from "@/assets/game-kitchen.jpg";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 
@@ -116,10 +116,11 @@ function GamePage() {
   const [showHelp, setShowHelp] = useState(false);
   const [muted, setMuted] = useState(true);
   const [finalStats, setFinalStats] = useState<GameStats | null>(null);
+  const haptics = useHaptics();
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
-      <TopBar muted={muted} setMuted={setMuted} />
+      <TopBar muted={muted} setMuted={setMuted} haptics={haptics} />
       <AnimatePresence mode="wait">
         {phase === "start" && (
           <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -136,6 +137,7 @@ function GamePage() {
             <GameScreen
               employee={employee}
               muted={muted}
+              haptics={haptics}
               onEnd={(stats) => { setFinalStats(stats); setPhase("results"); }}
               onQuit={() => setPhase("start")}
             />
@@ -158,7 +160,7 @@ function GamePage() {
 
 /* ─────────────────────────  TOP BAR  ───────────────────────── */
 
-function TopBar({ muted, setMuted }: { muted: boolean; setMuted: (v: boolean) => void }) {
+function TopBar({ muted, setMuted, haptics }: { muted: boolean; setMuted: (v: boolean) => void; haptics: Haptics }) {
   return (
     <header className="sticky top-0 z-40 border-b-2 border-[#7C3AED]/50 bg-[#09090B]/90 backdrop-blur">
       <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-2 px-4 py-2.5">
@@ -171,13 +173,24 @@ function TopBar({ muted, setMuted }: { muted: boolean; setMuted: (v: boolean) =>
             Bird Burger: <span className="text-[#EC4899]">Kitchen Chaos</span>
           </div>
         </div>
-        <button
-          onClick={() => setMuted(!muted)}
-          className="grid h-9 w-9 place-items-center rounded border border-[#7C3AED]/40 bg-[#2E1065]/60 text-[#C4A9F5] hover:bg-[#7C3AED]/30"
-          aria-label={muted ? "Unmute" : "Mute"}
-        >
-          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => haptics.setEnabled(!haptics.enabled)}
+            className={`grid h-9 w-9 place-items-center rounded border bg-[#2E1065]/60 hover:bg-[#7C3AED]/30 ${haptics.canVibrate ? "border-[#7C3AED]/40 text-[#C4A9F5]" : "border-white/10 text-white/20"}`}
+            aria-label={haptics.enabled ? "Disable haptics" : "Enable haptics"}
+            disabled={!haptics.canVibrate}
+            title={haptics.canVibrate ? (haptics.enabled ? "Vibration on" : "Vibration off") : "No vibration on this device"}
+          >
+            {haptics.enabled && haptics.canVibrate ? <Vibrate className="h-4 w-4" /> : <VibrateOff className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={() => setMuted(!muted)}
+            className="grid h-9 w-9 place-items-center rounded border border-[#7C3AED]/40 bg-[#2E1065]/60 text-[#C4A9F5] hover:bg-[#7C3AED]/30"
+            aria-label={muted ? "Unmute" : "Mute"}
+          >
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
     </header>
   );
@@ -586,9 +599,51 @@ function useGameSfx(muted: boolean) {
 
 }
 
-function GameScreen({ employee, muted, onEnd, onQuit }: {
+/* ─────────────────────────  HAPTICS  ───────────────────────── */
+function useHaptics() {
+  const [enabled, setEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const saved = window.localStorage.getItem("bb_haptics");
+    if (saved != null) return saved === "1";
+    return "ontouchstart" in window;
+  });
+  const canVibrate = useMemo(() => typeof navigator !== "undefined" && "vibrate" in navigator, []);
+  const rateRef = useRef<Record<string, number>>({});
+
+  const setAndSave = useCallback((v: boolean) => {
+    setEnabled(v);
+    if (typeof window !== "undefined") window.localStorage.setItem("bb_haptics", v ? "1" : "0");
+  }, []);
+
+  const pulse = useCallback((pattern: number | number[], key: string, minGap = 30) => {
+    if (!enabled || !canVibrate) return;
+    const now = performance.now();
+    if (now - (rateRef.current[key] || 0) < minGap) return;
+    rateRef.current[key] = now;
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      // ignore unsupported patterns
+    }
+  }, [enabled, canVibrate]);
+
+  return {
+    enabled,
+    setEnabled: setAndSave,
+    canVibrate,
+    hop: useCallback(() => pulse([10], "hop", 55), [pulse]),
+    land: useCallback(() => pulse([14], "land", 45), [pulse]),
+    dashLand: useCallback(() => pulse([8, 6, 18], "dashLand", 90), [pulse]),
+    boom: useCallback(() => pulse([16, 22, 48], "boom", 120), [pulse]),
+  };
+}
+
+type Haptics = ReturnType<typeof useHaptics>;
+
+function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   employee: typeof EMPLOYEES[number];
   muted: boolean;
+  haptics: Haptics;
   onEnd: (s: GameStats) => void;
   onQuit: () => void;
 }) {
@@ -599,6 +654,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   const sfx = useGameSfx(muted);
   const sfxRef = useRef(sfx);
   useEffect(() => { sfxRef.current = sfx; }, [sfx]);
+  const hapticsRef = useRef(haptics);
+  useEffect(() => { hapticsRef.current = haptics; }, [haptics]);
   // Resume AudioContext on first user gesture (autoplay policy)
   useEffect(() => {
     const kick = () => { sfxRef.current.ensure(); };
