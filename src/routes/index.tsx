@@ -246,59 +246,107 @@ function useFartSong(muted: boolean) {
     if (ctx.state === "suspended") ctx.resume();
     stoppedRef.current = false;
 
-    // Goofy "fart tuba" melody — [semitone offset, seconds]
-    const melody: [number, number][] = [
-      [0, 0.22], [4, 0.22], [7, 0.28], [4, 0.22],
-      [0, 0.34], [7, 0.22], [12, 0.28], [10, 0.22],
-      [7, 0.28], [4, 0.22], [0, 0.22], [-3, 0.5],
-      [5, 0.22], [3, 0.22], [0, 0.22], [-5, 0.6],
-    ];
-    const baseFreq = 98; // G2 – low & flatulent
+    // Goofy "derp walk" — bouncy kazoo melody over oom-pah tuba bass.
+    // Notes as semitones from C4 (261.63 Hz). Rhythm in 16th-note beats @ 150bpm.
+    const BPM = 150;
+    const B = 60 / BPM / 2; // one 16th note in seconds (~0.2s)
 
-    const playFart = (when: number, semi: number, dur: number) => {
+    // Kazoo melody (semi from C4, beats). Silly hopping pentatonic riff.
+    const melody: [number | null, number][] = [
+      [7, 1], [9, 1], [12, 1], [9, 1],
+      [7, 1], [4, 1], [7, 2],
+      [9, 1], [12, 1], [14, 1], [12, 1],
+      [9, 1], [7, 1], [4, 2],
+      [12, 1], [11, 1], [9, 1], [7, 1],
+      [4, 1], [2, 1], [0, 2],
+      [7, 1], [4, 1], [2, 1], [4, 1],
+      [7, 2], [null, 2],
+    ];
+
+    // Oom-pah tuba bass pattern (semi from C2, beats). Alternates root / fifth.
+    const bass: [number, number][] = [
+      [0, 2], [7, 2], [0, 2], [7, 2],
+      [-3, 2], [4, 2], [-5, 2], [7, 2],
+    ];
+
+    const kazoo = (when: number, semi: number, dur: number) => {
       if (!ctxRef.current) return;
-      const f0 = baseFreq * Math.pow(2, semi / 12);
+      const f = 261.63 * Math.pow(2, semi / 12);
       const osc = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
-      const lfo = ctx.createOscillator();
-      const lfoGain = ctx.createGain();
+      const vib = ctx.createOscillator();
+      const vibGain = ctx.createGain();
       const g = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(1600, when);
-      filter.frequency.exponentialRampToValueAtTime(600, when + dur);
-      osc.type = "sawtooth";
-      osc2.type = "square";
-      osc.frequency.setValueAtTime(f0 * 1.35, when);
-      osc.frequency.exponentialRampToValueAtTime(Math.max(40, f0 * 0.75), when + dur * 0.95);
-      osc2.frequency.setValueAtTime(f0 * 0.55, when);
-      osc2.frequency.exponentialRampToValueAtTime(Math.max(30, f0 * 0.4), when + dur * 0.95);
-      lfo.frequency.value = 24;
-      lfoGain.gain.value = 22;
-      lfo.connect(lfoGain);
-      lfoGain.connect(osc.frequency);
-      lfoGain.connect(osc2.frequency);
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass"; bp.frequency.value = f * 2.2; bp.Q.value = 4;
+      osc.type = "sawtooth"; osc2.type = "square";
+      osc.frequency.value = f; osc2.frequency.value = f * 2;
+      vib.frequency.value = 8; vibGain.gain.value = f * 0.03;
+      vib.connect(vibGain); vibGain.connect(osc.frequency); vibGain.connect(osc2.frequency);
       g.gain.setValueAtTime(0.0001, when);
-      g.gain.exponentialRampToValueAtTime(0.09, when + 0.025);
+      g.gain.exponentialRampToValueAtTime(0.14, when + 0.02);
+      g.gain.setValueAtTime(0.12, when + Math.max(0.03, dur * 0.6));
       g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-      osc.connect(filter); osc2.connect(filter); filter.connect(g); g.connect(ctx.destination);
-      osc.start(when); osc2.start(when); lfo.start(when);
-      const stopAt = when + dur + 0.05;
-      osc.stop(stopAt); osc2.stop(stopAt); lfo.stop(stopAt);
+      osc.connect(bp); osc2.connect(bp); bp.connect(g); g.connect(ctx.destination);
+      osc.start(when); osc2.start(when); vib.start(when);
+      const s = when + dur + 0.02;
+      osc.stop(s); osc2.stop(s); vib.stop(s);
     };
 
-    let cursor = ctx.currentTime + 0.15;
+    const tuba = (when: number, semi: number, dur: number) => {
+      if (!ctxRef.current) return;
+      const f = 65.41 * Math.pow(2, semi / 12); // C2 base
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = 400;
+      osc.type = "triangle"; osc.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(0.18, when + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur * 0.85);
+      osc.connect(lp); lp.connect(g); g.connect(ctx.destination);
+      osc.start(when); osc.stop(when + dur);
+    };
+
+    // "Doink" plink to punctuate every 8 beats — very meme.
+    const doink = (when: number) => {
+      if (!ctxRef.current) return;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(1200, when);
+      o.frequency.exponentialRampToValueAtTime(180, when + 0.18);
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(0.12, when + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + 0.22);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(when); o.stop(when + 0.24);
+    };
+
+    const loopBeats = melody.reduce((s, [, b]) => s + b, 0);
+    let cursor = ctx.currentTime + 0.2;
+
     const schedule = () => {
       if (stoppedRef.current || !ctxRef.current) return;
       const now = ctx.currentTime;
-      while (cursor < now + 1.5 && !stoppedRef.current) {
-        for (const [semi, dur] of melody) {
-          playFart(cursor, semi, dur);
-          cursor += dur + 0.04;
+      while (cursor < now + 2 && !stoppedRef.current) {
+        // Melody
+        let t = cursor;
+        for (const [semi, beats] of melody) {
+          if (semi !== null) kazoo(t, semi, beats * B * 0.9);
+          t += beats * B;
         }
-        cursor += 0.4; // gap between loops
+        // Bass in parallel
+        let bt = cursor;
+        for (const [semi, beats] of bass) {
+          tuba(bt, semi, beats * B * 0.85);
+          bt += beats * B;
+        }
+        // Doink at the very end for that meme punchline
+        doink(cursor + (loopBeats - 1) * B);
+        cursor += loopBeats * B + 0.15;
       }
-      timerRef.current = window.setTimeout(schedule, 500);
+      timerRef.current = window.setTimeout(schedule, 400);
     };
     schedule();
 
@@ -308,6 +356,7 @@ function useFartSong(muted: boolean) {
     };
   }, [muted]);
 }
+
 
 /* ─────────────────────────  PAGE  ───────────────────────── */
 
