@@ -2170,6 +2170,35 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
               {perfMode === "auto" ? "Auto-cuts dust & flashes when it gets hectic." : perfMode === "high" ? "Every spark, every puff." : "Minimal particles for smooth play."}
             </div>
           </div>
+
+          {/* Motion sensitivity toggle */}
+          <div className="rounded-lg border-2 border-[#A78BFA]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+            <div className="mb-1 flex items-center justify-between font-black text-[#A78BFA]">
+              <span>MOTION</span>
+              <span className="text-[9px] text-white/60">{motionMode === "reduced" ? "GENTLE" : "SPICY"}</span>
+            </div>
+            <div className="flex gap-1">
+              {(["full", "reduced"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    motionRef.current.mode = m;
+                    motionRef.current.scale = m === "reduced" ? 0.25 : 1;
+                    try { localStorage.setItem("bb_motion", m); } catch {}
+                    setMotionMode(m);
+                  }}
+                  className={`flex-1 rounded border-2 px-1.5 py-1 text-[9px] font-black transition ${
+                    motionMode === m
+                      ? "border-[#A78BFA] bg-[#A78BFA]/25 text-[#A78BFA]"
+                      : "border-white/20 bg-white/5 text-white/60 hover:border-white/40"
+                  }`}
+                >{m === "full" ? "FULL" : "REDUCED"}</button>
+              ))}
+            </div>
+            <div className="mt-1 text-[8px] leading-tight text-white/50">
+              {motionMode === "reduced" ? "Softer shake, no strobe flashing, gentler squash." : "Full shake, flash & squash chaos."}
+            </div>
+          </div>
         </div>
 
 
