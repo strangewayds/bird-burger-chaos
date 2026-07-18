@@ -940,16 +940,69 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         minimapRef.current.style.opacity = op.toFixed(3);
         minimapRef.current.style.pointerEvents = near > 0.5 ? "none" : "auto";
       }
-      // fire life
-      firesRef.current.forEach((fi) => { fi.life -= dt; });
-      // fires that expire cause chaos
-      firesRef.current = firesRef.current.filter((fi) => {
-        if (fi.life <= 0) {
-          chaosRef.current = Math.min(6, chaosRef.current + 1);
-          return false;
-        }
-        return true;
-      });
+      // fire life + danger + spray mechanic
+      {
+        const k = keysRef.current;
+        const spraying = hasExtinguisherRef.current && (k[" "] || k["e"] || k["f"]);
+        firesRef.current.forEach((fi) => {
+          fi.life -= dt;
+          const d = Math.hypot(playerRef.current.x - fi.x, playerRef.current.y - fi.y);
+          const inRange = d < 0.14;
+          if (spraying && inRange) {
+            fi.sprayT = Math.min(1, fi.sprayT + dt * 3);
+            fi.life -= dt * 6;
+            fi.danger = Math.min(fi.dangerMax, fi.danger + dt * 2); // resets timer
+            // spray particles
+            if (Math.random() < 0.85) {
+              const ang = Math.atan2(fi.y - playerRef.current.y, fi.x - playerRef.current.x) + (Math.random() - 0.5) * 0.5;
+              particlesRef.current.push({
+                type: "dust",
+                x: playerRef.current.x + Math.cos(ang) * 0.02,
+                y: playerRef.current.y + Math.sin(ang) * 0.02 - 0.01,
+                vx: Math.cos(ang) * 0.25 + (Math.random() - 0.5) * 0.05,
+                vy: Math.sin(ang) * 0.25 + (Math.random() - 0.5) * 0.05,
+                life: 0.45, max: 0.45, size: 3 + Math.random() * 3, hue: 190,
+              } as any);
+            }
+          } else {
+            fi.sprayT = Math.max(0, fi.sprayT - dt * 2);
+            fi.danger -= dt;
+          }
+        });
+        // extinguished fires
+        firesRef.current = firesRef.current.filter((fi) => {
+          if (fi.life <= 0) {
+            // put out cleanly (either by spray or expiring)
+            if (spraying) {
+              scoreRef.current += 80;
+              chaosRef.current = Math.max(0, chaosRef.current - 1);
+              hasExtinguisherRef.current = false;
+              floatsRef.current.push({ x: fi.x, y: fi.y - 0.03, text: "PUT OUT! +80", color: "#22D3EE", life: 1.2 });
+            } else {
+              chaosRef.current = Math.min(6, chaosRef.current + 1);
+            }
+            return false;
+          }
+          // danger timer explosion
+          if (fi.danger <= 0) {
+            const px = playerRef.current.x, py = playerRef.current.y;
+            const dxk = px - fi.x, dyk = py - fi.y;
+            const dk = Math.hypot(dxk, dyk) || 1;
+            if (dk < 0.28) {
+              const dist = Math.min(0.22, 0.24 / (dk + 0.4));
+              playerRef.current.x = clamp(px + (dxk/dk) * dist, 0.02, 0.98);
+              playerRef.current.y = clamp(py + (dyk/dk) * dist, 0.10, 0.96);
+              playerRef.current.slipT = 0.6;
+            }
+            shakeRef.current = Math.max(shakeRef.current, 0.5);
+            explosionRef.current = 1;
+            chaosRef.current = Math.min(6, chaosRef.current + 1.5);
+            floatsRef.current.push({ x: fi.x, y: fi.y - 0.04, text: "💥 KABOOM!", color: "#EF4444", life: 1.3 });
+            return false;
+          }
+          return true;
+        });
+      }
 
       // Pigeons
       pigeonCd -= dt;
