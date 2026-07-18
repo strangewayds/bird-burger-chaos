@@ -857,13 +857,11 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
         height: size,
         workerScript: (workerUrlMod as { default: string }).default,
       });
-      const wasAnimated = animated;
-      // force animated on for export regardless of toggle
+      const exportIntensity = animated ? intensity : Math.max(60, intensity);
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i, true);
+        drawFrame(octx, size, i, true, exportIntensity);
         gif.addFrame(octx, { copy: true, delay });
       }
-      void wasAnimated;
       gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
       gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
