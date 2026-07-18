@@ -206,6 +206,34 @@ const clean = (s: string) =>
     .replace(/\b(fuck|shit|bitch|slur1|slur2)\b/gi, "****")
     .slice(0, 140);
 
+// Seeded PRNG (mulberry32) — deterministic 0..1 sequence per seed.
+function mulberry32(seed: number) {
+  let a = (seed >>> 0) || 1;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Compute seamless-safe variations from a seed. Integer frequencies and
+// segment offsets are chosen so frame 0 and frame loopLen still match.
+function seedVariations(seed: number, loopLen: number) {
+  const r = mulberry32(seed);
+  const freqs = [1, 2, 3, 5]; // all divide 30
+  const jitterFreq = freqs[Math.floor(r() * freqs.length)]!;
+  const hatFreq = freqs[Math.floor(r() * freqs.length)]!;
+  const jitterPhase = r() * Math.PI * 2;
+  const hatPhase = r() * Math.PI * 2;
+  const pulsePhase = r() * Math.PI * 2;
+  const scanDir = r() < 0.5 ? 1 : -1;
+  const blinkOffset = Math.floor(r() * loopLen);
+  const liveOffset = Math.floor(r() * loopLen);
+  return { jitterFreq, hatFreq, jitterPhase, hatPhase, pulsePhase, scanDir, blinkOffset, liveOffset };
+}
+
+
 function useSound(muted: boolean) {
   const ctxRef = useRef<AudioContext | null>(null);
   return (kind: "beep" | "buzz" | "chirp" | "bell") => {
@@ -728,8 +756,11 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   const [intensity, setIntensity] = useState(60);
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
-  const [gifPreview, setGifPreview] = useState<{ url: string; blob: Blob; platform: Platform } | null>(null);
+  const [gifPreview, setGifPreview] = useState<{ url: string; blob: Blob; platform: Platform; seed: number } | null>(null);
   const [exportPlatform, setExportPlatform] = useState<Platform | "match">("match");
+  const [seed, setSeed] = useState<number>(1337);
+  const [lockSeed, setLockSeed] = useState<boolean>(true);
+
   const LOOP_LEN = 30;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -747,7 +778,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
-  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number, loopLen: number = LOOP_LEN, platformOverride?: Platform) => {
+  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number, loopLen: number = LOOP_LEN, platformOverride?: Platform, seedOverride?: number) => {
     const plat: Platform = platformOverride ?? platform;
     const iv = (intensityOverride ?? intensity) / 100; // 0..1
     // Normalize into a single loop so first and last frame align exactly.
@@ -755,10 +786,14 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     const phase = fMod / loopLen; // 0..1
     const twoPi = Math.PI * 2;
 
+    const sv = seedVariations(seedOverride ?? seed, loopLen);
+
     // Jitter: sinusoidal so it returns to origin at phase 0/1 (seamless).
+    // Seed shifts phase offset and picks integer freq for the vertical axis.
     const jitterAmp = anim ? Math.max(1, Math.round(iv * 4)) : 0;
-    const jx = anim ? Math.round(Math.sin(twoPi * phase) * jitterAmp) : 0;
-    const jy = anim ? Math.round(Math.cos(twoPi * phase * 2) * jitterAmp) : 0;
+    const jx = anim ? Math.round(Math.sin(twoPi * phase + sv.jitterPhase) * jitterAmp) : 0;
+    const jy = anim ? Math.round(Math.cos(twoPi * phase * sv.jitterFreq + sv.jitterPhase) * jitterAmp) : 0;
+
 
     // Blinks: integer number of blinks per loop, each blink at a fixed phase.
     const blinksPerLoop = anim && iv > 0.05 ? Math.min(3, Math.max(1, Math.round(iv * 3))) : 0;
@@ -766,11 +801,12 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     let blinking = false;
     if (blinksPerLoop > 0) {
       const seg = loopLen / blinksPerLoop; // 30/{1,2,3} → integer
-      const posInSeg = fMod % seg;
+      const posInSeg = ((fMod + sv.blinkOffset) % loopLen) % seg;
       blinking = posInSeg < blinkDuration;
     }
 
-    const pulse = anim ? 0.5 + 0.5 * Math.sin(twoPi * phase) * (0.4 + iv * 0.6) : 0.7;
+    const pulse = anim ? 0.5 + 0.5 * Math.sin(twoPi * phase + sv.pulsePhase) * (0.4 + iv * 0.6) : 0.7;
+
 
     ctx.save();
     ctx.clearRect(0, 0, size, size);
@@ -791,9 +827,10 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
 
     const scanAlpha = 0.02 + iv * 0.16;
     ctx.globalAlpha = scanAlpha;
-    // loopLen (30) is divisible by 3, so mod-3 shift is also seamless.
-    const shift = anim ? fMod % 3 : 0;
+    // loopLen (30) is divisible by 3, so mod-3 shift is also seamless. Seed flips direction.
+    const shift = anim ? (sv.scanDir > 0 ? fMod % 3 : (3 - (fMod % 3)) % 3) : 0;
     for (let y = shift; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
+
     ctx.globalAlpha = 1;
 
     const haloAlpha = Math.floor(0x99 + pulse * 0x40).toString(16).padStart(2, "0");
@@ -823,8 +860,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       ctx.fillText("🐦", size/2, size*0.65);
     }
 
-    // Hat bob: 2 full cycles per loop → returns to origin at seam.
-    const hatBob = anim ? Math.sin(twoPi * phase * 2) * (1 + iv * 4) : 0;
+    // Hat bob: integer cycles per loop → returns to origin at seam. Seed picks freq + phase.
+    const hatBob = anim ? Math.sin(twoPi * phase * sv.hatFreq + sv.hatPhase) * (1 + iv * 4) : 0;
     ctx.font = `bold ${size*0.176}px 'Apple Color Emoji','Segoe UI Emoji',sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(employee.hat, size*0.72 + jx, size*0.32 + hatBob);
@@ -835,9 +872,10 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     let liveOn = false;
     if (liveFlashes > 0) {
       const seg = loopLen / liveFlashes;
-      const posInSeg = fMod % seg;
+      const posInSeg = ((fMod + sv.liveOffset) % loopLen) % seg;
       liveOn = posInSeg < seg * 0.6;
     }
+
     if (liveOn) {
       ctx.save();
       ctx.fillStyle = "#ff2e63";
@@ -896,7 +934,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empId, bgId, platform, handle, showBadge, animated, intensity]);
+  }, [empId, bgId, platform, handle, showBadge, animated, intensity, seed]);
 
   const download = () => {
     const c = canvasRef.current; if (!c) return;
@@ -937,19 +975,21 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       });
       const exportIntensity = animated ? intensity : Math.max(60, intensity);
       const targetPlatform: Platform = exportPlatform === "match" ? platform : exportPlatform;
+      const exportSeed = seed;
       // Render frames 0..LOOP_LEN-1. Because every animated quantity in
       // drawFrame is periodic over LOOP_LEN, frame 0 and frame LOOP_LEN are
       // pixel-identical → the GIF loops with no visible seam.
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN, targetPlatform);
+        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN, targetPlatform, exportSeed);
         gif.addFrame(octx, { copy: true, delay });
       }
       gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
       gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
-        setGifPreview({ url, blob, platform: targetPlatform });
+        setGifPreview({ url, blob, platform: targetPlatform, seed: exportSeed });
         setExporting(false); setExportPct(0);
       });
+
       gif.render();
     } catch (err) {
       console.error("GIF export failed", err);
@@ -961,7 +1001,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     if (!gifPreview) return;
     const a = document.createElement("a");
     a.href = gifPreview.url;
-    a.download = `bird-burger-${employee.id}-${gifPreview.platform}.gif`;
+    a.download = `bird-burger-${employee.id}-${gifPreview.platform}-seed${gifPreview.seed}.gif`;
     a.click();
     onDownload();
   };
@@ -1029,6 +1069,49 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
               <span className="text-right">Scanlines</span>
             </div>
           </div>
+          <div className={`mt-3 rounded-md border-2 p-3 transition ${animated ? "border-cyan/60 bg-cyan/5" : "border-ink/15 bg-black/20 opacity-60"}`}>
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">
+              <span>Randomness Seed</span>
+              <button
+                type="button"
+                onClick={() => setLockSeed((v) => !v)}
+                disabled={!animated}
+                className={`rounded border px-1.5 py-0.5 font-display text-[9px] tracking-widest transition ${lockSeed ? "border-mustard bg-mustard/20 text-mustard" : "border-ink/30 text-ink/50 hover:text-ink"}`}
+                aria-pressed={lockSeed}
+                title={lockSeed ? "Seed locked — same jitter/blink pattern every export" : "Seed unlocked — a fresh random pattern each render"}
+              >
+                {lockSeed ? "🔒 LOCKED" : "🔓 UNLOCKED"}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={seed}
+                min={0}
+                max={999999}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setSeed(Number.isFinite(n) ? Math.max(0, Math.min(999999, n)) : 0);
+                }}
+                disabled={!animated || lockSeed}
+                className="w-full rounded-md border-2 border-ink/20 bg-black/40 px-2 py-1.5 font-mono text-sm text-ink outline-none focus:border-cyan disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Randomness seed"
+              />
+              <button
+                type="button"
+                onClick={() => { setLockSeed(false); setSeed(Math.floor(Math.random() * 1_000_000)); }}
+                disabled={!animated}
+                className="rounded-md border-2 border-cyan bg-cyan/10 px-2 py-1.5 font-display text-[10px] tracking-widest text-cyan hover:bg-cyan/20 transition disabled:cursor-not-allowed disabled:opacity-50"
+                title="Roll a fresh seed"
+              >🎲 ROLL</button>
+            </div>
+            <div className="mt-1 font-mono text-[9px] uppercase tracking-widest text-ink/50">
+              {lockSeed
+                ? "Locked — this exact jitter/blink pattern reproduces on every export"
+                : "Unlocked — edit or roll to preview a new pattern, then lock to save it"}
+            </div>
+          </div>
+
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button onClick={download} className="rounded-md border-2 border-mustard bg-mustard px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
               PNG
