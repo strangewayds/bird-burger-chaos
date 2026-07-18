@@ -321,6 +321,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   const orderIdRef = useRef(1);
   const firesRef = useRef<Fire[]>([]);
   const pigeonsRef = useRef<Pigeon[]>([]);
+  const spillsRef = useRef<Spill[]>([]);
   const floatsRef = useRef<FloatText[]>([]);
   const hasExtinguisherRef = useRef(false);
   const grillRef = useRef({ progress: 0, item: null as Ing | null });
