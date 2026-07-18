@@ -794,6 +794,14 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     if (!ctx) return;
     const W = cv.width, H = cv.height;
     ctx.clearRect(0, 0, W, H);
+    // Screen shake + drunk-cam wobble
+    const shakeAmt = shakeRef.current;
+    const buzz = viceRef.current.buzz;
+    const t = performance.now() / 1000;
+    const sx = (shakeAmt > 0 ? (Math.random() - 0.5) * shakeAmt * 24 : 0) + (buzz > 0 ? Math.sin(t * 1.7) * 6 * Math.min(1, buzz) : 0);
+    const sy = (shakeAmt > 0 ? (Math.random() - 0.5) * shakeAmt * 24 : 0) + (buzz > 0 ? Math.cos(t * 1.3) * 4 * Math.min(1, buzz) : 0);
+    ctx.save();
+    ctx.translate(sx, sy);
 
     // Background
     const bg = bgImgRef.current;
