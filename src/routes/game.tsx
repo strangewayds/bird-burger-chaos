@@ -453,6 +453,19 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const mascotImgRef = useRef<HTMLImageElement | null>(null);
+  const sfx = useGameSfx(muted);
+  const sfxRef = useRef(sfx);
+  useEffect(() => { sfxRef.current = sfx; }, [sfx]);
+  // Resume AudioContext on first user gesture (autoplay policy)
+  useEffect(() => {
+    const kick = () => { sfxRef.current.ensure(); };
+    window.addEventListener("pointerdown", kick, { once: true });
+    window.addEventListener("keydown", kick, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", kick);
+      window.removeEventListener("keydown", kick);
+    };
+  }, []);
 
   // Persistent refs (game loop reads/writes)
   const keysRef = useRef<Record<string, boolean>>({});
