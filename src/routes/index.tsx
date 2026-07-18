@@ -724,6 +724,8 @@ function BirdBurgerPage() {
         setMuted={setMuted}
         onRandomizeTrack={randomizeTrack}
         trackName={MEME_TRACKS.find((t) => t.id === trackId)?.name ?? ""}
+        volume={volume}
+        setVolume={setVolume}
         onConnect={() => setWalletOpen(true)}
         wallet={wallet}
         wrongNet={wrongNet}
