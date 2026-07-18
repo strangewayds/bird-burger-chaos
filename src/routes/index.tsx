@@ -860,8 +860,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       ctx.fillText("🐦", size/2, size*0.65);
     }
 
-    // Hat bob: 2 full cycles per loop → returns to origin at seam.
-    const hatBob = anim ? Math.sin(twoPi * phase * 2) * (1 + iv * 4) : 0;
+    // Hat bob: integer cycles per loop → returns to origin at seam. Seed picks freq + phase.
+    const hatBob = anim ? Math.sin(twoPi * phase * sv.hatFreq + sv.hatPhase) * (1 + iv * 4) : 0;
     ctx.font = `bold ${size*0.176}px 'Apple Color Emoji','Segoe UI Emoji',sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(employee.hat, size*0.72 + jx, size*0.32 + hatBob);
@@ -872,9 +872,10 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     let liveOn = false;
     if (liveFlashes > 0) {
       const seg = loopLen / liveFlashes;
-      const posInSeg = fMod % seg;
+      const posInSeg = ((fMod + sv.liveOffset) % loopLen) % seg;
       liveOn = posInSeg < seg * 0.6;
     }
+
     if (liveOn) {
       ctx.save();
       ctx.fillStyle = "#ff2e63";
