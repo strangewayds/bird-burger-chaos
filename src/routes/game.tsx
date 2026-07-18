@@ -1003,8 +1003,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             kind: "dust",
           });
         }
-        // Flash: skip probabilistically when perf-mode is reducing effects
-        if (scale > 0.55 || Math.random() < scale) {
+        // Flash: skip probabilistically when perf-mode is reducing effects, or entirely under reduced motion
+        if (motionRef.current.mode !== "reduced" && (scale > 0.55 || Math.random() < scale)) {
           particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: (dashing ? 22 : 16) * (0.7 + 0.3 * scale), color: "#FFF6C2", kind: "flash" });
         }
         p.landT = dashing ? 0.16 : 0.13;
