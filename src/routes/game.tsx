@@ -160,7 +160,7 @@ function GamePage() {
 
 /* ─────────────────────────  TOP BAR  ───────────────────────── */
 
-function TopBar({ muted, setMuted }: { muted: boolean; setMuted: (v: boolean) => void }) {
+function TopBar({ muted, setMuted, haptics }: { muted: boolean; setMuted: (v: boolean) => void; haptics: Haptics }) {
   return (
     <header className="sticky top-0 z-40 border-b-2 border-[#7C3AED]/50 bg-[#09090B]/90 backdrop-blur">
       <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-2 px-4 py-2.5">
@@ -173,13 +173,24 @@ function TopBar({ muted, setMuted }: { muted: boolean; setMuted: (v: boolean) =>
             Bird Burger: <span className="text-[#EC4899]">Kitchen Chaos</span>
           </div>
         </div>
-        <button
-          onClick={() => setMuted(!muted)}
-          className="grid h-9 w-9 place-items-center rounded border border-[#7C3AED]/40 bg-[#2E1065]/60 text-[#C4A9F5] hover:bg-[#7C3AED]/30"
-          aria-label={muted ? "Unmute" : "Mute"}
-        >
-          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => haptics.setEnabled(!haptics.enabled)}
+            className={`grid h-9 w-9 place-items-center rounded border bg-[#2E1065]/60 hover:bg-[#7C3AED]/30 ${haptics.canVibrate ? "border-[#7C3AED]/40 text-[#C4A9F5]" : "border-white/10 text-white/20"}`}
+            aria-label={haptics.enabled ? "Disable haptics" : "Enable haptics"}
+            disabled={!haptics.canVibrate}
+            title={haptics.canVibrate ? (haptics.enabled ? "Vibration on" : "Vibration off") : "No vibration on this device"}
+          >
+            {haptics.enabled && haptics.canVibrate ? <Vibrate className="h-4 w-4" /> : <VibrateOff className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={() => setMuted(!muted)}
+            className="grid h-9 w-9 place-items-center rounded border border-[#7C3AED]/40 bg-[#2E1065]/60 text-[#C4A9F5] hover:bg-[#7C3AED]/30"
+            aria-label={muted ? "Unmute" : "Mute"}
+          >
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
     </header>
   );
