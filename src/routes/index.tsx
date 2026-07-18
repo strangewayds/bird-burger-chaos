@@ -283,7 +283,153 @@ function BirdBurgerPage() {
   );
 }
 
-/* ─────────────────────────  NAV  ───────────────────────── */
+/* ─────────  COMPACT REFERENCE-MATCH CARDS  ───────── */
+
+function CallKitchenCard({ onStart, onEnd: _onEnd }: { onStart: () => void; onEnd: () => void }) {
+  const [ringing, setRinging] = useState(false);
+  return (
+    <div className="rounded-lg border-2 border-mustard/50 bg-card p-4 shadow-[0_0_25px_rgba(255,193,7,0.15)]">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="font-display text-sm neon-pink">☎ CALL THE KITCHEN</div>
+        <span className="rounded bg-grease/20 px-2 py-0.5 font-mono text-[10px] uppercase text-grease">1-800-BIRD-BAD</span>
+      </div>
+      <div className="relative mx-auto my-3 grid h-28 w-28 place-items-center rounded-full border-4 border-mustard bg-mustard/10">
+        <span className="text-4xl">📞</span>
+        {ringing && (
+          <>
+            <span className="absolute inset-0 animate-ping rounded-full border-2 border-mustard/60" />
+            <span className="absolute -inset-2 animate-pulse rounded-full border border-mustard/40" />
+          </>
+        )}
+      </div>
+      <button
+        onClick={() => { setRinging(true); onStart(); setTimeout(() => setRinging(false), 3500); }}
+        className="w-full rounded-md border-2 border-mustard bg-mustard px-3 py-2.5 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition"
+      >
+        {ringing ? "RINGING…" : "CALL NOW"}
+      </button>
+      <p className="mt-2 text-center font-mono text-[10px] text-ink/50">Nobody's picking up. As always.</p>
+    </div>
+  );
+}
+
+const SPECIALS = [
+  { d: "MON", n: "Manic Monday Melt", p: "$4.20", note: "Now with 30% more panic" },
+  { d: "TUE", n: "Two-For-Tuesday", p: "$6.66", note: "You still only get one" },
+  { d: "WED", n: "Wednesday Rug", p: "$0.01", note: "Delivered in 3-5 business years" },
+  { d: "THU", n: "Thursday Throwaway", p: "$3.14", note: "Pi day, every day" },
+  { d: "FRI", n: "Fried Friday Fumble", p: "$9.99", note: "Contains regret" },
+];
+function TodaysSpecials() {
+  return (
+    <div className="relative rounded-sm bg-[#f5f0e0] p-4 text-[#1a1a1a] shadow-[6px_6px_0_rgba(124,58,237,0.5)]">
+      <div className="absolute inset-x-0 -top-2 h-4 bg-[repeating-linear-gradient(90deg,#f5f0e0_0_10px,transparent_10px_16px)]" aria-hidden />
+      <div className="text-center">
+        <div className="font-display text-lg tracking-widest">TODAY'S SPECIALS</div>
+        <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-[#666]">— Receipt #{Math.floor(Math.random()*99999)} —</div>
+      </div>
+      <div className="my-3 border-t-2 border-dashed border-[#1a1a1a]/40" />
+      <ul className="space-y-1.5 font-mono text-xs">
+        {SPECIALS.map((s) => (
+          <li key={s.d} className="grid grid-cols-[36px_1fr_auto] items-baseline gap-2">
+            <span className="rounded bg-grape px-1 py-0.5 text-center font-display text-[10px] text-white">{s.d}</span>
+            <span>
+              <div className="font-bold uppercase tracking-wide">{s.n}</div>
+              <div className="text-[10px] text-[#666]">{s.note}</div>
+            </span>
+            <span className="text-right font-bold text-grape">{s.p}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="my-3 border-t-2 border-dashed border-[#1a1a1a]/40" />
+      <div className="flex items-baseline justify-between font-mono text-xs">
+        <span>TOTAL</span>
+        <span className="font-display text-lg text-grease">$∞.99</span>
+      </div>
+      <div className="mt-2 text-center font-mono text-[10px] uppercase tracking-widest text-[#666]">*** THANK YOU / PLEASE REGRET ***</div>
+    </div>
+  );
+}
+
+const ACTIVITY = [
+  { u: "0xB1RD…D3AD", a: "burned 420 $BRGR", t: "2s ago", c: "text-grease" },
+  { u: "chef.eth", a: "renamed the Big Bird to Small Regret", t: "18s ago", c: "text-mustard" },
+  { u: "0xF00D…C0DE", a: "ordered a McRug Pull", t: "44s ago", c: "text-cyan" },
+  { u: "pigeon.dao", a: "released 12 pigeons into the DMs", t: "1m ago", c: "text-robin" },
+  { u: "0xDEAD…BEEF", a: "connected wallet, immediately left", t: "2m ago", c: "text-grease" },
+  { u: "manager.eth", a: "clocked in (still missing)", t: "3m ago", c: "text-pink-400" },
+];
+function RecentActivityCard({ wallet }: { wallet: string | null }) {
+  const [items, setItems] = useState(ACTIVITY);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setItems((prev) => [{ ...prev[Math.floor(Math.random()*prev.length)], t: "now" }, ...prev.slice(0, 5)]);
+    }, 4200);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="flex flex-col rounded-lg border-2 border-robin/50 bg-card p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="font-display text-sm neon-green">📡 RECENT ACTIVITY</div>
+        <span className="flex items-center gap-1 font-mono text-[10px] text-robin"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-robin"/>LIVE</span>
+      </div>
+      <ul className="flex-1 space-y-1.5 font-mono text-[11px]">
+        <AnimatePresence initial={false}>
+          {items.slice(0, 6).map((it, i) => (
+            <motion.li key={it.u + i} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="flex items-baseline justify-between gap-2 border-b border-ink/10 pb-1">
+              <span className="truncate"><span className={it.c}>{it.u}</span> <span className="text-ink/70">{it.a}</span></span>
+              <span className="shrink-0 text-ink/40">{it.t}</span>
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </ul>
+      <div className="mt-3 rounded border border-grape/40 bg-grape/10 p-2 font-mono text-[10px] text-ink/70">
+        {wallet ? <>You: <span className="text-cyan">{wallet.slice(0,6)}…{wallet.slice(-4)}</span> — behaving suspiciously.</> : "Connect wallet to be publicly judged."}
+      </div>
+    </div>
+  );
+}
+
+function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: string | null; onDownload: () => void }) {
+  return (
+    <section id="community-band" className="relative border-y-4 border-mustard/60 bg-gradient-to-br from-grape via-grape/90 to-[#3a1d6b] py-16">
+      <div className="absolute inset-0 grain opacity-30" aria-hidden />
+      <div className="relative mx-auto max-w-7xl px-4">
+        <div className="mb-8 text-center">
+          <div className="mb-1 font-mono text-xs uppercase tracking-[0.3em] text-mustard">Holder Perks (Not Really)</div>
+          <h2 className="font-display text-3xl neon-pink md:text-4xl">JOIN THE FLOCK</h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border-2 border-mustard/60 bg-black/40 p-5">
+            <div className="mb-3 font-display text-lg neon-cyan">🎨 MEME MACHINE</div>
+            <MemeGenerator onDownload={onDownload} embedded />
+          </div>
+          <div className="rounded-lg border-2 border-cyan/60 bg-black/40 p-5">
+            <div className="mb-3 font-display text-lg neon-green">🏆 BIRD BUCKS</div>
+            <Leaderboard bucks={bucks} wallet={wallet} embedded />
+          </div>
+          <div className="rounded-lg border-2 border-robin/60 bg-black/40 p-5">
+            <div className="mb-3 font-display text-lg neon-pink">🧾 YOUR RECEIPT</div>
+            <div className="rounded-sm bg-[#f5f0e0] p-4 font-mono text-[11px] text-[#1a1a1a]">
+              <div className="text-center font-display text-sm">BIRD BURGER</div>
+              <div className="text-center text-[9px] uppercase tracking-widest text-[#666]">The Worst Restaurant on the Blockchain</div>
+              <div className="my-2 border-t border-dashed border-[#1a1a1a]/40" />
+              <div className="flex justify-between"><span>1x Regret Deluxe</span><span>$4.20</span></div>
+              <div className="flex justify-between"><span>1x Side of Silence</span><span>$0.69</span></div>
+              <div className="flex justify-between"><span>Tip (nobody earned)</span><span>$0.00</span></div>
+              <div className="my-2 border-t border-dashed border-[#1a1a1a]/40" />
+              <div className="flex justify-between font-bold"><span>TOTAL</span><span>$4.89</span></div>
+              <div className="mt-2 text-center text-[9px] uppercase tracking-widest text-[#666]">*** PLEASE REGRET YOUR DECISION ***</div>
+              <div className="mt-2 text-center">Bird Bucks earned: <span className="font-bold text-grape">{bucks}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 
 function Nav({ open, setOpen, muted, setMuted, onConnect, wallet, wrongNet }: {
   open: boolean; setOpen: (b: boolean) => void; muted: boolean; setMuted: (b: boolean) => void;
