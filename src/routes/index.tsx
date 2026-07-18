@@ -631,7 +631,7 @@ function CallKitchenCard({ onStart, onEnd: _onEnd }: { onStart: () => void; onEn
         />
         {/* Faint bird silhouette behind phone */}
         <img
-          src={birdMascot}
+          src={mascotHero.url}
           alt=""
           aria-hidden
           className="absolute inset-8 h-auto w-auto max-h-[62%] max-w-[62%] object-contain opacity-20 mix-blend-screen"
