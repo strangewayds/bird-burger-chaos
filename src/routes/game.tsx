@@ -49,17 +49,17 @@ type Station = {
 
 // Positions calibrated to game-kitchen.jpg (1920x1080)
 const STATIONS: Station[] = [
-  { id: "fridge", kind: "fridge", x: 0.08, y: 0.34, w: 0.10, h: 0.30, label: "FRIDGE", color: "#00C805" },
-  { id: "raw_patty", kind: "raw_patty", x: 0.04, y: 0.78, w: 0.11, h: 0.14, label: "PATTIES", color: "#EF4444" },
-  { id: "cutting", kind: "cutting", x: 0.19, y: 0.62, w: 0.13, h: 0.16, label: "CHOP", color: "#22D3EE" },
-  { id: "cheese", kind: "cheese", x: 0.27, y: 0.22, w: 0.11, h: 0.16, label: "CHEESE", color: "#FACC15" },
-  { id: "grill", kind: "grill", x: 0.46, y: 0.28, w: 0.14, h: 0.18, label: "GRILL", color: "#EF4444" },
-  { id: "fryer", kind: "fryer", x: 0.63, y: 0.32, w: 0.11, h: 0.18, label: "FRYER", color: "#F97316" },
-  { id: "drink", kind: "drink", x: 0.82, y: 0.55, w: 0.10, h: 0.20, label: "DRINKS", color: "#22D3EE" },
-  { id: "sauce", kind: "sauce", x: 0.45, y: 0.72, w: 0.14, h: 0.14, label: "SAUCE", color: "#EC4899" },
-  { id: "assembly", kind: "assembly", x: 0.36, y: 0.86, w: 0.15, h: 0.08, label: "ASSEMBLY", color: "#7C3AED" },
-  { id: "pickup", kind: "pickup", x: 0.91, y: 0.28, w: 0.07, h: 0.20, label: "PICK UP", color: "#EC4899" },
-  { id: "extinguisher", kind: "extinguisher", x: 0.72, y: 0.60, w: 0.05, h: 0.09, label: "EXT.", color: "#EF4444" },
+  { id: "fridge", kind: "fridge", x: 0.095, y: 0.385, w: 0.070, h: 0.210, label: "FRIDGE", color: "#00C805" },
+  { id: "raw_patty", kind: "raw_patty", x: 0.057, y: 0.801, w: 0.077, h: 0.098, label: "PATTIES", color: "#EF4444" },
+  { id: "cutting", kind: "cutting", x: 0.210, y: 0.644, w: 0.091, h: 0.112, label: "CHOP", color: "#22D3EE" },
+  { id: "cheese", kind: "cheese", x: 0.287, y: 0.244, w: 0.077, h: 0.112, label: "CHEESE", color: "#FACC15" },
+  { id: "grill", kind: "grill", x: 0.481, y: 0.307, w: 0.098, h: 0.126, label: "GRILL", color: "#EF4444" },
+  { id: "fryer", kind: "fryer", x: 0.647, y: 0.347, w: 0.077, h: 0.126, label: "FRYER", color: "#F97316" },
+  { id: "drink", kind: "drink", x: 0.835, y: 0.580, w: 0.070, h: 0.140, label: "DRINKS", color: "#22D3EE" },
+  { id: "sauce", kind: "sauce", x: 0.471, y: 0.741, w: 0.098, h: 0.098, label: "SAUCE", color: "#EC4899" },
+  { id: "assembly", kind: "assembly", x: 0.383, y: 0.872, w: 0.105, h: 0.056, label: "ASSEMBLY", color: "#7C3AED" },
+  { id: "pickup", kind: "pickup", x: 0.921, y: 0.310, w: 0.049, h: 0.140, label: "PICK UP", color: "#EC4899" },
+  { id: "extinguisher", kind: "extinguisher", x: 0.725, y: 0.605, w: 0.040, h: 0.070, label: "EXT.", color: "#EF4444" },
 ];
 
 /* ─────────────────────────  ORDER RECIPES  ───────────────────────── */
