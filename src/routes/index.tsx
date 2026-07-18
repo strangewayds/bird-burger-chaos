@@ -23,8 +23,7 @@ import {
   Zap,
   Trash2,
 } from "lucide-react";
-import mascotHero from "@/assets/mascot-hero.jpg";
-import mascotEmployee from "@/assets/mascot-employee.jpg";
+import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
 
 export const Route = createFileRoute("/")({
@@ -290,7 +289,7 @@ function Nav({ open, setOpen, muted, setMuted, onConnect, wallet, wrongNet }: {
     <header className="sticky top-0 z-50 border-b-2 border-grape/40 bg-bg/85 backdrop-blur-md">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
         <a href="#top" className="flex min-w-0 items-center gap-2">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-grape text-xl shadow-[0_0_20px_rgba(124,58,237,0.6)]">🐦</div>
+          <img src="/favicon.png" alt="Bird Burger" width={40} height={40} className="h-10 w-10 shrink-0 rounded-md bg-bg object-cover shadow-[0_0_20px_rgba(124,58,237,0.6)]" />
           <div className="min-w-0 leading-none">
             <div className="font-display text-lg tracking-wider text-mustard">BIRD BURGER</div>
             <div className="hidden truncate text-[10px] uppercase tracking-widest text-ink/60 sm:block">The Worst Restaurant on the Blockchain</div>
@@ -398,7 +397,7 @@ function Hero({ onOrder, onBuy }: { onOrder: () => void; onBuy: () => void }) {
             transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
             className="relative mx-auto max-w-md"
           >
-            <img src={mascotHero} alt="Bird Burger mascot holding a burger" width={1024} height={1024} className="w-full rounded-xl border-4 border-grape shadow-[0_20px_60px_rgba(124,58,237,0.35)]" />
+            <img src={mascotHero.url} alt="Bird Burger mascot holding a burger" width={1024} height={1024} className="w-full drop-shadow-[0_20px_60px_rgba(124,58,237,0.55)]" />
             <div className="absolute -left-3 -top-3 -rotate-6 rounded bg-grease px-2 py-1 font-display text-xs text-white shadow-md">GREASY</div>
             <div className="absolute -right-3 top-6 rotate-6 rounded bg-mustard px-2 py-1 font-display text-xs text-bg shadow-md">$BRGR</div>
           </motion.div>
@@ -673,7 +672,7 @@ function BirdOfTheDay({ onFire }: { onFire: () => void }) {
       <AnimatePresence mode="wait">
         <motion.div key={emp.name} initial={{ x: 200, opacity: 0, rotate: 15 }} animate={{ x: 0, opacity: 1, rotate: 0 }} exit={{ x: -400, opacity: 0, rotate: -20 }} transition={{ type: "spring", damping: 15 }}>
           <div className="mt-3 flex gap-3">
-            <img src={mascotEmployee} alt="Employee" loading="lazy" width={768} height={768} className="h-24 w-24 rounded border-2 border-grape object-cover"/>
+            <img src={mascotHero.url} alt="Employee" loading="lazy" width={1024} height={1024} className="h-24 w-24 rounded border-2 border-grape bg-grape/20 object-cover"/>
             <div className="flex-1 min-w-0">
               <div className="font-display text-lg neon-purple truncate">{emp.name.toUpperCase()}</div>
               <div className="text-xs text-ink/70">{emp.role}</div>
@@ -825,7 +824,7 @@ function MemeGenerator({ onDownload }: { onDownload: () => void }) {
     const ctx = c.getContext("2d")!;
     c.width = 800; c.height = 800;
     ctx.fillStyle = "#7C3AED"; ctx.fillRect(0,0,800,800);
-    const img = new Image(); img.crossOrigin = "anonymous"; img.src = mascotEmployee;
+    const img = new Image(); img.crossOrigin = "anonymous"; img.src = mascotHero.url;
     img.onload = () => {
       ctx.drawImage(img, 100, 100, 600, 600);
       ctx.font = "bold 64px Impact, sans-serif";
