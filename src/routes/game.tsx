@@ -622,6 +622,9 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   const firesRef = useRef<Fire[]>([]);
   const pigeonsRef = useRef<Pigeon[]>([]);
   const spillsRef = useRef<Spill[]>([]);
+  // Cleaning combo — chain mops within a window for score multiplier.
+  const cleanComboRef = useRef({ count: 0, expires: 0 });
+  const [cleanCombo, setCleanCombo] = useState(0);
   const floatsRef = useRef<FloatText[]>([]);
   const hasExtinguisherRef = useRef(false);
   const grillRef = useRef({ progress: 0, item: null as Ing | null });
