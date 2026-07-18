@@ -926,6 +926,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const mascotImgRef = useRef<HTMLImageElement | HTMLCanvasElement | null>(null);
+  const spriteAspectRef = useRef(1); // sprite height / width after perch crop
   const sfx = useGameSfx(muted);
   const sfxRef = useRef(sfx);
   useEffect(() => { sfxRef.current = sfx; }, [sfx]);
@@ -1062,16 +1063,24 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     const m = new Image();
     m.src = mascotHero;
     m.onload = () => {
-      // Pre-tint the sprite on an offscreen canvas so the employee color only
+      // The hero art has him PERCHED ON A BRANCH — crop the perch off so the
+      // game sprite is just the bird (he was running around with a stick
+      // glued to his feet). Also pre-tint here so the employee color only
       // touches the bird's pixels — tinting on the main canvas painted a box.
+      const CROP = 0.74; // keep the top 74%: bird + burger + talons, no perch
+      const sw = m.naturalWidth || 1024;
+      const sh = Math.round((m.naturalHeight || 1024) * CROP);
+      const W2 = 256;
+      const H2 = Math.round((sh / sw) * W2);
       const c = document.createElement("canvas");
-      c.width = 256; c.height = 256;
+      c.width = W2; c.height = H2;
       const cc = c.getContext("2d");
       if (!cc) { mascotImgRef.current = m; return; }
-      cc.drawImage(m, 0, 0, 256, 256);
+      cc.drawImage(m, 0, 0, sw, sh, 0, 0, W2, H2);
       cc.globalCompositeOperation = "source-atop";
       cc.fillStyle = employee.tint + "40";
-      cc.fillRect(0, 0, 256, 256);
+      cc.fillRect(0, 0, W2, H2);
+      spriteAspectRef.current = H2 / W2;
       mascotImgRef.current = c;
     };
   }, []);
@@ -1234,7 +1243,9 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     const order = ordersRef.current[idx];
     streakRef.current++;
     const streakMult = 1 + Math.min(0.5, (streakRef.current - 1) * 0.1);
-    const timeBonus = Math.max(0, Math.floor(order.remaining * 2));
+    // Speed pays: fresh orders are worth more, so hustling makes rent.
+    // Tuned by autopilot playtests — 2 was a coin-flip loss, 3.5 ended shifts in 33s.
+    const timeBonus = Math.max(0, Math.floor(order.remaining * 2.6));
     const gain = Math.round((order.template.score + timeBonus) * employee.tips * streakMult);
     scoreRef.current += gain;
     setScore(scoreRef.current);
@@ -2722,7 +2733,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       // Render behind player
       const mm = mascotImgRef.current;
       if (mm && trail.length) {
-        const size = 76;
+        const size = Math.max(66, Math.min(122, W * 0.075));
+        const trailH = size * spriteAspectRef.current;
         for (let i = 0; i < trail.length; i++) {
           const s = trail[i];
           const k = 1 - s.t / 0.28; // 1..0
@@ -2734,7 +2746,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           // slight squeeze along travel axis so it reads as speed lines, not blur
           ctx.scale(s.face * (0.82 + k * 0.10), 0.94 + k * 0.06);
           ctx.translate(-s.x, -(s.y + 16));
-          ctx.drawImage(mm, s.x - size / 2, s.y - size + 16 + s.hopY, size, size);
+          ctx.drawImage(mm, s.x - size / 2, s.y + 16 - trailH + s.hopY, size, trailH);
           ctx.restore();
         }
       }
@@ -2743,9 +2755,11 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     const pxs = px + sway;
     const m = mascotImgRef.current;
     if (m) {
-      const size = 76;
-      // headBobPx adds a subtle 2x-frequency nod on top of hopY; headSwayPx pushes the whole sprite slightly along facing
-      const drawY = py - size + 16 + hopY + headBobPx;
+      // Scale the bird with the canvas so he reads the same on a phone and a monitor
+      const size = Math.max(66, Math.min(122, W * 0.075));
+      const drawH = size * spriteAspectRef.current;
+      // Feet sit ON the floor line (py + 16); headBob nods, headSway leans along facing
+      const drawY = py + 16 - drawH + hopY + headBobPx;
       const drawX = pxs - size / 2 + headSwayPx;
       ctx.save();
       ctx.translate(pxs, py + 16);
@@ -2769,7 +2783,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         ctx.rotate(tilt);
         ctx.translate(-pxs, -(py + 16));
       }
-      ctx.drawImage(m, drawX, drawY, size, size);
+      ctx.drawImage(m, drawX, drawY, size, drawH);
       ctx.restore();
 
       // Vice acting: cig raised to the beak, or a flask pulled out
@@ -2837,7 +2851,9 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       ctx.fill();
     }
     // Name tag (follows hop)
-    const tagY = py - 78 + hopY;
+    // Name tag rides just above the sprite, whatever size it renders at
+    const spriteH = Math.max(66, Math.min(122, W * 0.075)) * spriteAspectRef.current;
+    const tagY = py + 16 - spriteH - 26 + hopY;
     ctx.fillStyle = "#7C3AED";
     ctx.fillRect(pxs - 42, tagY, 84, 18);
     ctx.strokeStyle = "#FACC15";
