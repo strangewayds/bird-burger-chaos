@@ -626,6 +626,17 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       p.vx = dx * speed; p.vy = dy * speed;
       p.x = clamp(p.x + dx * speed * dt, 0.02, 0.98);
       p.y = clamp(p.y + dy * speed * dt, 0.10, 0.96);
+      // Grease spills: overlapping puddle → boost slipT (drunk-like slide)
+      for (const sp of spillsRef.current) {
+        if (Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r) {
+          p.slipT = Math.max(p.slipT, dashing ? 0.9 : 0.55);
+          // small perpendicular nudge for a "banana peel" feel
+          const nudge = (dashing ? 0.05 : 0.025) * dt * 60 * 0.016;
+          p.x = clamp(p.x + (-dy) * nudge, 0.02, 0.98);
+          p.y = clamp(p.y + (dx) * nudge, 0.10, 0.96);
+          break;
+        }
+      }
       // Facing: smoothly ease toward movement direction (continuous flip)
       const faceTarget = Math.abs(dx) > 0.05 ? (dx > 0 ? 1 : -1) : (p.face === 0 ? 1 : (p.face > 0 ? 1 : -1));
       const faceRate = 12; // higher = snappier
