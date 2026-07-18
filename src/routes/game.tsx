@@ -1616,43 +1616,81 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
             </motion.div>
           )}
           {/* Vices — because the place has 1★ reviews anyway */}
-          <div className="rounded-lg border-2 border-[#FACC15]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
-            <div className="mb-1 font-black text-[#FACC15]">SHIFT VICES</div>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => {
-                  const v = viceRef.current;
-                  if (v.smokeCd > 0) return;
-                  v.smokeCd = 12; v.buzz = Math.min(2.5, v.buzz + 1.2);
-                  scoreRef.current += 15;
-                  chaosRef.current = Math.max(0, chaosRef.current - 0.75);
-                  setChaos(chaosRef.current);
-                  floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🚬 SMOKE BREAK", color: "#FACC15", life: 1.3 });
-                  setViceTick((n) => n + 1);
-                }}
-                disabled={viceRef.current.smokeCd > 0}
-                className="rounded border-2 border-[#FACC15]/70 bg-[#FACC15]/10 px-2 py-1 text-[10px] font-black text-[#FACC15] transition hover:bg-[#FACC15]/25 disabled:opacity-40"
-                title="Smoke a dart. Calms the chaos. Makes the room wobble."
-              >🚬 SMOKE</button>
-              <button
-                onClick={() => {
-                  const v = viceRef.current;
-                  if (v.drinkCd > 0) return;
-                  v.drinkCd = 15; v.buzz = Math.min(3, v.buzz + 2);
-                  scoreRef.current += 25;
-                  chaosRef.current = Math.max(0, chaosRef.current - 1);
-                  setChaos(chaosRef.current);
-                  playerRef.current.slipT = 0.8; // drunk feet
-                  floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🍺 CRACK OPEN", color: "#22D3EE", life: 1.3 });
-                  setViceTick((n) => n + 1);
-                }}
-                disabled={viceRef.current.drinkCd > 0}
-                className="rounded border-2 border-[#22D3EE]/70 bg-[#22D3EE]/10 px-2 py-1 text-[10px] font-black text-[#22D3EE] transition hover:bg-[#22D3EE]/25 disabled:opacity-40"
-                title="Crack a cold one. Chaos drops. So does your motor control."
-              >🍺 BEER</button>
-            </div>
-            <div className="mt-1 text-[8px] leading-tight text-white/50">Reviews are already 1★. Live a little.</div>
-          </div>
+          {(() => {
+            const v = viceRef.current;
+            const smokeMax = 12, beerMax = 15;
+            const smokePct = v.smokeCd > 0 ? 1 - v.smokeCd / smokeMax : 1;
+            const beerPct = v.drinkCd > 0 ? 1 - v.drinkCd / beerMax : 1;
+            const buzz = v.buzz;
+            const buzzMax = 3;
+            return (
+              <div className="rounded-lg border-2 border-[#FACC15]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+                <div className="mb-1 flex items-center justify-between font-black text-[#FACC15]">
+                  <span>SHIFT VICES</span>
+                  {buzz > 0 && (
+                    <span className="animate-pulse text-[9px] text-white/80">
+                      {buzz > 1.5 ? "😵 WASTED" : buzz > 0.6 ? "😎 BUZZED" : "😌 EASY"} {buzz.toFixed(1)}s
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => {
+                      if (v.smokeCd > 0) return;
+                      v.smokeCd = smokeMax; v.buzz = Math.min(2.5, v.buzz + 1.2);
+                      scoreRef.current += 15;
+                      chaosRef.current = Math.max(0, chaosRef.current - 0.75);
+                      setChaos(chaosRef.current);
+                      floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🚬 SMOKE BREAK", color: "#FACC15", life: 1.3 });
+                      setViceTick((n) => n + 1);
+                    }}
+                    disabled={v.smokeCd > 0}
+                    className="relative flex-1 overflow-hidden rounded border-2 border-[#FACC15]/70 bg-[#FACC15]/10 px-2 py-1 text-[10px] font-black text-[#FACC15] transition hover:bg-[#FACC15]/25 disabled:cursor-not-allowed disabled:opacity-70"
+                    title="Smoke a dart. Calms the chaos. Makes the room wobble."
+                  >
+                    <div className="absolute inset-y-0 left-0 bg-[#FACC15]/25 transition-[width] duration-200" style={{ width: `${smokePct * 100}%` }} />
+                    <span className="relative">🚬 {v.smokeCd > 0 ? `${v.smokeCd.toFixed(1)}s` : "SMOKE"}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (v.drinkCd > 0) return;
+                      v.drinkCd = beerMax; v.buzz = Math.min(3, v.buzz + 2);
+                      scoreRef.current += 25;
+                      chaosRef.current = Math.max(0, chaosRef.current - 1);
+                      setChaos(chaosRef.current);
+                      playerRef.current.slipT = 0.8;
+                      floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🍺 CRACK OPEN", color: "#22D3EE", life: 1.3 });
+                      setViceTick((n) => n + 1);
+                    }}
+                    disabled={v.drinkCd > 0}
+                    className="relative flex-1 overflow-hidden rounded border-2 border-[#22D3EE]/70 bg-[#22D3EE]/10 px-2 py-1 text-[10px] font-black text-[#22D3EE] transition hover:bg-[#22D3EE]/25 disabled:cursor-not-allowed disabled:opacity-70"
+                    title="Crack a cold one. Chaos drops. So does your motor control."
+                  >
+                    <div className="absolute inset-y-0 left-0 bg-[#22D3EE]/25 transition-[width] duration-200" style={{ width: `${beerPct * 100}%` }} />
+                    <span className="relative">🍺 {v.drinkCd > 0 ? `${v.drinkCd.toFixed(1)}s` : "BEER"}</span>
+                  </button>
+                </div>
+                {buzz > 0 && (
+                  <div className="mt-1.5">
+                    <div className="mb-0.5 flex justify-between text-[8px] text-white/60">
+                      <span>BUZZ ACTIVE</span>
+                      <span>{buzz.toFixed(1)}s LEFT</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full transition-[width] duration-200"
+                        style={{
+                          width: `${Math.min(1, buzz / buzzMax) * 100}%`,
+                          background: "linear-gradient(90deg,#22D3EE,#FACC15,#EF4444)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="mt-1 text-[8px] leading-tight text-white/50">Reviews are already 1★. Live a little.</div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Top: order queue */}
