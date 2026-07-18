@@ -719,17 +719,24 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           ? (p.dirAvg > 0 ? 1 : -1)
           : (p.face >= 0 ? 1 : -1);
 
+        // Dash-vs-normal blend: fresh dash window feels punchier and more committed;
+        // normal hops feel floaty with a longer anticipation read.
+        const recentDash = p.dashCd > 0.6; // ~first half of dashCd = "still dashing"
+        const dashMix = Math.max(0, Math.min(1, (p.dashCd - 0.6) / 0.6)); // 1 fresh → 0 stale
+
         // Anticipation lean triggers on target flip (uses smoothed target, not raw input)
         if (Math.sign(faceTarget) !== 0 && Math.sign(faceTarget) !== Math.sign(p.face) && Math.sign(p.leanDir) !== Math.sign(faceTarget)) {
           p.leanDir = Math.sign(faceTarget);
-          p.lean = 1;
+          // Dash flips commit fast & hard (short, sharp); normal flips read as a longer lean
+          p.lean = recentDash ? 1.35 : 1.0;
         }
-        p.lean = Math.max(0, p.lean - dt * 3.6);
+        // Dash lean burns off faster (crisp), normal lean lingers (readable)
+        p.lean = Math.max(0, p.lean - dt * (recentDash ? 5.8 : 3.4));
 
-        // Critically-damped spring: face -> faceTarget with angular velocity faceVel
-        // omega = natural freq (rad/s); zeta = 1 for critical damping (no overshoot, no ringing)
-        const omega = 9.0;
-        const zeta = 1.0;
+        // Critically-damped spring: dash = snappy + slight underdamp for a whip crack;
+        // normal = fully critical for smooth, jitter-free glide.
+        const omega = recentDash ? (11 + 6 * dashMix) : 8.5; // 11..17 dash, 8.5 normal
+        const zeta = recentDash ? (0.78 + 0.22 * (1 - dashMix)) : 1.0; // 0.78→1.0 dash, 1.0 normal
         const err = faceTarget - p.face;
         const accel = omega * omega * err - 2 * zeta * omega * p.faceVel;
         // Clamp dt for spring stability on frame hitches
