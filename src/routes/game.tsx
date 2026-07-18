@@ -329,6 +329,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   const explosionRef = useRef(0); // 0..1 flash intensity remaining
   const viceRef = useRef({ smokeCd: 0, drinkCd: 0, buzz: 0 });
   const [_viceTick, setViceTick] = useState(0);
+  // Movement particles: pixel dust puffs + impact flashes at feet
+  type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; color: string; kind: "dust" | "flash" };
+  const particlesRef = useRef<Particle[]>([]);
+  const lastHopSinRef = useRef(0);
 
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
@@ -603,6 +607,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       // Facing: flip when moving left/right (keep last facing when idle)
       if (Math.abs(dx) > 0.05) p.face = dx > 0 ? 1 : -1;
       // Hop animation: advance phase only while moving; faster when dashing
+      const prevSin = lastHopSinRef.current;
       if (mag > 0) {
         p.moveT += dt;
         p.hopPhase += dt * (dashing ? 11 : 7);
@@ -612,6 +617,30 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         const target = Math.round(p.hopPhase / Math.PI) * Math.PI;
         p.hopPhase += (target - p.hopPhase) * Math.min(1, dt * 8);
       }
+      const curSin = Math.sin(p.hopPhase);
+      // Landing detection: sin crossed from positive to non-positive while moving
+      if (mag > 0 && prevSin > 0.05 && curSin <= 0) {
+        const fx = p.x;
+        const fy = p.y + 0.03; // at feet (normalized)
+        const count = dashing ? 10 : 6;
+        for (let i = 0; i < count; i++) {
+          const ang = Math.PI + (Math.random() - 0.5) * Math.PI * 0.9;
+          const spd = 0.05 + Math.random() * (dashing ? 0.11 : 0.07);
+          particlesRef.current.push({
+            x: fx + (Math.random() - 0.5) * 0.008,
+            y: fy + (Math.random() - 0.5) * 0.004,
+            vx: Math.cos(ang) * spd + p.face * -0.02,
+            vy: -Math.abs(Math.sin(ang)) * spd * 0.5 - 0.03,
+            life: 0,
+            max: 0.35 + Math.random() * 0.25,
+            size: 2 + Math.floor(Math.random() * 3),
+            color: Math.random() < 0.25 ? "#FACC15" : (Math.random() < 0.5 ? "#E7D9B8" : "#B8A98A"),
+            kind: "dust",
+          });
+        }
+        particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: dashing ? 22 : 16, color: "#FFF6C2", kind: "flash" });
+      }
+      lastHopSinRef.current = curSin;
 
       // Grill cooking
       const g = grillRef.current;
@@ -878,6 +907,49 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.beginPath();
       ctx.arc(cx+4, cy-4, 2, 0, Math.PI*2);
       ctx.fill();
+    }
+
+    // Movement particles (pixel dust + impact flashes) — under the player
+    {
+      const dt = 1 / 60;
+      const parts = particlesRef.current;
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const pt = parts[i];
+        pt.life += dt;
+        if (pt.life >= pt.max) { parts.splice(i, 1); continue; }
+        if (pt.kind === "dust") {
+          pt.x += pt.vx * dt;
+          pt.y += pt.vy * dt;
+          pt.vy += 0.35 * dt; // gravity in normalized space
+          pt.vx *= 0.94;
+        }
+        const t = pt.life / pt.max;
+        const alpha = 1 - t;
+        if (pt.kind === "flash") {
+          const r = pt.size * (0.6 + t * 1.6);
+          ctx.save();
+          ctx.globalAlpha = alpha * 0.85;
+          ctx.strokeStyle = pt.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(pt.x * W, pt.y * H, r, r * 0.4, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.fillStyle = pt.color;
+          ctx.beginPath();
+          ctx.ellipse(pt.x * W, pt.y * H, r * 0.6, r * 0.25, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          const s = pt.size * (1 - t * 0.4);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = pt.color;
+          // pixel-style square puffs
+          ctx.fillRect(Math.round(pt.x * W - s / 2), Math.round(pt.y * H - s / 2), s, s);
+          ctx.restore();
+        }
+      }
     }
 
     // Player
