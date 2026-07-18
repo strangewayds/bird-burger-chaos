@@ -719,17 +719,24 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           ? (p.dirAvg > 0 ? 1 : -1)
           : (p.face >= 0 ? 1 : -1);
 
+        // Dash-vs-normal blend: fresh dash window feels punchier and more committed;
+        // normal hops feel floaty with a longer anticipation read.
+        const recentDash = p.dashCd > 0.6; // ~first half of dashCd = "still dashing"
+        const dashMix = Math.max(0, Math.min(1, (p.dashCd - 0.6) / 0.6)); // 1 fresh → 0 stale
+
         // Anticipation lean triggers on target flip (uses smoothed target, not raw input)
         if (Math.sign(faceTarget) !== 0 && Math.sign(faceTarget) !== Math.sign(p.face) && Math.sign(p.leanDir) !== Math.sign(faceTarget)) {
           p.leanDir = Math.sign(faceTarget);
-          p.lean = 1;
+          // Dash flips commit fast & hard (short, sharp); normal flips read as a longer lean
+          p.lean = recentDash ? 1.35 : 1.0;
         }
-        p.lean = Math.max(0, p.lean - dt * 3.6);
+        // Dash lean burns off faster (crisp), normal lean lingers (readable)
+        p.lean = Math.max(0, p.lean - dt * (recentDash ? 5.8 : 3.4));
 
-        // Critically-damped spring: face -> faceTarget with angular velocity faceVel
-        // omega = natural freq (rad/s); zeta = 1 for critical damping (no overshoot, no ringing)
-        const omega = 9.0;
-        const zeta = 1.0;
+        // Critically-damped spring: dash = snappy + slight underdamp for a whip crack;
+        // normal = fully critical for smooth, jitter-free glide.
+        const omega = recentDash ? (11 + 6 * dashMix) : 8.5; // 11..17 dash, 8.5 normal
+        const zeta = recentDash ? (0.78 + 0.22 * (1 - dashMix)) : 1.0; // 0.78→1.0 dash, 1.0 normal
         const err = faceTarget - p.face;
         const accel = omega * omega * err - 2 * zeta * omega * p.faceVel;
         // Clamp dt for spring stability on frame hitches
@@ -1624,11 +1631,17 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.translate(-pxs, -(py + 16));
       // slight tilt into direction of travel + subtle roll on big hops
       if (moving) {
-        const baseTilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
-        const bigRoll = isBig ? Math.sin(p.hopPhase) * 0.08 * p.face : 0;
-        // Anticipation lean: eases out (1 - (1-lean)^2) and points to new direction in scaled space
+        // Dash reads as a hard forward lean; normal hops keep a gentle bob-tilt
+        const isDashHop = p.dashCd > 0.6;
+        const tiltGain = isDashHop ? 0.95 : 0.6;
+        const tiltClamp = isDashHop ? 0.22 : 0.12;
+        const baseTilt = Math.max(-tiltClamp, Math.min(tiltClamp, p.vx * tiltGain)) * p.face;
+        // Dash hops: exaggerated forward roll; normal big-hop: subtle sway roll
+        const bigRoll = isBig ? Math.sin(p.hopPhase) * (isDashHop ? 0.14 : 0.08) * p.face : 0;
+        // Anticipation lean: sharper on dash flips, softer on normal
         const leanEase = 1 - (1 - p.lean) * (1 - p.lean);
-        const antic = leanEase * p.leanDir * 0.26 * (p.face >= 0 ? 1 : -1);
+        const anticGain = isDashHop ? 0.38 : 0.24;
+        const antic = leanEase * p.leanDir * anticGain * (p.face >= 0 ? 1 : -1);
         const tilt = baseTilt + bigRoll + antic;
         ctx.translate(pxs, py + 16);
         ctx.rotate(tilt);
