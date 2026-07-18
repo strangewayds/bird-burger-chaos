@@ -58,14 +58,15 @@ const NAV_LINKS = [
 ];
 
 const MENU_ITEMS = [
-  { name: "McRug Pull", price: "$6.90", desc: "The burger disappears immediately after purchase.", icon: "🍔", rating: 0.3 },
-  { name: "Liquidity Fries", price: "$4.20", desc: "Your fries have been permanently locked.", icon: "🍟", rating: 1.1 },
-  { name: "Pump & Shake", price: "$8.88", desc: "Goes straight up before violently coming back down.", icon: "🥤", rating: 0.7 },
-  { name: "Diamond Hands Nuggets", price: "$12.00", desc: "So hard you physically cannot sell them.", icon: "💎", rating: 2.4 },
-  { name: "Exit Liquidity Combo", price: "$69.00", desc: "Designed specifically for our most loyal customers.", icon: "🎟️", rating: 0.1 },
-  { name: "Chudburger Deluxe", price: "$14.99", desc: "Two patties, no vegetables, negative social awareness.", icon: "🍔", rating: 1.9 },
-  { name: "Paper Hands Kids Meal", price: "$3.33", desc: "Customer sells the toy before opening the box.", icon: "🧃", rating: 0.5 },
-  { name: "Nothing Burger", price: "$99.99", desc: "Contains exactly what the project promised.", icon: "🫥", rating: 5.0 },
+const MENU_ITEMS = [
+  { name: "McRug Pull", price: "$6.90", desc: "The burger disappears immediately after purchase.", img: menuMcrug.url, rating: 0.3 },
+  { name: "Liquidity Fries", price: "$4.20", desc: "Your fries have been permanently locked.", img: menuFries.url, rating: 1.1 },
+  { name: "Pump & Shake", price: "$8.88", desc: "Goes straight up before violently coming back down.", img: menuShake.url, rating: 0.7 },
+  { name: "Diamond Hands Nuggets", price: "$12.00", desc: "So hard you physically cannot sell them.", img: menuNuggets.url, rating: 2.4 },
+  { name: "Exit Liquidity Combo", price: "$69.00", desc: "Designed specifically for our most loyal customers.", img: menuCombo.url, rating: 0.1 },
+  { name: "Chudburger Deluxe", price: "$14.99", desc: "Two patties, no vegetables, negative social awareness.", img: menuChud.url, rating: 1.9 },
+  { name: "Paper Hands Kids Meal", price: "$3.33", desc: "Customer sells the toy before opening the box.", img: menuKids.url, rating: 0.5 },
+  { name: "Nothing Burger", price: "$99.99", desc: "Contains exactly what the project promised.", img: menuNothing.url, rating: 5.0 },
 ];
 
 const TICKER_MSGS = [
