@@ -522,7 +522,67 @@ function useGameSfx(muted: boolean) {
     noise.start(t); noise.stop(t + 0.14);
   }, [muted, ensure]);
 
-  return { hop, land, boom, whoosh, dashLand, ensure };
+  // Wet mop swish — short filtered noise, pitch rises with combo for satisfying feedback.
+  const mop = useCallback((intensity = 1, pitch = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk("mop", 70)) return;
+    const t = ctx.currentTime;
+    const bufLen = Math.floor(ctx.sampleRate * 0.14);
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      const k = i / bufLen;
+      data[i] = (Math.random() * 2 - 1) * Math.pow(Math.sin(Math.PI * k), 0.9);
+    }
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass";
+    bp.frequency.setValueAtTime(1400 * pitch, t);
+    bp.frequency.exponentialRampToValueAtTime(3200 * pitch, t + 0.13);
+    bp.Q.value = 1.6;
+    const g = ctx.createGain();
+    const peak = Math.min(0.22, 0.16 * intensity);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.14);
+    src.connect(bp).connect(g).connect(masterRef.current);
+    src.start(t); src.stop(t + 0.16);
+  }, [muted, ensure]);
+
+  // Chime + pop on spill fully cleaned. Combo raises pitch for a rising cash-register feel.
+  const mopDone = useCallback((combo = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk("mopDone", 40)) return;
+    const t = ctx.currentTime;
+    const base = 660 * Math.pow(1.12, Math.min(8, combo - 1)); // rises per combo step
+    // two-note sparkle
+    [0, 0.06].forEach((delay, idx) => {
+      const osc = ctx.createOscillator(); osc.type = "triangle";
+      const f = base * (idx === 0 ? 1 : 1.5);
+      osc.frequency.setValueAtTime(f, t + delay);
+      const g = ctx.createGain();
+      const peak = 0.22;
+      g.gain.setValueAtTime(0, t + delay);
+      g.gain.linearRampToValueAtTime(peak, t + delay + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0006, t + delay + 0.22);
+      osc.connect(g).connect(masterRef.current!);
+      osc.start(t + delay); osc.stop(t + delay + 0.25);
+    });
+    // wet pop
+    const pop = ctx.createOscillator(); pop.type = "sine";
+    pop.frequency.setValueAtTime(280, t);
+    pop.frequency.exponentialRampToValueAtTime(90, t + 0.09);
+    const pg = ctx.createGain();
+    pg.gain.setValueAtTime(0, t);
+    pg.gain.linearRampToValueAtTime(0.24, t + 0.004);
+    pg.gain.exponentialRampToValueAtTime(0.0006, t + 0.12);
+    pop.connect(pg).connect(masterRef.current);
+    pop.start(t); pop.stop(t + 0.14);
+  }, [muted, ensure]);
+
+  return { hop, land, boom, whoosh, dashLand, mop, mopDone, ensure };
+
 }
 
 function GameScreen({ employee, muted, onEnd, onQuit }: {
@@ -562,6 +622,9 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   const firesRef = useRef<Fire[]>([]);
   const pigeonsRef = useRef<Pigeon[]>([]);
   const spillsRef = useRef<Spill[]>([]);
+  // Cleaning combo — chain mops within a window for score multiplier.
+  const cleanComboRef = useRef({ count: 0, expires: 0 });
+  const [cleanCombo, setCleanCombo] = useState(0);
   const floatsRef = useRef<FloatText[]>([]);
   const hasExtinguisherRef = useRef(false);
   const grillRef = useRef({ progress: 0, item: null as Ing | null });
@@ -721,17 +784,63 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.01);
     if (spillHit && carryRef.current.length === 0) {
       spillHit.cleanT += 0.34;
+      const cap = perfRef.current.scale;
+      // per-tick tiny puff so mopping feels physical
+      for (let i = 0; i < Math.round(3 * cap); i++) {
+        const a = Math.random() * Math.PI * 2;
+        const rr = spillHit.r * (0.4 + Math.random() * 0.7);
+        particlesRef.current.push({
+          x: spillHit.x + Math.cos(a) * rr, y: spillHit.y + Math.sin(a) * rr * 0.6,
+          vx: Math.cos(a) * 0.15, vy: Math.sin(a) * 0.08 - 0.05,
+          life: 0, max: 0.28 + Math.random() * 0.12, size: 3 + Math.random() * 2,
+          color: `hsl(${spillHit.hue}, 55%, ${22 + Math.random() * 12}%)`, kind: "dust",
+        });
+      }
+      const pitch = 1 + Math.min(0.6, cleanComboRef.current.count * 0.08);
+      sfxRef.current.mop(0.9, pitch);
       if (spillHit.cleanT >= 1) {
+        // combo window: 3.2s to chain another finish
+        const now = performance.now();
+        const combo = cleanComboRef.current;
+        if (now < combo.expires) combo.count += 1; else combo.count = 1;
+        combo.expires = now + 3200;
+        setCleanCombo(combo.count);
+        const multi = 1 + (combo.count - 1) * 0.5;
+        const gained = Math.round(40 * multi);
+        // splash burst — big directional flick, colored to spill
+        const burst = Math.round(18 * cap);
+        for (let i = 0; i < burst; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = 0.4 + Math.random() * 0.9;
+          particlesRef.current.push({
+            x: spillHit.x, y: spillHit.y,
+            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.55 - 0.25,
+            life: 0, max: 0.5 + Math.random() * 0.25, size: 3 + Math.random() * 3,
+            color: `hsl(${spillHit.hue}, 65%, ${28 + Math.random() * 20}%)`, kind: "dust",
+          });
+        }
+        // ring flash — cyan for clean, gold on combo≥3
+        particlesRef.current.push({
+          x: spillHit.x, y: spillHit.y, vx: 0, vy: 0,
+          life: 0, max: 0.32, size: spillHit.r * 260,
+          color: combo.count >= 3 ? "#FACC15" : "#22D3EE", kind: "flash",
+        });
         spillsRef.current = spillsRef.current.filter((sp) => sp !== spillHit);
-        scoreRef.current += 40;
+        scoreRef.current += gained;
         setScore(scoreRef.current);
-        chaosRef.current = Math.max(0, chaosRef.current - 0.4);
-        pushFloat("+ MOPPED", "#22D3EE");
+        chaosRef.current = Math.max(0, chaosRef.current - 0.4 - combo.count * 0.06);
+        sfxRef.current.mopDone(combo.count);
+        if (combo.count >= 2) {
+          pushFloat(`x${combo.count} COMBO  +${gained}`, combo.count >= 3 ? "#FACC15" : "#22D3EE");
+        } else {
+          pushFloat(`+ MOPPED  +${gained}`, "#22D3EE");
+        }
       } else {
         pushFloat("MOPPING…", "#22D3EE");
       }
       return;
     }
+
     const s = nearestStation();
     if (!s) return;
     const carry = carryRef.current;
@@ -1190,8 +1299,17 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
         });
         spillCd = 7 + Math.random() * 8;
       }
-      // spill decay: shrink slowly + expire
-      spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.15); });
+      // spill decay: shrink slowly + expire (slower cleanT decay so player retains progress)
+      spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.1); });
+      // Combo timeout — expire chain if idle
+      {
+        const combo = cleanComboRef.current;
+        if (combo.count > 0 && performance.now() > combo.expires) {
+          combo.count = 0;
+          setCleanCombo(0);
+        }
+      }
+
       spillsRef.current = spillsRef.current.filter((sp) => sp.life > 0);
 
       // ─── KITCHEN DISASTERS ───
@@ -1565,9 +1683,12 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     // Grease spills (draw beneath fires/pigeons but above floor)
     for (const sp of spillsRef.current) {
       const cx = sp.x * W, cy = sp.y * H;
-      const rx = sp.r * W * 1.15;
-      const ry = sp.r * H * 0.75;
-      const fade = Math.min(1, sp.life / 4) * (1 - sp.cleanT);
+      // shrink visibly as it's mopped (radius drops with cleanT)
+      const shrink = 1 - sp.cleanT * 0.55;
+      const rx = sp.r * W * 1.15 * shrink;
+      const ry = sp.r * H * 0.75 * shrink;
+      // stronger, nonlinear fade so it clearly disappears near completion
+      const fade = Math.min(1, sp.life / 4) * Math.pow(1 - sp.cleanT, 1.6);
       ctx.save();
       // dark oily body
       ctx.globalAlpha = 0.72 * fade;
@@ -1598,15 +1719,25 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
         ctx.arc(cx + dx, cy + dy, 2 + (i % 2), 0, Math.PI * 2);
         ctx.fill();
       }
-      // cleaning progress ring
+      // cleaning progress ring — thicker + pulsing as it approaches full
       if (sp.cleanT > 0.01) {
-        ctx.globalAlpha = 0.9;
-        ctx.strokeStyle = "#22D3EE";
-        ctx.lineWidth = 3;
+        const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 90);
+        ctx.globalAlpha = 0.85 + 0.15 * sp.cleanT;
+        ctx.strokeStyle = sp.cleanT > 0.75 ? "#FACC15" : "#22D3EE";
+        ctx.lineWidth = 3 + sp.cleanT * 2.5;
         ctx.beginPath();
-        ctx.arc(cx, cy, Math.max(rx, ry) + 4, -Math.PI / 2, -Math.PI / 2 + sp.cleanT * Math.PI * 2);
+        ctx.arc(cx, cy, Math.max(rx, ry) + 4 + sp.cleanT * 3, -Math.PI / 2, -Math.PI / 2 + sp.cleanT * Math.PI * 2);
         ctx.stroke();
+        // soft glow behind ring as it fills
+        if (sp.cleanT > 0.5) {
+          ctx.globalAlpha = 0.25 * (sp.cleanT - 0.5) * 2 * pulse;
+          ctx.fillStyle = sp.cleanT > 0.75 ? "#FACC15" : "#22D3EE";
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, rx * 1.25, ry * 1.25, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
+
       // warning label
       ctx.globalAlpha = 0.85 * fade;
       ctx.fillStyle = "#FACC15";
@@ -2300,7 +2431,18 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             <InfoCard title="SCORE" value={score.toLocaleString()} sub={`BEST: ${Math.max(best, score).toLocaleString()}`} tint="#22D3EE" wide />
             <InfoCard title="BIRD BUCKS" value={Math.floor(score/10).toLocaleString()} sub="COMPLETELY WORTHLESS" tint="#EC4899" wide />
           </div>
+          {cleanCombo >= 2 && (
+            <div
+              key={cleanCombo}
+              className={`self-end rounded-lg border-2 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest backdrop-blur animate-[pulse_0.6s_ease-out] ${
+                cleanCombo >= 3 ? "border-[#FACC15] bg-[#FACC15]/20 text-[#FACC15]" : "border-[#22D3EE] bg-[#22D3EE]/20 text-[#22D3EE]"
+              }`}
+            >
+              MOP CHAIN <span className="text-base">×{cleanCombo}</span>
+            </div>
+          )}
           <button onClick={onQuit} className="self-end rounded border border-[#EF4444] bg-[#EF4444]/20 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#EF4444] hover:bg-[#EF4444]/40">Clock Out</button>
+
         </div>
 
         {/* Bottom-left: minimap (fades when player walks over it) */}
