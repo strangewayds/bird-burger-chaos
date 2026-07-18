@@ -1071,6 +1071,56 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
           </div>
         </div>
       </div>
+
+      {gifPreview && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={closeGifPreview}
+          role="dialog"
+          aria-modal="true"
+          aria-label="GIF loop preview"
+        >
+          <div
+            className="w-full max-w-md rounded-lg border-2 border-robin bg-card p-5 shadow-[6px_6px_0_#000]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-robin">Seamless loop · {LOOP_LEN} frames · ~2s</div>
+                <div className="font-display text-lg tracking-widest">PREVIEW YOUR GIF</div>
+              </div>
+              <button
+                onClick={closeGifPreview}
+                className="rounded-md border border-ink/20 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-ink/70 hover:bg-ink/5"
+                aria-label="Close preview"
+              >✕</button>
+            </div>
+            <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-md border-2 border-grape/40 bg-black">
+              <img src={gifPreview.url} alt="Animated PFP loop preview" className="h-full w-full" />
+              <div className="pointer-events-none absolute left-2 top-2 rounded bg-black/70 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-robin">
+                ● LOOPING
+              </div>
+            </div>
+            <p className="mt-3 text-center font-mono text-[11px] italic text-ink/60">
+              First and last frames match — no seam. Not what you want? Tweak sliders and re-render.
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { closeGifPreview(); renderGif(); }}
+                className="rounded-md border-2 border-cyan bg-cyan/10 px-3 py-3 font-display text-xs tracking-widest text-cyan hover:bg-cyan/20 transition"
+              >
+                RE-RENDER
+              </button>
+              <button
+                onClick={() => { confirmDownloadGif(); closeGifPreview(); }}
+                className="rounded-md border-2 border-mustard bg-mustard px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition"
+              >
+                DOWNLOAD GIF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
