@@ -1364,24 +1364,33 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           }
         }
       }
-      // Grease spills: random splatters near cook stations
+      // Grease spills: random splatters near cook stations.
+      // Chaos scales with the player's current mop combo — higher skill, messier kitchen.
       spillCd -= dt;
-      if (spillCd <= 0 && spillsRef.current.length < 6) {
-        const near = Math.random() < 0.7
-          ? STATIONS.find((s) => s.id === (Math.random() < 0.5 ? "grill" : "fryer"))!
-          : STATIONS[Math.floor(Math.random() * STATIONS.length)];
-        const ang = Math.random() * Math.PI * 2;
-        const rad = 0.05 + Math.random() * 0.1;
-        spillsRef.current.push({
-          x: clamp(near.x + near.w/2 + Math.cos(ang) * rad, 0.05, 0.95),
-          y: clamp(near.y + near.h/2 + Math.sin(ang) * rad, 0.14, 0.94),
-          r: 0.03 + Math.random() * 0.025,
-          life: 22 + Math.random() * 10,
-          cleanT: 0,
-          hue: Math.random() < 0.5 ? 42 : 30,
-          wob: Math.random() * Math.PI * 2,
-        });
-        spillCd = 7 + Math.random() * 8;
+      const comboN = cleanComboRef.current.count;
+      const chaosMul = 1 + Math.min(comboN, 8) * 0.35; // up to ~3.8x at combo 8
+      const spillCap = Math.min(14, 6 + Math.floor(comboN * 0.9));
+      if (spillCd <= 0 && spillsRef.current.length < spillCap) {
+        const spawnCount = 1 + (comboN >= 3 ? 1 : 0) + (comboN >= 6 ? 1 : 0);
+        for (let i = 0; i < spawnCount; i++) {
+          const near = Math.random() < 0.7
+            ? STATIONS.find((s) => s.id === (Math.random() < 0.5 ? "grill" : "fryer"))!
+            : STATIONS[Math.floor(Math.random() * STATIONS.length)];
+          const ang = Math.random() * Math.PI * 2;
+          const rad = 0.05 + Math.random() * 0.1;
+          const sizeMul = 1 + Math.min(comboN, 8) * 0.08;
+          spillsRef.current.push({
+            x: clamp(near.x + near.w/2 + Math.cos(ang) * rad, 0.05, 0.95),
+            y: clamp(near.y + near.h/2 + Math.sin(ang) * rad, 0.14, 0.94),
+            r: (0.03 + Math.random() * 0.025) * sizeMul,
+            life: 22 + Math.random() * 10,
+            cleanT: 0,
+            hue: Math.random() < 0.5 ? 42 : 30,
+            wob: Math.random() * Math.PI * 2,
+          });
+        }
+        // Cooldown shortens as combo climbs — kitchen keeps up with your pace.
+        spillCd = (7 + Math.random() * 8) / chaosMul;
       }
       // spill decay: shrink slowly + expire (slower cleanT decay so player retains progress)
       spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.1); });
