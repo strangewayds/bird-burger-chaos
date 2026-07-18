@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
+import kitchenCamImg from "@/assets/kitchen-cam.png.asset.json";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
 
 export const Route = createFileRoute("/")({
