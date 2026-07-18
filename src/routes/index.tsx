@@ -345,6 +345,55 @@ const MEME_TRACKS: MemeTrack[] = [
     ],
     bass: [[-5,2],[-5,2],[0,2],[0,2],[-3,2],[-3,2],[3,2],[3,2]],
   },
+  {
+    // Cheap elevator muzak — the "please hold" you get before the fryer explodes.
+    id: "hold-music-hell",
+    name: "Hold Music Hell",
+    bpm: 88,
+    lead: "sine",
+    buzz: "triangle",
+    doinkStart: 500, doinkEnd: 200,
+    melody: [
+      [0,2],[4,2],[7,2],[11,2],
+      [12,2],[11,2],[9,2],[7,2],
+      [5,2],[9,2],[12,2],[16,2],
+      [14,2],[12,2],[11,2],[7,4],
+      [null,4],
+    ],
+    bass: [[0,4],[5,4],[-3,4],[-1,4],[-5,4],[0,4],[-7,4],[-5,4]],
+  },
+  {
+    // Sad drive-thru saxophone — a lounge singer in a paper hat.
+    id: "drive-thru-jazz",
+    name: "Drive-Thru Jazz",
+    bpm: 96,
+    lead: "sawtooth",
+    buzz: "sine",
+    doinkStart: 600, doinkEnd: 140,
+    melody: [
+      [3,2],[5,1],[7,1],[10,2],[7,2],
+      [5,2],[3,1],[2,1],[3,4],
+      [7,2],[10,1],[12,1],[15,2],[12,2],
+      [10,2],[7,1],[5,1],[3,4],
+    ],
+    bass: [[-9,4],[-4,4],[-7,4],[-2,4],[-9,4],[-4,4],[-11,4],[-4,4]],
+  },
+  {
+    // Grocery-store food court bossa — flat, wobbly, oddly menacing.
+    id: "food-court-bossa",
+    name: "Food Court Bossa",
+    bpm: 104,
+    lead: "triangle",
+    buzz: "sine",
+    doinkStart: 800, doinkEnd: 180,
+    melody: [
+      [7,1],[10,1],[12,2],[10,1],[7,1],[5,2],
+      [9,1],[12,1],[14,2],[12,1],[9,1],[7,2],
+      [5,1],[9,1],[12,2],[9,1],[5,1],[2,2],
+      [0,1],[4,1],[7,2],[null,4],
+    ],
+    bass: [[-5,2],[2,2],[-3,2],[4,2],[-7,2],[0,2],[-10,2],[-3,2]],
+  },
 ];
 
 function useFartSong(muted: boolean, trackId: string) {
