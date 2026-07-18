@@ -26,6 +26,14 @@ import {
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
 import kitchenCamImg from "@/assets/kitchen-cam.png.asset.json";
+import menuMcrug from "@/assets/menu-mcrug.png.asset.json";
+import menuFries from "@/assets/menu-liquidity-fries.png.asset.json";
+import menuShake from "@/assets/menu-pump-shake.png.asset.json";
+import menuNuggets from "@/assets/menu-diamond-nuggets.png.asset.json";
+import menuCombo from "@/assets/menu-exit-combo.png.asset.json";
+import menuChud from "@/assets/menu-chudburger.png.asset.json";
+import menuKids from "@/assets/menu-paper-hands.png.asset.json";
+import menuNothing from "@/assets/menu-nothing-burger.png.asset.json";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
 
 export const Route = createFileRoute("/")({
