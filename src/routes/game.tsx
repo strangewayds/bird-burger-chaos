@@ -116,10 +116,11 @@ function GamePage() {
   const [showHelp, setShowHelp] = useState(false);
   const [muted, setMuted] = useState(true);
   const [finalStats, setFinalStats] = useState<GameStats | null>(null);
+  const haptics = useHaptics();
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
-      <TopBar muted={muted} setMuted={setMuted} />
+      <TopBar muted={muted} setMuted={setMuted} haptics={haptics} />
       <AnimatePresence mode="wait">
         {phase === "start" && (
           <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -136,6 +137,7 @@ function GamePage() {
             <GameScreen
               employee={employee}
               muted={muted}
+              haptics={haptics}
               onEnd={(stats) => { setFinalStats(stats); setPhase("results"); }}
               onQuit={() => setPhase("start")}
             />
