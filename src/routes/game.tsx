@@ -1843,7 +1843,36 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
               </div>
             );
           })()}
+
+          {/* Perf mode toggle */}
+          <div className="rounded-lg border-2 border-[#22D3EE]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+            <div className="mb-1 flex items-center justify-between font-black text-[#22D3EE]">
+              <span>PERF MODE</span>
+              <span className={`text-[9px] ${perfFps < 40 ? "text-[#EF4444]" : perfFps < 55 ? "text-[#FACC15]" : "text-white/60"}`}>{perfFps} FPS{perfActive ? " · LEAN" : ""}</span>
+            </div>
+            <div className="flex gap-1">
+              {(["auto", "high", "low"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    perfRef.current.mode = m;
+                    try { localStorage.setItem("bb_perf", m); } catch {}
+                    setPerfMode(m);
+                  }}
+                  className={`flex-1 rounded border-2 px-1.5 py-1 text-[9px] font-black transition ${
+                    perfMode === m
+                      ? "border-[#22D3EE] bg-[#22D3EE]/25 text-[#22D3EE]"
+                      : "border-white/20 bg-white/5 text-white/60 hover:border-white/40"
+                  }`}
+                >{m === "auto" ? "AUTO" : m === "high" ? "FULL FX" : "LEAN"}</button>
+              ))}
+            </div>
+            <div className="mt-1 text-[8px] leading-tight text-white/50">
+              {perfMode === "auto" ? "Auto-cuts dust & flashes when it gets hectic." : perfMode === "high" ? "Every spark, every puff." : "Minimal particles for smooth play."}
+            </div>
+          </div>
         </div>
+
 
         {/* Top: order queue */}
         <div className="pointer-events-none absolute inset-x-0 top-2 mx-auto flex max-w-[62%] justify-center gap-2 md:top-4">
