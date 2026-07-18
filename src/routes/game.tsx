@@ -911,6 +911,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
 
     // Movement particles (pixel dust + impact flashes) — under the player
     {
+      const dt = 1 / 60;
       const parts = particlesRef.current;
       for (let i = parts.length - 1; i >= 0; i--) {
         const pt = parts[i];
