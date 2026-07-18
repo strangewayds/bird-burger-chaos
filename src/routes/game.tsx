@@ -628,6 +628,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   const [cleanCombo, setCleanCombo] = useState(0);
   const floatsRef = useRef<FloatText[]>([]);
   const hasExtinguisherRef = useRef(false);
+  const mopRef = useRef({ has: false, charges: 0, max: 5, nextSwing: 0 });
+  const [_mopTick, setMopTick] = useState(0);
   const grillRef = useRef({ progress: 0, item: null as Ing | null });
   const fryerRef = useRef({ progress: 0, item: null as Ing | null });
   const minimapRef = useRef<HTMLDivElement | null>(null);
