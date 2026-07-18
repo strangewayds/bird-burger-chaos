@@ -836,37 +836,57 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     // Player
     const p = playerRef.current;
     const px = p.x * W, py = p.y * H;
-    // shadow
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    const moving = Math.hypot(p.vx, p.vy) > 0.001;
+    // Hop height (positive = arc up). sin(phase) gives smooth 0..1..0 arcs.
+    const hopSin = Math.sin(p.hopPhase);
+    const hopUp = moving ? Math.max(0, hopSin) : 0; // only up-arcs, feet planted on downbeats
+    const hopY = -hopUp * 22;
+    // Squash on landing (when sin is near 0 going down), stretch mid-air
+    const airT = hopUp; // 0..1
+    const scaleY = 1 + airT * 0.10 - (moving && hopSin < 0 ? 0.08 * -hopSin : 0);
+    const scaleX = 1 - airT * 0.06 + (moving && hopSin < 0 ? 0.06 * -hopSin : 0);
+    // shadow (shrinks when airborne)
+    const shadowScale = 1 - airT * 0.55;
+    ctx.fillStyle = `rgba(0,0,0,${0.5 - airT * 0.25})`;
     ctx.beginPath();
-    ctx.ellipse(px, py + 28, 24, 8, 0, 0, Math.PI*2);
+    ctx.ellipse(px, py + 28, 24 * shadowScale, 8 * shadowScale, 0, 0, Math.PI*2);
     ctx.fill();
     const m = mascotImgRef.current;
     if (m) {
       const size = 76;
-      const wobble = Math.sin(performance.now()/120) * 2;
+      const drawY = py - size + 16 + hopY;
       ctx.save();
-      // hue rotation via a temp canvas isn't cheap; approximate with colored overlay
-      ctx.drawImage(m, px - size/2, py - size + 16 + wobble, size, size);
+      ctx.translate(px, py + 16);
+      ctx.scale(p.face * scaleX, scaleY);
+      ctx.translate(-px, -(py + 16));
+      // slight tilt into direction of travel
+      if (moving) {
+        const tilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
+        ctx.translate(px, py + 16);
+        ctx.rotate(tilt);
+        ctx.translate(-px, -(py + 16));
+      }
+      ctx.drawImage(m, px - size/2, drawY, size, size);
       ctx.globalCompositeOperation = "source-atop";
       ctx.fillStyle = employee.tint + "40";
-      ctx.fillRect(px - size/2, py - size + 16 + wobble, size, size);
+      ctx.fillRect(px - size/2, drawY, size, size);
       ctx.restore();
     } else {
       ctx.fillStyle = employee.tint;
       ctx.beginPath();
-      ctx.arc(px, py, 18, 0, Math.PI*2);
+      ctx.arc(px, py + hopY, 18, 0, Math.PI*2);
       ctx.fill();
     }
-    // Name tag
+    // Name tag (follows hop)
+    const tagY = py - 78 + hopY;
     ctx.fillStyle = "#7C3AED";
-    ctx.fillRect(px - 42, py - 78, 84, 18);
+    ctx.fillRect(px - 42, tagY, 84, 18);
     ctx.strokeStyle = "#FACC15";
-    ctx.strokeRect(px - 42, py - 78, 84, 18);
+    ctx.strokeRect(px - 42, tagY, 84, 18);
     ctx.fillStyle = "#FFF";
     ctx.font = "bold 11px system-ui";
     ctx.textAlign = "center";
-    ctx.fillText(employee.name.toUpperCase(), px, py - 65);
+    ctx.fillText(employee.name.toUpperCase(), px, tagY + 13);
 
     // Carrying stack
     const carry = carryRef.current;
@@ -875,7 +895,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         const info = ING_META[it];
         ctx.fillStyle = info.color;
         ctx.beginPath();
-        ctx.arc(px + 30 + i*10, py - 10 - i*10, 8, 0, Math.PI*2);
+        ctx.arc(px + 30 * p.face + i*10*p.face, py - 10 - i*10 + hopY, 8, 0, Math.PI*2);
         ctx.fill();
         ctx.strokeStyle = "#000";
         ctx.lineWidth = 1;
