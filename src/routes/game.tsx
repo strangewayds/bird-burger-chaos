@@ -951,8 +951,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
               kind: "dust",
             });
           }
-          // Small crisp pixel-flash at the pivot point (skipped under perf pressure)
-          if (scale2 > 0.55 || Math.random() < scale2) {
+          // Small crisp pixel-flash at the pivot point (skipped under perf pressure or reduced motion)
+          if (motionRef.current.mode !== "reduced" && (scale2 > 0.55 || Math.random() < scale2)) {
             particlesRef.current.push({
               x: fx, y: fy, vx: 0, vy: 0, life: 0,
               max: 0.14,
@@ -1003,8 +1003,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             kind: "dust",
           });
         }
-        // Flash: skip probabilistically when perf-mode is reducing effects
-        if (scale > 0.55 || Math.random() < scale) {
+        // Flash: skip probabilistically when perf-mode is reducing effects, or entirely under reduced motion
+        if (motionRef.current.mode !== "reduced" && (scale > 0.55 || Math.random() < scale)) {
           particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: (dashing ? 22 : 16) * (0.7 + 0.3 * scale), color: "#FFF6C2", kind: "flash" });
         }
         p.landT = dashing ? 0.16 : 0.13;
@@ -1808,8 +1808,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     ctx.ellipse(px, py + 28, 24 * shadowScale, 8 * shadowScale, 0, 0, Math.PI*2);
     ctx.fill();
 
-    // Dash smear trail (short, crisp silhouettes — not motion blur)
-    {
+    // Dash smear trail (short, crisp silhouettes — not motion blur). Disabled under reduced motion.
+    if (motionRef.current.mode !== "reduced") {
       const now = performance.now() / 1000;
       const ddt = lastDrawTimeRef.current ? Math.min(0.05, now - lastDrawTimeRef.current) : 1 / 60;
       lastDrawTimeRef.current = now;
@@ -1952,7 +1952,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     }
     ctx.restore();
     // Explosion flash overlay (drawn without transform)
-    if (explosionRef.current > 0) {
+    if (explosionRef.current > 0 && motionRef.current.mode !== "reduced") {
       ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current * M})`;
       ctx.fillRect(0, 0, W, H);
     }
@@ -2196,7 +2196,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
               ))}
             </div>
             <div className="mt-1 text-[8px] leading-tight text-white/50">
-              {motionMode === "reduced" ? "Softer shake, no strobe flashing, gentler squash." : "Full shake, flash & squash chaos."}
+              {motionMode === "reduced" ? "No dash trails or strobe flashes; softer shake & squash." : "Full shake, trails, flashes & squash chaos."}
             </div>
           </div>
         </div>
