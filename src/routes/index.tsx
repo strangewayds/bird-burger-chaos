@@ -975,19 +975,21 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       });
       const exportIntensity = animated ? intensity : Math.max(60, intensity);
       const targetPlatform: Platform = exportPlatform === "match" ? platform : exportPlatform;
+      const exportSeed = seed;
       // Render frames 0..LOOP_LEN-1. Because every animated quantity in
       // drawFrame is periodic over LOOP_LEN, frame 0 and frame LOOP_LEN are
       // pixel-identical → the GIF loops with no visible seam.
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN, targetPlatform);
+        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN, targetPlatform, exportSeed);
         gif.addFrame(octx, { copy: true, delay });
       }
       gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
       gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
-        setGifPreview({ url, blob, platform: targetPlatform });
+        setGifPreview({ url, blob, platform: targetPlatform, seed: exportSeed });
         setExporting(false); setExportPct(0);
       });
+
       gif.render();
     } catch (err) {
       console.error("GIF export failed", err);
