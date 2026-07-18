@@ -2431,7 +2431,18 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             <InfoCard title="SCORE" value={score.toLocaleString()} sub={`BEST: ${Math.max(best, score).toLocaleString()}`} tint="#22D3EE" wide />
             <InfoCard title="BIRD BUCKS" value={Math.floor(score/10).toLocaleString()} sub="COMPLETELY WORTHLESS" tint="#EC4899" wide />
           </div>
+          {cleanCombo >= 2 && (
+            <div
+              key={cleanCombo}
+              className={`self-end rounded-lg border-2 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest backdrop-blur animate-[pulse_0.6s_ease-out] ${
+                cleanCombo >= 3 ? "border-[#FACC15] bg-[#FACC15]/20 text-[#FACC15]" : "border-[#22D3EE] bg-[#22D3EE]/20 text-[#22D3EE]"
+              }`}
+            >
+              MOP CHAIN <span className="text-base">×{cleanCombo}</span>
+            </div>
+          )}
           <button onClick={onQuit} className="self-end rounded border border-[#EF4444] bg-[#EF4444]/20 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#EF4444] hover:bg-[#EF4444]/40">Clock Out</button>
+
         </div>
 
         {/* Bottom-left: minimap (fades when player walks over it) */}
