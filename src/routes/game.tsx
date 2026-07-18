@@ -1170,6 +1170,122 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.fillText("🔥 FIRE!", cx, cy + 30);
     }
 
+    // Fryer flare-up ring (expanding radial burst)
+    if (flareRef.current.life > 0) {
+      const fl = flareRef.current;
+      const cx = fl.x * W, cy = fl.y * H;
+      const rr = fl.r * Math.min(W, H) * 1.8;
+      const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 90);
+      ctx.save();
+      const g = ctx.createRadialGradient(cx, cy, rr * 0.15, cx, cy, rr);
+      g.addColorStop(0, `rgba(255,240,140,${0.75 * pulse})`);
+      g.addColorStop(0.35, `rgba(249,115,22,${0.55 * pulse})`);
+      g.addColorStop(0.8, `rgba(239,68,68,${0.25 * pulse})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+      ctx.fill();
+      // hot licks
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 8; i++) {
+        const a = (performance.now() / 200 + i) % (Math.PI * 2);
+        const rx = cx + Math.cos(a) * rr * 0.55;
+        const ry = cy + Math.sin(a) * rr * 0.55;
+        ctx.fillStyle = i % 2 ? "#FACC15" : "#F97316";
+        ctx.beginPath();
+        ctx.arc(rx, ry, 6 + (i % 3) * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = "#FACC15";
+      ctx.font = "bold 12px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("🔥 FRYER FLARE-UP", cx, cy - rr - 6);
+    }
+
+    // Falling signage
+    for (const sg of signsRef.current) {
+      const cx = sg.x * W, cy = sg.y * H;
+      if (sg.phase === "warn") {
+        // pulsing ground-shadow target
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 90);
+        ctx.save();
+        ctx.globalAlpha = 0.35 + 0.35 * pulse;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 46, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2 + pulse * 2;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      } else if (sg.phase === "falling") {
+        const t = sg.t / 0.55;
+        // ground shadow still
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 46 * (0.6 + t * 0.4), 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        // sign falling from top
+        const yOff = -260 * (1 - t) * (1 - t);
+        ctx.save();
+        ctx.translate(cx, cy + yOff);
+        ctx.rotate(sg.spin);
+        const tw = 12 + sg.text.length * 7;
+        ctx.fillStyle = "#09090B";
+        ctx.strokeStyle = sg.color;
+        ctx.lineWidth = 3;
+        ctx.fillRect(-tw / 2, -14, tw, 28);
+        ctx.strokeRect(-tw / 2, -14, tw, 28);
+        ctx.fillStyle = sg.color;
+        ctx.font = "bold 12px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(sg.text, 0, 0);
+        ctx.textBaseline = "alphabetic";
+        ctx.restore();
+      } else {
+        // landed — sits and blocks the tile
+        const alpha = Math.min(1, sg.landT / 1.2);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(cx, cy);
+        ctx.rotate(sg.spin + Math.sin(performance.now() / 400) * 0.03);
+        const tw = 12 + sg.text.length * 7;
+        // splat crack under sign
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.beginPath();
+        ctx.ellipse(0, 12, tw * 0.7, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#09090B";
+        ctx.strokeStyle = sg.color;
+        ctx.lineWidth = 3;
+        ctx.fillRect(-tw / 2, -14, tw, 28);
+        ctx.strokeRect(-tw / 2, -14, tw, 28);
+        // broken corner
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-tw / 2 + 4, -10);
+        ctx.lineTo(-tw / 2 + 10, -2);
+        ctx.lineTo(-tw / 2 + 4, 4);
+        ctx.stroke();
+        ctx.fillStyle = sg.color;
+        ctx.font = "bold 12px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(sg.text, 0, 0);
+        ctx.textBaseline = "alphabetic";
+        ctx.restore();
+      }
+    }
+
     // Pigeons
     for (const pg of pigeonsRef.current) {
       const cx = pg.x * W, cy = pg.y * H;
