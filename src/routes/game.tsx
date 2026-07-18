@@ -633,6 +633,34 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
+      // FPS tracking + perf-mode scale
+      {
+        const instFps = dt > 0 ? 1 / dt : 60;
+        const pr = perfRef.current;
+        pr.fps = pr.fps * 0.92 + instFps * 0.08;
+        let targetScale = 1;
+        if (pr.mode === "low") targetScale = 0.35;
+        else if (pr.mode === "high") targetScale = 1;
+        else {
+          // auto: react to fps AND on-screen busy-ness
+          const busy = firesRef.current.length + signsRef.current.length + spillsRef.current.length * 0.5 + pigeonsRef.current.length + (explosionRef.current > 0.1 ? 3 : 0);
+          if (pr.fps < 30 || busy > 10) targetScale = 0.25;
+          else if (pr.fps < 45 || busy > 6) targetScale = 0.5;
+          else if (pr.fps < 55 || busy > 4) targetScale = 0.75;
+          else targetScale = 1;
+        }
+        pr.scale += (targetScale - pr.scale) * Math.min(1, dt * 3);
+        const wasActive = pr.active;
+        pr.active = pr.scale < 0.9;
+        // cap live particle count
+        const cap = Math.max(24, Math.floor(220 * pr.scale));
+        if (particlesRef.current.length > cap) {
+          particlesRef.current.splice(0, particlesRef.current.length - cap);
+        }
+        if (pr.active !== wasActive) setPerfActive(pr.active);
+      }
+
+
       // Movement
       const p = playerRef.current;
       let dx = 0, dy = 0;
