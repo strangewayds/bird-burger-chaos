@@ -1096,6 +1096,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         setScore(scoreRef.current);
         setChaos(chaosRef.current);
         setTick((t) => t + 1);
+        setPerfFps(Math.round(perfRef.current.fps));
       }
 
       draw();
