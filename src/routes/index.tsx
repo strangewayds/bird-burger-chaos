@@ -246,16 +246,19 @@ function BirdBurgerPage() {
       />
       <Hero onOrder={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })} onBuy={() => document.getElementById("token")?.scrollIntoView({ behavior: "smooth" })} />
       <Ticker />
-      <Menu onOrder={(name) => { setOrderItem(name); play("bell"); earn(50); }} />
-      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-8 md:grid-cols-3">
+      <div className="mx-auto grid max-w-7xl gap-4 px-4 pt-6 md:grid-cols-3">
         <KitchenStatus onRefresh={() => play("beep")} />
         <KitchenCam onIncident={() => play("buzz")} />
         <BirdOfTheDay onFire={() => { play("buzz"); earn(25); }} />
       </div>
-      <CallTheKitchen onStart={() => play("chirp")} onEnd={() => earn(30)} />
+      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-6 md:grid-cols-3">
+        <CallKitchenCard onStart={() => play("chirp")} onEnd={() => earn(30)} />
+        <TodaysSpecials />
+        <RecentActivityCard wallet={wallet} />
+      </div>
+      <PurpleBand bucks={bucks} wallet={wallet} onDownload={() => earn(20)} />
+      <Menu onOrder={(name) => { setOrderItem(name); play("bell"); earn(50); }} />
       <Reviews />
-      <MemeGenerator onDownload={() => earn(20)} />
-      <Leaderboard bucks={bucks} wallet={wallet} />
       <CommunitySection wallet={wallet} />
       <TokenSection wallet={wallet} />
       <HowToBuy />
