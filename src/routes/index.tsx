@@ -485,161 +485,271 @@ function CallKitchenCard({ onStart, onEnd: _onEnd }: { onStart: () => void; onEn
     onStart();
     setTimeout(() => setRinging(false), 4200);
   };
-
   const quick = (label: string) => {
     setFlash(label);
     call();
     setTimeout(() => setFlash(null), 2200);
   };
 
-  const cornerTick = "before:absolute before:w-3 before:h-3 before:border-pink-400/70 after:absolute after:w-3 after:h-3 after:border-pink-400/70";
+  // Chunky yellow button hex-clip (angled left/right edges like the reference)
+  const btnClip = "polygon(18px 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 18px 100%, 0 50%)";
+
+  // Scattered sparkles (deterministic so they don't jitter each render)
+  const sparkles = [
+    { x: 6, y: 14, s: 10 }, { x: 14, y: 32, s: 6 }, { x: 4, y: 55, s: 8 },
+    { x: 10, y: 78, s: 5 }, { x: 22, y: 88, s: 7 }, { x: 88, y: 30, s: 6 },
+    { x: 94, y: 55, s: 9 }, { x: 84, y: 75, s: 6 }, { x: 60, y: 8, s: 5 },
+    { x: 72, y: 92, s: 7 }, { x: 40, y: 42, s: 4 }, { x: 55, y: 68, s: 5 },
+  ];
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border-2 border-pink-500/70 bg-[#120620] p-4 shadow-[0_0_30px_-4px_rgba(236,72,153,0.6),inset_0_0_40px_rgba(236,72,153,0.08)]"
+      className="relative overflow-hidden rounded-[22px] border-2 border-pink-500/80 bg-[#0d0518] p-4 sm:p-5 shadow-[0_0_40px_-6px_rgba(236,72,153,0.7),inset_0_0_60px_rgba(236,72,153,0.08)]"
       style={{
         backgroundImage:
-          "radial-gradient(circle at 20% 0%, rgba(236,72,153,0.18), transparent 55%), radial-gradient(circle at 90% 100%, rgba(6,182,212,0.12), transparent 55%)",
+          "radial-gradient(ellipse at 30% 20%, rgba(236,72,153,0.16), transparent 60%), radial-gradient(ellipse at 85% 85%, rgba(6,182,212,0.10), transparent 60%), linear-gradient(180deg, #14061f 0%, #0a0312 100%)",
       }}
     >
-      {/* Corner brackets */}
-      <span className="absolute left-2 top-2 h-3 w-3 border-l-2 border-t-2 border-pink-400/80" />
-      <span className="absolute right-2 top-2 h-3 w-3 border-r-2 border-t-2 border-pink-400/80" />
-      <span className="absolute left-2 bottom-2 h-3 w-3 border-l-2 border-b-2 border-pink-400/80" />
-      <span className="absolute right-2 bottom-2 h-3 w-3 border-r-2 border-b-2 border-pink-400/80" />
-      {/* Hazard stripes accent */}
-      <div className="absolute right-6 top-0 h-2 w-10 opacity-70" style={{ backgroundImage: "repeating-linear-gradient(45deg,#facc15 0 4px,#000 4px 8px)" }} />
+      {/* Sparkles background layer */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        {sparkles.map((sp, i) => (
+          <svg key={i} className="absolute text-pink-300/60" style={{ left: `${sp.x}%`, top: `${sp.y}%`, width: sp.s, height: sp.s }} viewBox="0 0 10 10" fill="currentColor">
+            <path d="M5 0 L6 4 L10 5 L6 6 L5 10 L4 6 L0 5 L4 4 Z" />
+          </svg>
+        ))}
+      </div>
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2">
-          <Phone className="mt-1 h-6 w-6 text-pink-400 drop-shadow-[0_0_8px_rgba(236,72,153,0.9)]" />
-          <div className="font-display text-lg leading-[0.95] text-white tracking-wide [text-shadow:0_0_10px_rgba(236,72,153,0.9),0_0_20px_rgba(236,72,153,0.5)]">
+      {/* Inner double-line frame */}
+      <div className="pointer-events-none absolute inset-2 rounded-[18px] border border-pink-400/25" aria-hidden />
+
+      {/* Corner brackets */}
+      <span className="pointer-events-none absolute left-1.5 top-1.5 h-4 w-4 border-l-2 border-t-2 border-pink-400" />
+      <span className="pointer-events-none absolute right-1.5 top-1.5 h-4 w-4 border-r-2 border-t-2 border-pink-400" />
+      <span className="pointer-events-none absolute left-1.5 bottom-1.5 h-4 w-4 border-l-2 border-b-2 border-pink-400" />
+      <span className="pointer-events-none absolute right-1.5 bottom-1.5 h-4 w-4 border-r-2 border-b-2 border-pink-400" />
+      {/* Hazard corners */}
+      <div className="pointer-events-none absolute right-6 top-1 h-1.5 w-12 opacity-80" style={{ backgroundImage: "repeating-linear-gradient(45deg,#facc15 0 4px,#000 4px 8px)" }} />
+      <div className="pointer-events-none absolute left-6 bottom-1 h-1.5 w-12 opacity-80" style={{ backgroundImage: "repeating-linear-gradient(45deg,#facc15 0 4px,#000 4px 8px)" }} />
+
+      {/* ═════════ HEADER ═════════ */}
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2 pt-1">
+          <Phone
+            className="mt-1 h-8 w-8 text-pink-400"
+            strokeWidth={2.5}
+            style={{ filter: "drop-shadow(0 0 8px rgba(236,72,153,1)) drop-shadow(0 0 16px rgba(236,72,153,0.6))" }}
+          />
+          <div
+            className="font-display text-[26px] sm:text-[30px] leading-[0.9] tracking-wide text-white"
+            style={{ textShadow: "0 0 10px rgba(236,72,153,0.95), 0 0 22px rgba(236,72,153,0.55), 2px 2px 0 rgba(0,0,0,0.6)" }}
+          >
             CALL THE<br />KITCHEN
           </div>
         </div>
-        <div className="rounded-lg border-2 border-pink-500/70 bg-black/60 px-2.5 py-1.5 text-center shadow-[inset_0_0_10px_rgba(236,72,153,0.25)]">
-          <div className="flex items-center justify-center gap-1 font-mono text-[8px] uppercase tracking-[0.25em] text-pink-300">
-            <span className="text-[10px]">🐦</span> Hotline
+        {/* Hotline pill */}
+        <div className="relative rounded-lg border-2 border-pink-500/80 bg-black/70 px-3 py-1.5 shadow-[inset_0_0_12px_rgba(236,72,153,0.3),0_0_18px_-4px_rgba(236,72,153,0.7)]">
+          <div className="pointer-events-none absolute -top-2 left-1 h-1.5 w-6 opacity-80" style={{ backgroundImage: "repeating-linear-gradient(45deg,#facc15 0 3px,#000 3px 6px)" }} />
+          <div className="pointer-events-none absolute -bottom-2 right-1 h-1.5 w-6 opacity-80" style={{ backgroundImage: "repeating-linear-gradient(45deg,#facc15 0 3px,#000 3px 6px)" }} />
+          <div className="flex items-center justify-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.28em] text-pink-300">
+            <span className="text-sm leading-none">🐦</span> Hotline
           </div>
-          <div className="font-display text-[11px] tracking-wider text-white [text-shadow:0_0_6px_rgba(236,72,153,0.8)]">1-800-BIRD-BAD</div>
+          <div className="font-display text-[13px] tracking-wider text-white" style={{ textShadow: "0 0 6px rgba(236,72,153,0.9)" }}>1-800-BIRD-BAD</div>
         </div>
       </div>
 
-      {/* Neon dial */}
-      <div className="relative mx-auto my-5 grid h-40 w-40 place-items-center">
-        {/* Sound waves */}
+      {/* ═════════ NEON DIAL ═════════ */}
+      <div className="relative mx-auto my-5 grid h-52 w-52 sm:h-56 sm:w-56 place-items-center">
+        {/* Sound wave arcs */}
         <AnimatePresence>
           {ringing && (
             <>
-              <motion.span
-                key="wave-l" initial={{ opacity: 0, x: 0 }} animate={{ opacity: [0.8, 0], x: -18 }} exit={{ opacity: 0 }}
-                transition={{ duration: 1.1, repeat: Infinity }}
-                className="absolute left-[-28px] top-1/2 h-16 w-8 -translate-y-1/2 rounded-l-full border-l-2 border-pink-400"
-                style={{ boxShadow: "-6px 0 12px -2px rgba(236,72,153,0.7)" }}
-              />
-              <motion.span
-                key="wave-r" initial={{ opacity: 0, x: 0 }} animate={{ opacity: [0.8, 0], x: 18 }} exit={{ opacity: 0 }}
-                transition={{ duration: 1.1, repeat: Infinity }}
-                className="absolute right-[-28px] top-1/2 h-16 w-8 -translate-y-1/2 rounded-r-full border-r-2 border-pink-400"
-                style={{ boxShadow: "6px 0 12px -2px rgba(236,72,153,0.7)" }}
-              />
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={`wl-${i}`}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: [0.9, 0], scale: [0.9, 1.4] }}
+                  transition={{ duration: 1.3, repeat: Infinity, delay: i * 0.25 }}
+                  className="absolute left-[-14px] top-1/2 h-24 w-6 -translate-y-1/2 rounded-l-full border-l-[3px] border-pink-400"
+                  style={{ boxShadow: "-8px 0 14px -2px rgba(236,72,153,0.8)" }}
+                />
+              ))}
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={`wr-${i}`}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: [0.9, 0], scale: [0.9, 1.4] }}
+                  transition={{ duration: 1.3, repeat: Infinity, delay: i * 0.25 }}
+                  className="absolute right-[-14px] top-1/2 h-24 w-6 -translate-y-1/2 rounded-r-full border-r-[3px] border-pink-400"
+                  style={{ boxShadow: "8px 0 14px -2px rgba(236,72,153,0.8)" }}
+                />
+              ))}
             </>
           )}
         </AnimatePresence>
+
+        {/* Static faint arcs (always visible, softer) */}
+        <span className="pointer-events-none absolute left-[-6px] top-1/2 h-20 w-4 -translate-y-1/2 rounded-l-full border-l-2 border-pink-400/40" />
+        <span className="pointer-events-none absolute right-[-6px] top-1/2 h-20 w-4 -translate-y-1/2 rounded-r-full border-r-2 border-pink-400/40" />
+
         {/* Outer cyan ring */}
-        <span className="absolute inset-0 rounded-full border-2 border-cyan-400/70" style={{ boxShadow: "0 0 18px rgba(6,182,212,0.6), inset 0 0 18px rgba(6,182,212,0.3)" }} />
+        <span
+          className="absolute inset-0 rounded-full border-[3px] border-cyan-400"
+          style={{ boxShadow: "0 0 22px rgba(6,182,212,0.75), inset 0 0 22px rgba(6,182,212,0.35)" }}
+        />
         {/* Inner pink ring */}
         <motion.span
-          animate={ringing ? { boxShadow: ["0 0 20px rgba(236,72,153,0.8), inset 0 0 20px rgba(236,72,153,0.4)", "0 0 40px rgba(236,72,153,1), inset 0 0 30px rgba(236,72,153,0.7)", "0 0 20px rgba(236,72,153,0.8), inset 0 0 20px rgba(236,72,153,0.4)"] } : {}}
-          transition={{ duration: 0.6, repeat: Infinity }}
-          className="absolute inset-2 rounded-full border-2 border-pink-400"
-          style={{ boxShadow: "0 0 20px rgba(236,72,153,0.8), inset 0 0 20px rgba(236,72,153,0.4)" }}
+          animate={
+            ringing
+              ? {
+                  boxShadow: [
+                    "0 0 22px rgba(236,72,153,0.9), inset 0 0 22px rgba(236,72,153,0.5)",
+                    "0 0 48px rgba(236,72,153,1), inset 0 0 34px rgba(236,72,153,0.8)",
+                    "0 0 22px rgba(236,72,153,0.9), inset 0 0 22px rgba(236,72,153,0.5)",
+                  ],
+                }
+              : {}
+          }
+          transition={{ duration: 0.7, repeat: Infinity }}
+          className="absolute inset-3 rounded-full border-[3px] border-pink-400"
+          style={{ boxShadow: "0 0 22px rgba(236,72,153,0.9), inset 0 0 22px rgba(236,72,153,0.5)" }}
         />
         {/* Screw dots */}
-        {[0, 90, 180, 270, 45, 135, 225, 315].map((deg) => (
-          <span key={deg} className="absolute h-1.5 w-1.5 rounded-full bg-pink-300/70" style={{ transform: `rotate(${deg}deg) translate(0, -68px)` }} />
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+          <span
+            key={deg}
+            className="absolute h-2 w-2 rounded-full bg-pink-200 shadow-[0_0_6px_rgba(236,72,153,0.9)]"
+            style={{ transform: `rotate(${deg}deg) translate(0, -92px)` }}
+          />
         ))}
-        {/* Screen bg */}
-        <div className="absolute inset-4 rounded-full bg-black/70" style={{ backgroundImage: "radial-gradient(circle, rgba(236,72,153,0.15), transparent 70%), repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 2px, transparent 2px 4px)" }} />
-        {/* Phone icon */}
+        {/* Screen / disc */}
+        <div
+          className="absolute inset-6 rounded-full bg-black/80"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 60% 40%, rgba(236,72,153,0.28), transparent 62%), repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 4px), repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 4px)",
+          }}
+        />
+        {/* Faint bird silhouette behind phone */}
+        <img
+          src={mascotHero.url}
+          alt=""
+          aria-hidden
+          className="absolute inset-8 h-auto w-auto max-h-[62%] max-w-[62%] object-contain opacity-20 mix-blend-screen"
+          style={{ filter: "hue-rotate(280deg) saturate(2) brightness(0.9)" }}
+        />
+        {/* Big pink phone icon */}
         <motion.div
-          animate={ringing ? { rotate: [-14, 14, -14] } : { rotate: 0 }}
-          transition={{ duration: 0.35, repeat: ringing ? Infinity : 0 }}
+          animate={ringing ? { rotate: [-16, 16, -16] } : { rotate: 0 }}
+          transition={{ duration: 0.32, repeat: ringing ? Infinity : 0 }}
           className="relative z-10"
         >
-          <Phone className="h-14 w-14 text-pink-400" style={{ filter: "drop-shadow(0 0 10px rgba(236,72,153,1)) drop-shadow(0 0 20px rgba(236,72,153,0.6))" }} strokeWidth={2.5} />
+          <Phone
+            className="h-20 w-20 text-pink-400"
+            strokeWidth={2.5}
+            style={{ filter: "drop-shadow(0 0 12px rgba(236,72,153,1)) drop-shadow(0 0 24px rgba(236,72,153,0.7))" }}
+          />
         </motion.div>
       </div>
 
       {/* RINGING pill */}
-      <div className="mb-3 flex justify-center">
-        <div className="rounded-full border-2 border-pink-400/70 bg-black/60 px-4 py-1 font-mono text-[10px] uppercase tracking-[0.3em] text-pink-300">
+      <div className="mb-4 flex justify-center">
+        <div className="rounded-full border-2 border-pink-400 bg-black/70 px-5 py-1 font-mono text-[10px] uppercase tracking-[0.35em] text-pink-300 shadow-[0_0_10px_-2px_rgba(236,72,153,0.7)]">
           {ringing ? (
             <span className="flex items-center gap-2">
-              RINGING<motion.span animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 0.8, repeat: Infinity }}>...</motion.span>
+              RINGING
+              <motion.span animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 0.8, repeat: Infinity }}>...</motion.span>
               <motion.span animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 0.6, repeat: Infinity }} className="h-1.5 w-1.5 rounded-full bg-pink-400 shadow-[0_0_6px_rgba(236,72,153,1)]" />
             </span>
-          ) : "DIAL TONE ·"}
+          ) : (
+            <span className="flex items-center gap-2">
+              DIAL TONE
+              <span className="h-1.5 w-1.5 rounded-full bg-pink-400/60" />
+            </span>
+          )}
         </div>
       </div>
 
-      {/* CALL NOW big yellow button */}
-      <button
-        onClick={call}
-        disabled={ringing}
-        className="relative w-full overflow-hidden rounded-lg border-2 border-yellow-600 bg-gradient-to-b from-yellow-300 via-yellow-400 to-yellow-500 px-4 py-3.5 font-display text-lg tracking-[0.15em] text-[#2a1500] shadow-[0_6px_0_0_#854d0e,0_0_25px_-4px_rgba(250,204,21,0.7)] transition active:translate-y-[3px] active:shadow-[0_3px_0_0_#854d0e] disabled:opacity-80"
-        style={{ textShadow: "1px 1px 0 rgba(0,0,0,0.15)" }}
-      >
-        <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-white/25" />
-        <span className="relative flex items-center justify-center gap-3">
-          <span className="text-xl">🐦</span>
-          <span>{ringing ? "CALLING…" : "CALL NOW"}</span>
-          <ChevronRight className="h-5 w-5" strokeWidth={3} />
-        </span>
-      </button>
+      {/* ═════════ CALL NOW BUTTON ═════════ */}
+      <div className="relative">
+        {/* 3D shadow underlay */}
+        <div
+          className="absolute inset-x-0 top-[6px] h-full bg-[#7a4a05]"
+          style={{ clipPath: btnClip }}
+          aria-hidden
+        />
+        <button
+          onClick={call}
+          disabled={ringing}
+          className="relative w-full px-5 py-4 font-display text-xl tracking-[0.15em] text-[#2a1500] transition active:translate-y-[3px] disabled:opacity-85"
+          style={{
+            clipPath: btnClip,
+            backgroundImage: "linear-gradient(180deg, #fde68a 0%, #facc15 45%, #eab308 100%)",
+            textShadow: "1px 1px 0 rgba(0,0,0,0.2)",
+            filter: "drop-shadow(0 0 22px rgba(250,204,21,0.55))",
+          }}
+        >
+          {/* Highlight sheen */}
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-white/30" />
+          {/* Inner border */}
+          <span className="pointer-events-none absolute inset-1 border-2 border-[#a56408]/60" style={{ clipPath: btnClip }} />
+          <span className="relative flex items-center justify-center gap-3">
+            <span className="text-2xl leading-none">🐦</span>
+            <span style={{ letterSpacing: "0.18em" }}>{ringing ? "CALLING…" : "CALL NOW"}</span>
+            <ChevronRight className="h-6 w-6" strokeWidth={4} />
+          </span>
+        </button>
+      </div>
 
-      {/* Status bar */}
-      <div className="mt-3 grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border border-pink-500/40 bg-black/50 px-3 py-2">
-        <div className="grid h-9 w-9 place-items-center rounded-md border border-pink-400/50 bg-purple-900/50 text-lg">😵</div>
+      {/* ═════════ STATUS BAR ═════════ */}
+      <div className="mt-4 grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-pink-500/50 bg-black/60 px-3 py-2.5 shadow-[inset_0_0_14px_rgba(236,72,153,0.15)]">
+        <div className="grid h-10 w-10 place-items-center rounded-md border border-pink-400/60 bg-purple-950/60 text-xl">😵</div>
         <div className="min-w-0">
-          <div className="font-display text-[11px] tracking-wide text-white">
+          <div className="font-display text-[13px] tracking-wide text-white">
             {flash ? flash.toUpperCase() + "…" : "Nobody's picking up."}
           </div>
           <div className="font-mono text-[10px] text-pink-300/80">{flash ? "The line just laughed." : "As always."}</div>
         </div>
         <div className="text-right">
-          <div className="flex items-center justify-end gap-1 font-mono text-[8px] uppercase tracking-[0.2em] text-cyan-300/80"><Clock className="h-3 w-3"/>Call Duration</div>
-          <div className="font-mono text-sm text-cyan-300 [text-shadow:0_0_6px_rgba(6,182,212,0.7)]">{fmt(duration)}</div>
+          <div className="flex items-center justify-end gap-1 font-mono text-[8px] uppercase tracking-[0.2em] text-cyan-300/80">
+            <Clock className="h-3 w-3" /> Call Duration
+          </div>
+          <div className="font-mono text-base text-cyan-300" style={{ textShadow: "0 0 6px rgba(6,182,212,0.8)" }}>
+            {fmt(duration)}
+          </div>
         </div>
       </div>
 
-      {/* Quick requests */}
-      <div className="mt-3">
-        <div className="flex items-center justify-center gap-2 font-mono text-[9px] uppercase tracking-[0.3em] text-pink-300/70">
-          <span className="text-cyan-300">//</span> Quick Requests <span className="text-cyan-300">//</span>
+      {/* ═════════ QUICK REQUESTS ═════════ */}
+      <div className="mt-4">
+        <div className="flex items-center justify-center gap-3 font-mono text-[9px] uppercase tracking-[0.35em] text-pink-300/80">
+          <span className="text-cyan-300 tracking-normal">///</span>
+          Quick Requests
+          <span className="text-cyan-300 tracking-normal">///</span>
         </div>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {[
-            { emoji: "💸", label: "REFUND" },
-            { emoji: "🍔", label: "WEN BURGER" },
-            { emoji: "👔", label: "TALK TO MANAGER" },
+            { icon: "💰", label: "REFUND" },
+            { icon: "🍔", label: "WEN BURGER" },
+            { icon: "👨‍🍳", label: "TALK TO MANAGER" },
           ].map((q) => (
             <button
               key={q.label}
               onClick={() => quick(q.label)}
               disabled={ringing}
-              className="flex items-center justify-center gap-1 rounded-md border border-pink-500/50 bg-black/40 px-2 py-2 font-display text-[9px] tracking-wider text-pink-200 transition hover:border-pink-300 hover:bg-pink-500/10 hover:text-white disabled:opacity-60"
+              className="flex items-center justify-center gap-1.5 rounded-md border border-pink-500/60 bg-black/50 px-2 py-2 font-display text-[10px] tracking-wider text-pink-200 transition hover:border-pink-300 hover:bg-pink-500/15 hover:text-white disabled:opacity-60"
             >
-              <span>{q.emoji}</span>{q.label}
+              <span className="text-sm leading-none">{q.icon}</span>
+              <span>{q.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Footer chip */}
-      <div className="mt-3 flex items-center justify-center gap-2 font-display text-[10px] tracking-[0.35em] text-pink-400/90 [text-shadow:0_0_6px_rgba(236,72,153,0.7)]">
-        <span>≪</span> BIRD BURGER <span>≫</span>
+      {/* ═════════ FOOTER WING ═════════ */}
+      <div className="mt-4 flex items-center justify-center gap-3 font-display text-[11px] tracking-[0.4em] text-pink-400" style={{ textShadow: "0 0 8px rgba(236,72,153,0.8)" }}>
+        <span className="text-lg leading-none">⇒</span>
+        <span>BIRD BURGER</span>
+        <span className="text-lg leading-none">⇐</span>
       </div>
     </div>
   );
