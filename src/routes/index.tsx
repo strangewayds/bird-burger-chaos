@@ -26,6 +26,14 @@ import {
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
 import kitchenCamImg from "@/assets/kitchen-cam.png.asset.json";
+import menuMcrug from "@/assets/menu-mcrug.png.asset.json";
+import menuFries from "@/assets/menu-liquidity-fries.png.asset.json";
+import menuShake from "@/assets/menu-pump-shake.png.asset.json";
+import menuNuggets from "@/assets/menu-diamond-nuggets.png.asset.json";
+import menuCombo from "@/assets/menu-exit-combo.png.asset.json";
+import menuChud from "@/assets/menu-chudburger.png.asset.json";
+import menuKids from "@/assets/menu-paper-hands.png.asset.json";
+import menuNothing from "@/assets/menu-nothing-burger.png.asset.json";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
 
 export const Route = createFileRoute("/")({
@@ -50,14 +58,14 @@ const NAV_LINKS = [
 ];
 
 const MENU_ITEMS = [
-  { name: "McRug Pull", price: "$6.90", desc: "The burger disappears immediately after purchase.", icon: "🍔", rating: 0.3 },
-  { name: "Liquidity Fries", price: "$4.20", desc: "Your fries have been permanently locked.", icon: "🍟", rating: 1.1 },
-  { name: "Pump & Shake", price: "$8.88", desc: "Goes straight up before violently coming back down.", icon: "🥤", rating: 0.7 },
-  { name: "Diamond Hands Nuggets", price: "$12.00", desc: "So hard you physically cannot sell them.", icon: "💎", rating: 2.4 },
-  { name: "Exit Liquidity Combo", price: "$69.00", desc: "Designed specifically for our most loyal customers.", icon: "🎟️", rating: 0.1 },
-  { name: "Chudburger Deluxe", price: "$14.99", desc: "Two patties, no vegetables, negative social awareness.", icon: "🍔", rating: 1.9 },
-  { name: "Paper Hands Kids Meal", price: "$3.33", desc: "Customer sells the toy before opening the box.", icon: "🧃", rating: 0.5 },
-  { name: "Nothing Burger", price: "$99.99", desc: "Contains exactly what the project promised.", icon: "🫥", rating: 5.0 },
+  { name: "McRug Pull", price: "$6.90", desc: "The burger disappears immediately after purchase.", img: menuMcrug.url, rating: 0.3 },
+  { name: "Liquidity Fries", price: "$4.20", desc: "Your fries have been permanently locked.", img: menuFries.url, rating: 1.1 },
+  { name: "Pump & Shake", price: "$8.88", desc: "Goes straight up before violently coming back down.", img: menuShake.url, rating: 0.7 },
+  { name: "Diamond Hands Nuggets", price: "$12.00", desc: "So hard you physically cannot sell them.", img: menuNuggets.url, rating: 2.4 },
+  { name: "Exit Liquidity Combo", price: "$69.00", desc: "Designed specifically for our most loyal customers.", img: menuCombo.url, rating: 0.1 },
+  { name: "Chudburger Deluxe", price: "$14.99", desc: "Two patties, no vegetables, negative social awareness.", img: menuChud.url, rating: 1.9 },
+  { name: "Paper Hands Kids Meal", price: "$3.33", desc: "Customer sells the toy before opening the box.", img: menuKids.url, rating: 0.5 },
+  { name: "Nothing Burger", price: "$99.99", desc: "Contains exactly what the project promised.", img: menuNothing.url, rating: 5.0 },
 ];
 
 const TICKER_MSGS = [
@@ -907,8 +915,8 @@ function Menu({ onOrder }: { onOrder: (name: string) => void }) {
             whileHover={{ y: -4, rotate: -0.5 }}
             className="group relative rounded-lg border-2 border-grape/40 bg-card p-4 shadow-[6px_6px_0_rgba(124,58,237,0.35)]"
           >
-            <div className="grid h-32 place-items-center rounded-md border border-ink/10 bg-gradient-to-br from-grape/20 to-black/50 text-6xl">
-              {m.icon}
+            <div className="relative aspect-[4/3] overflow-hidden rounded-md border border-grape/30 bg-gradient-to-br from-grape/20 to-black/60">
+              <img src={m.img} alt={m.name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
             </div>
             <div className="mt-3 flex items-start justify-between gap-2">
               <h3 className="font-display text-base leading-tight">{m.name}</h3>
