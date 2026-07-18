@@ -607,6 +607,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       // Facing: flip when moving left/right (keep last facing when idle)
       if (Math.abs(dx) > 0.05) p.face = dx > 0 ? 1 : -1;
       // Hop animation: advance phase only while moving; faster when dashing
+      const prevSin = lastHopSinRef.current;
       if (mag > 0) {
         p.moveT += dt;
         p.hopPhase += dt * (dashing ? 11 : 7);
@@ -616,6 +617,32 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         const target = Math.round(p.hopPhase / Math.PI) * Math.PI;
         p.hopPhase += (target - p.hopPhase) * Math.min(1, dt * 8);
       }
+      const curSin = Math.sin(p.hopPhase);
+      // Landing detection: sin crossed from positive to non-positive while moving
+      if (mag > 0 && prevSin > 0.05 && curSin <= 0) {
+        const fx = p.x * W;
+        const fy = p.y * H + 26; // at feet
+        const count = dashing ? 10 : 6;
+        for (let i = 0; i < count; i++) {
+          const ang = Math.PI + (Math.random() - 0.5) * Math.PI * 0.9;
+          const spd = 40 + Math.random() * (dashing ? 90 : 55);
+          const dirBias = p.face * (30 + Math.random() * 40);
+          particlesRef.current.push({
+            x: fx + (Math.random() - 0.5) * 6,
+            y: fy + (Math.random() - 0.5) * 3,
+            vx: Math.cos(ang) * spd + dirBias * -0.4,
+            vy: -Math.abs(Math.sin(ang)) * spd * 0.6 - 20,
+            life: 0,
+            max: 0.35 + Math.random() * 0.25,
+            size: 2 + Math.floor(Math.random() * 3),
+            color: Math.random() < 0.25 ? "#FACC15" : (Math.random() < 0.5 ? "#E7D9B8" : "#B8A98A"),
+            kind: "dust",
+          });
+        }
+        // Impact flash ring
+        particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: dashing ? 22 : 16, color: "#FFF6C2", kind: "flash" });
+      }
+      lastHopSinRef.current = curSin;
 
       // Grill cooking
       const g = grillRef.current;
