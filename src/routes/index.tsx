@@ -691,11 +691,19 @@ function BirdBurgerPage() {
     const n = saved ? parseFloat(saved) : NaN;
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.6;
   });
+  const [ambVolume, setAmbVolume] = useState<number>(() => {
+    if (typeof window === "undefined") return 0.55;
+    const saved = window.localStorage.getItem("bb_amb_volume");
+    const n = saved ? parseFloat(saved) : NaN;
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.55;
+  });
   useEffect(() => { try { localStorage.setItem("bb_volume", String(volume)); } catch {} }, [volume]);
+  useEffect(() => { try { localStorage.setItem("bb_amb_volume", String(ambVolume)); } catch {} }, [ambVolume]);
 
   const play = useSound(muted);
   useFartSong(muted, trackId, volume);
-  useKitchenAmbience(muted, volume);
+  useKitchenAmbience(muted, ambVolume);
+
 
   const randomizeTrack = () => {
     const others = MEME_TRACKS.filter((t) => t.id !== trackId);
