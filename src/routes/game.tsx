@@ -324,6 +324,11 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   const hasExtinguisherRef = useRef(false);
   const grillRef = useRef({ progress: 0, item: null as Ing | null });
   const fryerRef = useRef({ progress: 0, item: null as Ing | null });
+  const minimapRef = useRef<HTMLDivElement | null>(null);
+  const shakeRef = useRef(0); // seconds remaining
+  const explosionRef = useRef(0); // 0..1 flash intensity remaining
+  const viceRef = useRef({ smokeCd: 0, drinkCd: 0, buzz: 0 });
+  const [_viceTick, setViceTick] = useState(0);
 
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
