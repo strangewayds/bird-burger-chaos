@@ -83,7 +83,7 @@ type Order = { id: number; template: OrderTemplate; remaining: number; };
 
 type Phase = "start" | "playing" | "results";
 
-type Fire = { x: number; y: number; stationId: string; life: number };
+type Fire = { x: number; y: number; stationId: string; life: number; danger: number; dangerMax: number; sprayT: number };
 type Pigeon = { x: number; y: number; vx: number; vy: number; hp: number };
 type Spill = { x: number; y: number; r: number; life: number; cleanT: number; hue: number; wob: number };
 type FloatText = { x: number; y: number; text: string; color: string; life: number };
@@ -729,7 +729,8 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         const target = explode ? "grill" : (Math.random() < 0.5 ? "grill" : "fryer");
         const st = STATIONS.find((s) => s.id === target)!;
         if (!firesRef.current.some((fi) => fi.stationId === target)) {
-          firesRef.current.push({ x: st.x + st.w/2, y: st.y + st.h/2, stationId: target, life: 12 });
+          const dangerMax = explode ? 3.5 : (target === "grill" ? 5.5 : 7);
+          firesRef.current.push({ x: st.x + st.w/2, y: st.y + st.h/2, stationId: target, life: 12, danger: dangerMax, dangerMax, sprayT: 0 });
           statsRef.current.fires++;
           chaosRef.current = Math.min(6, chaosRef.current + (explode ? 1.5 : 1));
           if (explode) {
@@ -939,16 +940,69 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         minimapRef.current.style.opacity = op.toFixed(3);
         minimapRef.current.style.pointerEvents = near > 0.5 ? "none" : "auto";
       }
-      // fire life
-      firesRef.current.forEach((fi) => { fi.life -= dt; });
-      // fires that expire cause chaos
-      firesRef.current = firesRef.current.filter((fi) => {
-        if (fi.life <= 0) {
-          chaosRef.current = Math.min(6, chaosRef.current + 1);
-          return false;
-        }
-        return true;
-      });
+      // fire life + danger + spray mechanic
+      {
+        const k = keysRef.current;
+        const spraying = hasExtinguisherRef.current && (k[" "] || k["e"] || k["f"]);
+        firesRef.current.forEach((fi) => {
+          fi.life -= dt;
+          const d = Math.hypot(playerRef.current.x - fi.x, playerRef.current.y - fi.y);
+          const inRange = d < 0.14;
+          if (spraying && inRange) {
+            fi.sprayT = Math.min(1, fi.sprayT + dt * 3);
+            fi.life -= dt * 6;
+            fi.danger = Math.min(fi.dangerMax, fi.danger + dt * 2); // resets timer
+            // spray particles
+            if (Math.random() < 0.85) {
+              const ang = Math.atan2(fi.y - playerRef.current.y, fi.x - playerRef.current.x) + (Math.random() - 0.5) * 0.5;
+              particlesRef.current.push({
+                type: "dust",
+                x: playerRef.current.x + Math.cos(ang) * 0.02,
+                y: playerRef.current.y + Math.sin(ang) * 0.02 - 0.01,
+                vx: Math.cos(ang) * 0.25 + (Math.random() - 0.5) * 0.05,
+                vy: Math.sin(ang) * 0.25 + (Math.random() - 0.5) * 0.05,
+                life: 0.45, max: 0.45, size: 3 + Math.random() * 3, hue: 190,
+              } as any);
+            }
+          } else {
+            fi.sprayT = Math.max(0, fi.sprayT - dt * 2);
+            fi.danger -= dt;
+          }
+        });
+        // extinguished fires
+        firesRef.current = firesRef.current.filter((fi) => {
+          if (fi.life <= 0) {
+            // put out cleanly (either by spray or expiring)
+            if (spraying) {
+              scoreRef.current += 80;
+              chaosRef.current = Math.max(0, chaosRef.current - 1);
+              hasExtinguisherRef.current = false;
+              floatsRef.current.push({ x: fi.x, y: fi.y - 0.03, text: "PUT OUT! +80", color: "#22D3EE", life: 1.2 });
+            } else {
+              chaosRef.current = Math.min(6, chaosRef.current + 1);
+            }
+            return false;
+          }
+          // danger timer explosion
+          if (fi.danger <= 0) {
+            const px = playerRef.current.x, py = playerRef.current.y;
+            const dxk = px - fi.x, dyk = py - fi.y;
+            const dk = Math.hypot(dxk, dyk) || 1;
+            if (dk < 0.28) {
+              const dist = Math.min(0.22, 0.24 / (dk + 0.4));
+              playerRef.current.x = clamp(px + (dxk/dk) * dist, 0.02, 0.98);
+              playerRef.current.y = clamp(py + (dyk/dk) * dist, 0.10, 0.96);
+              playerRef.current.slipT = 0.6;
+            }
+            shakeRef.current = Math.max(shakeRef.current, 0.5);
+            explosionRef.current = 1;
+            chaosRef.current = Math.min(6, chaosRef.current + 1.5);
+            floatsRef.current.push({ x: fi.x, y: fi.y - 0.04, text: "💥 KABOOM!", color: "#EF4444", life: 1.3 });
+            return false;
+          }
+          return true;
+        });
+      }
 
       // Pigeons
       pigeonCd -= dt;
@@ -1157,17 +1211,55 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     // Fires
     for (const fi of firesRef.current) {
       const cx = fi.x * W, cy = fi.y * H;
+      // danger ring — pulses faster + turns redder as timer drops
+      const dpct = Math.max(0, Math.min(1, fi.danger / fi.dangerMax));
+      const pulseRate = 3 + (1 - dpct) * 12;
+      const ringPulse = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * pulseRate);
+      ctx.save();
+      ctx.lineWidth = 3 + (1 - dpct) * 3;
+      ctx.strokeStyle = `rgba(239,68,68,${0.35 + 0.5 * ringPulse * (1 - dpct)})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 26 + (1 - dpct) * 6, 0, Math.PI * 2);
+      ctx.stroke();
+      // danger arc (remaining time)
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = dpct > 0.5 ? "#FACC15" : dpct > 0.25 ? "#F97316" : "#EF4444";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * dpct);
+      ctx.stroke();
+      ctx.restore();
+      // flames
       for (let i = 0; i < 5; i++) {
-        const t = Math.sin(performance.now()/120 + i) * 6;
+        const tt = Math.sin(performance.now()/120 + i) * 6;
         ctx.fillStyle = i % 2 ? "#FACC15" : "#EF4444";
         ctx.beginPath();
-        ctx.arc(cx + (i-2)*10, cy + t - 10, 12 - i*1.2, 0, Math.PI*2);
+        ctx.arc(cx + (i-2)*10, cy + tt - 10, 12 - i*1.2, 0, Math.PI*2);
         ctx.fill();
       }
       ctx.fillStyle = "#FFF";
       ctx.font = "bold 12px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText("🔥 FIRE!", cx, cy + 30);
+      ctx.fillText(`🔥 ${fi.danger.toFixed(1)}s`, cx, cy + 30);
+      // spray cone from player
+      if (fi.sprayT > 0.05) {
+        const px = playerRef.current.x * W, py = playerRef.current.y * H;
+        const ang = Math.atan2(cy - py, cx - px);
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(ang);
+        const len = Math.hypot(cx - px, cy - py);
+        const grad = ctx.createLinearGradient(0, 0, len, 0);
+        grad.addColorStop(0, `rgba(226,232,240,${0.75 * fi.sprayT})`);
+        grad.addColorStop(1, "rgba(226,232,240,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(len, -len * 0.18);
+        ctx.lineTo(len, len * 0.18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
     // Fryer flare-up ring (expanding radial burst)
@@ -1604,17 +1696,33 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
             <StatRow label="Pigeons Chased" value={statsRef.current.pigeonsChased} />
             <StatRow label="Dropped" value={statsRef.current.dropped} />
           </div>
-          {firesRef.current.length > 0 && (
-            <motion.div
-              animate={{ borderColor: ["#EF4444", "#FACC15", "#EF4444"] }}
-              transition={{ duration: 0.6, repeat: Infinity }}
-              className="rounded-lg border-2 bg-[#EF4444]/20 p-2 text-[10px] uppercase tracking-widest"
-            >
-              <div className="flex items-center gap-1.5 font-black text-[#EF4444]"><Flame className="h-3 w-3" /> KITCHEN DISASTER</div>
-              <div className="mt-0.5 font-black text-white">FRYER FIRE!</div>
-              <div className="text-white/70">PUT IT OUT!</div>
-            </motion.div>
-          )}
+          {firesRef.current.length > 0 && (() => {
+            const worst = firesRef.current.reduce((a, b) => (a.danger < b.danger ? a : b));
+            const pct = Math.max(0, Math.min(1, worst.danger / worst.dangerMax));
+            const armed = pct < 0.35;
+            return (
+              <motion.div
+                animate={{ borderColor: armed ? ["#EF4444", "#FACC15", "#EF4444"] : ["#F97316", "#FACC15", "#F97316"] }}
+                transition={{ duration: armed ? 0.35 : 0.7, repeat: Infinity }}
+                className="rounded-lg border-2 bg-[#EF4444]/20 p-2 text-[10px] uppercase tracking-widest"
+              >
+                <div className="flex items-center gap-1.5 font-black text-[#EF4444]"><Flame className="h-3 w-3" /> KITCHEN DISASTER</div>
+                <div className="mt-0.5 font-black text-white">🔥 FIRE × {firesRef.current.length} — {worst.danger.toFixed(1)}s</div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full transition-[width] duration-150"
+                    style={{
+                      width: `${pct * 100}%`,
+                      background: pct > 0.5 ? "#FACC15" : pct > 0.25 ? "#F97316" : "#EF4444",
+                    }}
+                  />
+                </div>
+                <div className="mt-1 text-white/70">
+                  {hasExtinguisherRef.current ? "Hold E / SPACE near the flames to spray!" : "Grab the 🧯 extinguisher!"}
+                </div>
+              </motion.div>
+            );
+          })()}
           {/* Vices — because the place has 1★ reviews anyway */}
           {(() => {
             const v = viceRef.current;
