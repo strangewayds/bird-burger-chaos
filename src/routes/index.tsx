@@ -658,7 +658,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
             <canvas ref={canvasRef} className="h-full w-full" style={{ imageRendering: "auto" }} />
             <div className="absolute -bottom-2 -right-2 rotate-[-4deg] rounded bg-grease px-2 py-1 font-display text-[10px] tracking-widest text-white shadow-md">512 × 512</div>
           </div>
-          <p className="mt-4 text-center font-mono to text-[11px] italic text-ink/60">"{employee.quote}"</p>
+          <p className="mt-4 text-center font-mono text-[11px] italic text-ink/60">"{employee.quote}"</p>
           <button
             onClick={() => setAnimated((v) => !v)}
             className={`mt-3 w-full rounded-md border-2 px-3 py-2 font-mono text-[11px] uppercase tracking-widest transition ${animated ? "border-robin bg-robin/15 text-robin" : "border-ink/20 text-ink/60 hover:bg-ink/5"}`}
