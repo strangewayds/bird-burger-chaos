@@ -453,6 +453,22 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   }
 
   function interact() {
+    // Clean grease spill if standing on one with empty hands
+    const p = playerRef.current;
+    const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.01);
+    if (spillHit && carryRef.current.length === 0) {
+      spillHit.cleanT += 0.34;
+      if (spillHit.cleanT >= 1) {
+        spillsRef.current = spillsRef.current.filter((sp) => sp !== spillHit);
+        scoreRef.current += 40;
+        setScore(scoreRef.current);
+        chaosRef.current = Math.max(0, chaosRef.current - 0.4);
+        pushFloat("+ MOPPED", "#22D3EE");
+      } else {
+        pushFloat("MOPPING…", "#22D3EE");
+      }
+      return;
+    }
     const s = nearestStation();
     if (!s) return;
     const carry = carryRef.current;
