@@ -970,7 +970,7 @@ function Reviews() {
 
 /* ─────────────────────────  MEME GENERATOR  ───────────────────────── */
 
-function MemeGenerator({ onDownload }: { onDownload: () => void }) {
+function MemeGenerator({ onDownload, embedded = false }: { onDownload: () => void; embedded?: boolean }) {
   const [top, setTop] = useState("THE BURGER IS");
   const [bot, setBot] = useState("DECENTRALIZED");
   const canvasRef = useRef<HTMLCanvasElement>(null);
