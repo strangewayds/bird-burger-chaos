@@ -1118,6 +1118,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
           chaosRef.current = Math.min(6, chaosRef.current + 1.2);
           shakeRef.current = Math.max(shakeRef.current, 0.4);
           explosionRef.current = Math.max(explosionRef.current, 0.8);
+          sfxRef.current.boom(0.85);
           statsRef.current.fires++;
           floatsRef.current.push({ x: fs.x + fs.w / 2, y: fs.y - 0.03, text: "🔥 FLARE-UP!", color: "#F97316", life: 1.4 });
           // splash grease around fryer
