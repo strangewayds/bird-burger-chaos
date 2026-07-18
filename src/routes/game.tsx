@@ -909,6 +909,48 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.fill();
     }
 
+    // Movement particles (pixel dust + impact flashes) — under the player
+    {
+      const parts = particlesRef.current;
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const pt = parts[i];
+        pt.life += dt;
+        if (pt.life >= pt.max) { parts.splice(i, 1); continue; }
+        if (pt.kind === "dust") {
+          pt.x += pt.vx * dt;
+          pt.y += pt.vy * dt;
+          pt.vy += 0.35 * dt; // gravity in normalized space
+          pt.vx *= 0.94;
+        }
+        const t = pt.life / pt.max;
+        const alpha = 1 - t;
+        if (pt.kind === "flash") {
+          const r = pt.size * (0.6 + t * 1.6);
+          ctx.save();
+          ctx.globalAlpha = alpha * 0.85;
+          ctx.strokeStyle = pt.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(pt.x * W, pt.y * H, r, r * 0.4, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.fillStyle = pt.color;
+          ctx.beginPath();
+          ctx.ellipse(pt.x * W, pt.y * H, r * 0.6, r * 0.25, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          const s = pt.size * (1 - t * 0.4);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = pt.color;
+          // pixel-style square puffs
+          ctx.fillRect(Math.round(pt.x * W - s / 2), Math.round(pt.y * H - s / 2), s, s);
+          ctx.restore();
+        }
+      }
+    }
+
     // Player
     const p = playerRef.current;
     const px = p.x * W, py = p.y * H;
