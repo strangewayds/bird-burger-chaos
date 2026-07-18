@@ -630,6 +630,7 @@ type Haptics = ReturnType<typeof useHaptics>;
 function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   employee: typeof EMPLOYEES[number];
   muted: boolean;
+  haptics: Haptics;
   onEnd: (s: GameStats) => void;
   onQuit: () => void;
 }) {
