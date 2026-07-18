@@ -1307,6 +1307,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             }
             shakeRef.current = Math.max(shakeRef.current, 0.5);
             explosionRef.current = 1;
+            sfxRef.current.boom(1.25);
             chaosRef.current = Math.min(6, chaosRef.current + 1.5);
             floatsRef.current.push({ x: fi.x, y: fi.y - 0.04, text: "💥 KABOOM!", color: "#EF4444", life: 1.3 });
             return false;
