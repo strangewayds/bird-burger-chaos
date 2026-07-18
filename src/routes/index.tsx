@@ -1903,8 +1903,9 @@ function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: stri
 
 
 
-function Nav({ open, setOpen, muted, setMuted, onConnect, wallet, wrongNet }: {
+function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, onConnect, wallet, wrongNet }: {
   open: boolean; setOpen: (b: boolean) => void; muted: boolean; setMuted: (b: boolean) => void;
+  onRandomizeTrack: () => void; trackName: string;
   onConnect: () => void; wallet: string | null; wrongNet: boolean;
 }) {
   return (
@@ -1927,6 +1928,14 @@ function Nav({ open, setOpen, muted, setMuted, onConnect, wallet, wrongNet }: {
             <span className="h-2 w-2 animate-pulse rounded-full bg-robin shadow-[0_0_10px_#00C805]" />
             Store Open — Mgmt Missing
           </div>
+          <button
+            onClick={onRandomizeTrack}
+            title={`Shuffle track${trackName ? ` — now: ${trackName}` : ""}`}
+            aria-label="Shuffle meme track"
+            className="grid h-10 w-10 place-items-center rounded-md border border-grape/40 bg-grape/10 text-grape hover:bg-grape/25 hover:text-mustard"
+          >
+            <Shuffle className="h-4 w-4" />
+          </button>
           <button onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute sounds" : "Mute sounds"} className="grid h-10 w-10 place-items-center rounded-md border border-ink/20 text-ink/70 hover:bg-ink/10">
             {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </button>
