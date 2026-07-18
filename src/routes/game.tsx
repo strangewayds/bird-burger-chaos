@@ -604,8 +604,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       p.vx = dx * speed; p.vy = dy * speed;
       p.x = clamp(p.x + dx * speed * dt, 0.02, 0.98);
       p.y = clamp(p.y + dy * speed * dt, 0.10, 0.96);
-      // Facing: flip when moving left/right (keep last facing when idle)
-      if (Math.abs(dx) > 0.05) p.face = dx > 0 ? 1 : -1;
+      // Facing: smoothly ease toward movement direction (continuous flip)
+      const faceTarget = Math.abs(dx) > 0.05 ? (dx > 0 ? 1 : -1) : (p.face === 0 ? 1 : (p.face > 0 ? 1 : -1));
+      const faceRate = 12; // higher = snappier
+      p.face += (faceTarget - p.face) * Math.min(1, dt * faceRate);
       // Hop animation: advance phase only while moving; faster when dashing
       const prevSin = lastHopSinRef.current;
       if (mag > 0) {
