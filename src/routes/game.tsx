@@ -330,7 +330,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   // Ring buffer of recent horizontal input for weighted-average facing (kills jitter on quick flips)
   const dirHistoryRef = useRef<{ dx: number; w: number }[]>([]);
   // Turning-estimation state: last smoothed dir + its rate of change for predictive lookahead
-  const turnEstRef = useRef({ prevDirAvg: 0, dirVel: 0, predicted: 0 });
+  const turnEstRef = useRef({ prevDirAvg: 0, dirVel: 0, predicted: 0, lastFaceSign: 1 });
   const carryRef = useRef<Ing[]>([]);
   const ordersRef = useRef<Order[]>([]);
   const orderIdRef = useRef(1);
