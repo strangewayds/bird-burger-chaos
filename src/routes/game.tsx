@@ -788,6 +788,139 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       // spill decay: shrink slowly + expire
       spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.15); });
       spillsRef.current = spillsRef.current.filter((sp) => sp.life > 0);
+
+      // ─── KITCHEN DISASTERS ───
+      disasterCd -= dt;
+      if (disasterCd <= 0) {
+        const roll = Math.random();
+        if (roll < 0.4) {
+          // SMOKE ALARM
+          alarmRef.current.life = 4.5 + Math.random() * 2;
+          chaosRef.current = Math.min(6, chaosRef.current + 0.8);
+          shakeRef.current = Math.max(shakeRef.current, 0.25);
+          floatsRef.current.push({ x: 0.5, y: 0.18, text: "🚨 SMOKE ALARM!", color: "#EF4444", life: 1.4 });
+          setDisasterTick((t) => t + 1);
+        } else if (roll < 0.72) {
+          // FRYER FLARE-UP
+          const fs = STATIONS.find((s) => s.id === "fryer")!;
+          flareRef.current = { x: fs.x + fs.w / 2, y: fs.y + fs.h / 2, r: 0, life: 3.2, max: 3.2 };
+          chaosRef.current = Math.min(6, chaosRef.current + 1.2);
+          shakeRef.current = Math.max(shakeRef.current, 0.4);
+          explosionRef.current = Math.max(explosionRef.current, 0.8);
+          statsRef.current.fires++;
+          floatsRef.current.push({ x: fs.x + fs.w / 2, y: fs.y - 0.03, text: "🔥 FLARE-UP!", color: "#F97316", life: 1.4 });
+          // splash grease around fryer
+          for (let i = 0; i < 4; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const rad = 0.06 + Math.random() * 0.08;
+            spillsRef.current.push({
+              x: clamp(fs.x + fs.w / 2 + Math.cos(ang) * rad, 0.05, 0.95),
+              y: clamp(fs.y + fs.h / 2 + Math.sin(ang) * rad, 0.14, 0.94),
+              r: 0.032 + Math.random() * 0.02,
+              life: 16 + Math.random() * 6,
+              cleanT: 0,
+              hue: 32,
+              wob: Math.random() * Math.PI * 2,
+            });
+          }
+        } else {
+          // FALLING SIGNAGE
+          const signs = [
+            { text: "☠ HEALTH INSPECTOR", color: "#EF4444" },
+            { text: "★ EMPLOYEE OF THE MONTH", color: "#FACC15" },
+            { text: "$BRGR TO THE MOON", color: "#7C3AED" },
+            { text: "NOW HIRING (DESPERATELY)", color: "#22D3EE" },
+            { text: "⚠ CEILING TILES", color: "#F97316" },
+          ];
+          const pick = signs[Math.floor(Math.random() * signs.length)];
+          const sx = 0.18 + Math.random() * 0.6;
+          const sy = 0.32 + Math.random() * 0.5;
+          signsRef.current.push({
+            x: sx, y: sy, phase: "warn", t: 0, landT: 0,
+            text: pick.text, color: pick.color,
+            spin: (Math.random() - 0.5) * 0.6,
+            spinSpd: (Math.random() - 0.5) * 6,
+          });
+          floatsRef.current.push({ x: sx, y: sy - 0.08, text: "⚠ LOOK OUT!", color: "#FACC15", life: 1 });
+        }
+        disasterCd = 14 + Math.random() * 12;
+      }
+
+      // Smoke alarm tick
+      if (alarmRef.current.life > 0) {
+        alarmRef.current.life -= dt;
+        alarmRef.current.strobe += dt * 8;
+        // slow chaos bleed while it blares
+        chaosRef.current = Math.min(6, chaosRef.current + dt * 0.15);
+        if (alarmRef.current.life <= 0) {
+          alarmRef.current.life = 0;
+          setDisasterTick((t) => t + 1);
+        }
+      }
+
+      // Fryer flare-up tick — expanding heat ring, pushes/slips player
+      if (flareRef.current.life > 0) {
+        const fl = flareRef.current;
+        fl.life -= dt;
+        const t = 1 - fl.life / fl.max;
+        // ring expands then holds
+        fl.r = 0.02 + Math.min(1, t * 2.2) * 0.12;
+        const pl = playerRef.current;
+        const dx = pl.x - fl.x, dy = pl.y - fl.y;
+        const d = Math.hypot(dx, dy);
+        if (d < fl.r + 0.02 && d > 0.0001) {
+          pl.slipT = Math.max(pl.slipT, 0.5);
+          const push = 0.6 * dt;
+          pl.x = clamp(pl.x + (dx / d) * push, 0.02, 0.98);
+          pl.y = clamp(pl.y + (dy / d) * push, 0.10, 0.96);
+        }
+      }
+
+      // Falling signage tick
+      for (const sg of signsRef.current) {
+        sg.t += dt;
+        if (sg.phase === "warn") {
+          if (sg.t >= 1.1) { sg.phase = "falling"; sg.t = 0; }
+        } else if (sg.phase === "falling") {
+          sg.spin += sg.spinSpd * dt;
+          if (sg.t >= 0.55) {
+            sg.phase = "landed";
+            sg.landT = 4 + Math.random() * 2;
+            shakeRef.current = Math.max(shakeRef.current, 0.35);
+            floatsRef.current.push({ x: sg.x, y: sg.y - 0.02, text: "CRASH!", color: sg.color, life: 1 });
+            // knock player if too close on impact
+            const pl = playerRef.current;
+            const dx = pl.x - sg.x, dy = pl.y - sg.y;
+            const d = Math.hypot(dx, dy);
+            if (d < 0.09 && d > 0.0001) {
+              const push = 0.14;
+              pl.x = clamp(pl.x + (dx / d) * push, 0.02, 0.98);
+              pl.y = clamp(pl.y + (dy / d) * push, 0.10, 0.96);
+              pl.slipT = Math.max(pl.slipT, 0.7);
+              // drop one carried item
+              if (carryRef.current.length > 0) {
+                const dropped = carryRef.current.pop()!;
+                pushFloat(`− ${dropped.replace(/_/g, " ").toUpperCase()}`, "#EF4444");
+                chaosRef.current = Math.min(6, chaosRef.current + 0.3);
+              }
+            }
+          }
+        } else if (sg.phase === "landed") {
+          sg.landT -= dt;
+          // landed sign blocks the player: push them out gently
+          const pl = playerRef.current;
+          const dx = pl.x - sg.x, dy = pl.y - sg.y;
+          const d = Math.hypot(dx, dy);
+          const R = 0.055;
+          if (d < R && d > 0.0001) {
+            const push = (R - d) * 4 * dt + 0.008;
+            pl.x = clamp(pl.x + (dx / d) * push, 0.02, 0.98);
+            pl.y = clamp(pl.y + (dy / d) * push, 0.10, 0.96);
+          }
+        }
+      }
+      signsRef.current = signsRef.current.filter((sg) => !(sg.phase === "landed" && sg.landT <= 0));
+
       // shake / flash decay
       shakeRef.current = Math.max(0, shakeRef.current - dt);
       explosionRef.current = Math.max(0, explosionRef.current - dt * 1.6);
