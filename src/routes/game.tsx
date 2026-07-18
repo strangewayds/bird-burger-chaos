@@ -1630,8 +1630,17 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     // Idle breathing when standing still
     const breatheY = !moving ? Math.sin(p.idleT * 2.6) * 0.03 : 0;
     const breatheX = !moving ? -Math.sin(p.idleT * 2.6) * 0.02 : 0;
+    // Wing flap: two soft beats per hop (takeoff + apex) — subtle horizontal spread
+    const flapBeat = Math.max(0, Math.sin(p.hopPhase * 2));
+    const wingFlap = moving ? flapBeat * flapBeat * 0.055 * hopAmp : 0;
+    // Idle wing shuffle: micro breath-flap when standing
+    const idleFlap = !moving ? Math.max(0, Math.sin(p.idleT * 3.8)) * 0.015 : 0;
+    // Head bob: 2x hop-frequency vertical nod, counter-phase to squash (peaks mid-rise, dips on land)
+    const headBobPx = moving ? -Math.cos(p.hopPhase * 2) * 1.6 * hopAmp : Math.sin(p.idleT * 2.6) * 0.6;
+    // Head sway: gentle side-to-side wobble in the sprite's local X, faces travel direction
+    const headSwayPx = moving ? Math.sin(p.hopPhase) * 0.9 * p.face : 0;
     const scaleY = 1 + airT * 0.14 * hopAmp - landSquashY - antiT + breatheY;
-    const scaleX = 1 - airT * 0.07 * hopAmp + landStretchX + antiT * 0.6 + breatheX;
+    const scaleX = 1 - airT * 0.07 * hopAmp + landStretchX + antiT * 0.6 + breatheX + wingFlap + idleFlap;
     // shadow (shrinks when airborne; expands briefly on landing)
     const shadowScale = (1 - airT * 0.55) * (1 + landK * 0.15);
     ctx.fillStyle = `rgba(0,0,0,${0.5 - airT * 0.25})`;
@@ -1689,7 +1698,9 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     const m = mascotImgRef.current;
     if (m) {
       const size = 76;
-      const drawY = py - size + 16 + hopY;
+      // headBobPx adds a subtle 2x-frequency nod on top of hopY; headSwayPx pushes the whole sprite slightly along facing
+      const drawY = py - size + 16 + hopY + headBobPx;
+      const drawX = pxs - size / 2 + headSwayPx;
       ctx.save();
       ctx.translate(pxs, py + 16);
       ctx.scale(p.face * scaleX, scaleY);
@@ -1712,10 +1723,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         ctx.rotate(tilt);
         ctx.translate(-pxs, -(py + 16));
       }
-      ctx.drawImage(m, pxs - size/2, drawY, size, size);
+      ctx.drawImage(m, drawX, drawY, size, size);
       ctx.globalCompositeOperation = "source-atop";
       ctx.fillStyle = employee.tint + "40";
-      ctx.fillRect(pxs - size/2, drawY, size, size);
+      ctx.fillRect(drawX, drawY, size, size);
       ctx.restore();
     } else {
       ctx.fillStyle = employee.tint;
