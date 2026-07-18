@@ -1631,11 +1631,17 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.translate(-pxs, -(py + 16));
       // slight tilt into direction of travel + subtle roll on big hops
       if (moving) {
-        const baseTilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
-        const bigRoll = isBig ? Math.sin(p.hopPhase) * 0.08 * p.face : 0;
-        // Anticipation lean: eases out (1 - (1-lean)^2) and points to new direction in scaled space
+        // Dash reads as a hard forward lean; normal hops keep a gentle bob-tilt
+        const isDashHop = p.dashCd > 0.6;
+        const tiltGain = isDashHop ? 0.95 : 0.6;
+        const tiltClamp = isDashHop ? 0.22 : 0.12;
+        const baseTilt = Math.max(-tiltClamp, Math.min(tiltClamp, p.vx * tiltGain)) * p.face;
+        // Dash hops: exaggerated forward roll; normal big-hop: subtle sway roll
+        const bigRoll = isBig ? Math.sin(p.hopPhase) * (isDashHop ? 0.14 : 0.08) * p.face : 0;
+        // Anticipation lean: sharper on dash flips, softer on normal
         const leanEase = 1 - (1 - p.lean) * (1 - p.lean);
-        const antic = leanEase * p.leanDir * 0.26 * (p.face >= 0 ? 1 : -1);
+        const anticGain = isDashHop ? 0.38 : 0.24;
+        const antic = leanEase * p.leanDir * anticGain * (p.face >= 0 ? 1 : -1);
         const tilt = baseTilt + bigRoll + antic;
         ctx.translate(pxs, py + 16);
         ctx.rotate(tilt);
