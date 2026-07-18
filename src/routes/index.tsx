@@ -488,6 +488,71 @@ function useFartSong(muted: boolean, trackId: string, volume: number) {
       o.start(when); o.stop(when + 0.24);
     };
 
+    // 808 sub-bass with pitch drop + click transient — trap/rap vibes under the kitchen music.
+    const eight08 = (when: number, semi: number, dur: number, gain = 1) => {
+      if (!ctxRef.current) return;
+      const f = 55 * Math.pow(2, semi / 12); // A1 root
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = 220; lp.Q.value = 0.8;
+      osc.type = "sine";
+      // Signature 808 pitch drop
+      osc.frequency.setValueAtTime(f * 3.2, when);
+      osc.frequency.exponentialRampToValueAtTime(f, when + 0.06);
+      const peak = 0.55 * gain;
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(peak, when + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      osc.connect(lp); lp.connect(g); g.connect(out);
+      osc.start(when); osc.stop(when + dur + 0.05);
+      // Click transient for punch
+      const click = ctx.createOscillator();
+      const cg = ctx.createGain();
+      click.type = "triangle";
+      click.frequency.setValueAtTime(1800, when);
+      click.frequency.exponentialRampToValueAtTime(120, when + 0.03);
+      cg.gain.setValueAtTime(0.0001, when);
+      cg.gain.exponentialRampToValueAtTime(0.18 * gain, when + 0.003);
+      cg.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+      click.connect(cg); cg.connect(out);
+      click.start(when); click.stop(when + 0.06);
+    };
+
+    // Trap hi-hat tick — sits crispy on top of the 808s.
+    const hat = (when: number, gain = 1) => {
+      if (!ctxRef.current || !noiseHatBuf) return;
+      const src = ctx.createBufferSource();
+      src.buffer = noiseHatBuf;
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass"; hp.frequency.value = 7000;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(0.08 * gain, when + 0.002);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+      src.connect(hp); hp.connect(g); g.connect(out);
+      src.start(when); src.stop(when + 0.08);
+    };
+
+    // Short noise buffer for hats
+    let noiseHatBuf: AudioBuffer | null = null;
+    try {
+      noiseHatBuf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+      const d = noiseHatBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    } catch {}
+
+    // Fade-in gain for the 808 layer — starts silent, blooms in ~8s for the goofy → sick moment.
+    const bassBus = ctx.createGain();
+    bassBus.gain.setValueAtTime(0.0001, ctx.currentTime);
+    bassBus.gain.exponentialRampToValueAtTime(0.9, ctx.currentTime + 8);
+    bassBus.connect(out);
+    const bassOut = bassBus; void bassOut;
+
+    // 4-on-the-floor-ish trap pattern per bar (beats): kick 808 on 0, 1.5, 2.5, 3
+    // Uses bass line's first note for tonal center.
+    const bassRoot = bass[0]?.[0] ?? 0;
+
     const loopBeats = melody.reduce((s, [, b]) => s + b, 0);
     let cursor = ctx.currentTime + 0.2;
 
@@ -505,12 +570,29 @@ function useFartSong(muted: boolean, trackId: string, volume: number) {
           tuba(bt, semi, beats * B * 0.85);
           bt += beats * B;
         }
+        // 808 pattern — hits on 1, 2.5, 3.5, 4 of each bar
+        const fadeGain = Math.min(1, (cursor - (ctx.currentTime - 8)) / 10);
+        void fadeGain;
+        const bassPattern = [0, 1.5, 2.5, 3, 4.5, 6];
+        for (const b of bassPattern) {
+          const at = cursor + b * B * 2;
+          if (at < cursor + loopBeats * B) {
+            const semi = bassRoot + (b % 2 === 0 ? 0 : -5);
+            eight08(at, semi, 0.55, 0.9);
+          }
+        }
+        // Hi-hats — every eighth for that rap tick
+        for (let h = 0; h < loopBeats * 2; h++) {
+          const at = cursor + h * B;
+          if (at < cursor + loopBeats * B) hat(at, h % 2 === 0 ? 0.6 : 1);
+        }
         doink(cursor + (loopBeats - 1) * B);
         cursor += loopBeats * B + 0.15;
       }
       timerRef.current = window.setTimeout(schedule, 400);
     };
     schedule();
+
 
     return () => {
       stoppedRef.current = true;
