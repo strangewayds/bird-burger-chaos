@@ -449,11 +449,11 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
-  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number) => {
-    const jx = animated ? ((frame * 73) % 5) - 2 : 0;
-    const jy = animated ? ((frame * 131) % 5) - 2 : 0;
-    const blinking = animated && (frame % 60) < 4;
-    const pulse = animated ? 0.5 + 0.5 * Math.sin(frame / 6) : 0.7;
+  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated) => {
+    const jx = anim ? ((frame * 73) % 5) - 2 : 0;
+    const jy = anim ? ((frame * 131) % 5) - 2 : 0;
+    const blinking = anim && (frame % 60) < 4;
+    const pulse = anim ? 0.5 + 0.5 * Math.sin(frame / 6) : 0.7;
 
     ctx.save();
     ctx.clearRect(0, 0, size, size);
