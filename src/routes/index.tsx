@@ -822,7 +822,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     ctx.save();
     ctx.lineWidth = size * 0.027;
     ctx.strokeStyle = employee.tint;
-    if (platform === "x") {
+    if (plat === "x") {
       ctx.beginPath(); ctx.arc(size/2, size/2, size/2 - size*0.0137, 0, Math.PI*2); ctx.stroke();
     } else {
       roundRect(ctx, size*0.0137, size*0.0137, size - size*0.0273, size - size*0.0273, size*0.176); ctx.stroke();
