@@ -22,6 +22,10 @@ import {
   AlertTriangle,
   Zap,
   Trash2,
+  Palette,
+  Trophy,
+  Receipt,
+  Download,
 } from "lucide-react";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
@@ -857,39 +861,309 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
+const FLOCK_QUICK_CAPTIONS: { top: string; bot: string; icon: string }[] = [
+  { top: "THE BURGER IS", bot: "DECENTRALIZED", icon: "🥞" },
+  { top: "LIQUIDITY FRIES", bot: "ARE SOLD OUT", icon: "🍟" },
+  { top: "SIR, THIS IS", bot: "A BIRD BURGER", icon: "💀" },
+  { top: "WE ARE SO BACK", bot: "IN THE KITCHEN", icon: "🔥" },
+  { top: "CHEF BOUGHT", bot: "THE TOP", icon: "👨‍🍳" },
+  { top: "THIS RESTAURANT HAS", bot: "NO ROADMAP", icon: "🗺️" },
+];
+
+const FLOCK_HOLDERS = [
+  { rank: 1, name: "0xCHAD",     pts: 94291, status: "Received Nothing",   dot: "#22c55e" },
+  { rank: 2, name: "FryCook420", pts: 69420, status: "Banned From Kitchen", dot: "#38bdf8" },
+  { rank: 3, name: "Larry",      pts:   -14, status: "Fired",              dot: "#ec4899" },
+  { rank: 4, name: "Mom's Wallet", pts: 5005, status: "Wants Refund",      dot: "#facc15" },
+  { rank: 5, name: "0xRUG",      pts:   404, status: "Points Not Found",   dot: "#a855f7" },
+];
+
+function PixelBird({ className = "" }: { className?: string }) {
+  // 8-bit style purple bird silhouette
+  return (
+    <svg viewBox="0 0 16 16" className={className} shapeRendering="crispEdges" aria-hidden>
+      {[
+        [5,2],[6,2],[7,2],
+        [4,3],[5,3],[6,3],[7,3],[8,3],
+        [3,4],[4,4],[5,4],[6,4],[7,4],[8,4],[9,4],
+        [3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[9,5],[10,5],
+        [3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[9,6],[10,6],[11,6],
+        [4,7],[5,7],[6,7],[7,7],[8,7],[9,7],[10,7],[11,7],
+        [5,8],[6,8],[7,8],[8,8],[9,8],[10,8],
+        [5,9],[6,9],[9,9],[10,9],
+        [5,10],[6,10],[9,10],[10,10],
+      ].map(([x,y],i) => (<rect key={i} x={x} y={y} width={1} height={1} fill="#7C3AED" />))}
+      <rect x={9} y={4} width={1} height={1} fill="#fef08a" />
+      <rect x={10} y={4} width={1} height={1} fill="#fef08a" />
+    </svg>
+  );
+}
+
+function SparklesDeco() {
+  const pts = [
+    { x: "8%", y: "12%", s: 8, c: "#facc15" },
+    { x: "18%", y: "6%", s: 6, c: "#22d3ee" },
+    { x: "32%", y: "20%", s: 5, c: "#ec4899" },
+    { x: "70%", y: "8%", s: 7, c: "#22c55e" },
+    { x: "82%", y: "22%", s: 6, c: "#facc15" },
+    { x: "92%", y: "10%", s: 5, c: "#22d3ee" },
+    { x: "50%", y: "4%", s: 6, c: "#f9a8d4" },
+  ];
+  return (
+    <div className="pointer-events-none absolute inset-0" aria-hidden>
+      {pts.map((p, i) => (
+        <span
+          key={i}
+          className="absolute animate-pulse"
+          style={{ left: p.x, top: p.y, width: p.s, height: p.s, color: p.c }}
+        >
+          <svg viewBox="0 0 8 8" width={p.s} height={p.s}>
+            <path d="M4 0 L5 3 L8 4 L5 5 L4 8 L3 5 L0 4 L3 3 Z" fill="currentColor" />
+          </svg>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function FlockMemeCard({ onDownload }: { onDownload: () => void }) {
+  const [top, setTop] = useState("THE BURGER IS");
+  const [bot, setBot] = useState("DECENTRALIZED");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const c = canvasRef.current; if (!c) return;
+    const ctx = c.getContext("2d"); if (!ctx) return;
+    c.width = 800; c.height = 800;
+    ctx.fillStyle = "#7C3AED"; ctx.fillRect(0, 0, 800, 800);
+    const img = new Image(); img.crossOrigin = "anonymous"; img.src = mascotHero.url;
+    img.onload = () => {
+      ctx.drawImage(img, 100, 100, 600, 600);
+      ctx.font = "900 68px Impact, 'Bungee', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 8;
+      ctx.strokeText(top, 400, 100); ctx.fillText(top, 400, 100);
+      ctx.strokeText(bot, 400, 760); ctx.fillText(bot, 400, 760);
+    };
+  }, [top, bot]);
+
+  const download = () => {
+    const c = canvasRef.current; if (!c) return;
+    const a = document.createElement("a");
+    a.download = "bird-burger-meme.png"; a.href = c.toDataURL("image/png"); a.click();
+    onDownload();
+  };
+  const share = async () => {
+    const text = `${top} ${bot} — from Bird Burger 🐦🍔`;
+    try { if (navigator.share) await navigator.share({ text }); else await navigator.clipboard.writeText(text); } catch {}
+  };
+
+  return (
+    <div className="relative rounded-2xl border-2 border-pink-400/70 bg-[#120826]/85 p-5 shadow-[0_0_30px_-6px_rgba(236,72,153,0.55),inset_0_0_20px_rgba(236,72,153,0.08)]">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-pink-400/60 bg-pink-500/10 text-pink-300">
+          <Palette className="h-4 w-4" />
+        </span>
+        <div>
+          <div className="font-display text-2xl tracking-wider text-pink-300 [text-shadow:0_0_10px_rgba(236,72,153,0.7)]">MEME MACHINE</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-pink-200/60">Make it cluckin&apos; memeable</div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-[1fr_1fr] md:items-start">
+        <div className="rounded-xl border-2 border-cyan-400/60 bg-[#0a0416] p-2 shadow-[0_0_20px_-8px_rgba(34,211,238,0.7)]">
+          <canvas ref={canvasRef} className="aspect-square w-full rounded-lg" />
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.25em] text-cyan-200/80">Top Text</label>
+            <input value={top} onChange={(e)=>setTop(e.target.value.slice(0,40).toUpperCase())}
+              className="w-full rounded-md border-2 border-cyan-400/40 bg-[#0a0416] px-3 py-2 font-mono text-sm text-cyan-100 outline-none focus:border-cyan-400" />
+          </div>
+          <div>
+            <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.25em] text-cyan-200/80">Bottom Text</label>
+            <input value={bot} onChange={(e)=>setBot(e.target.value.slice(0,40).toUpperCase())}
+              className="w-full rounded-md border-2 border-cyan-400/40 bg-[#0a0416] px-3 py-2 font-mono text-sm text-cyan-100 outline-none focus:border-cyan-400" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {FLOCK_QUICK_CAPTIONS.map((q) => (
+          <button
+            key={q.top + q.bot}
+            onClick={() => { setTop(q.top); setBot(q.bot); }}
+            className="flex items-center gap-2 rounded-lg border border-purple-500/50 bg-purple-500/10 px-3 py-2 text-left font-mono text-[10px] uppercase tracking-widest text-purple-100/90 transition hover:border-pink-400/70 hover:bg-purple-500/20"
+          >
+            <span className="text-base leading-none">{q.icon}</span>
+            <span className="leading-tight">{q.top}<br/>{q.bot}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button onClick={download}
+          className="group flex flex-1 items-center justify-center gap-2 rounded-lg border-2 border-yellow-300 bg-gradient-to-b from-yellow-300 to-yellow-500 px-4 py-3 font-display text-sm tracking-[0.2em] text-[#2a1500] shadow-[0_6px_0_0_#a16207,0_0_25px_-4px_rgba(250,204,21,0.7)] transition active:translate-y-[3px] active:shadow-[0_3px_0_0_#a16207]">
+          <Download className="h-4 w-4" /> DOWNLOAD MEME
+        </button>
+        <button onClick={share} aria-label="Share meme"
+          className="flex items-center justify-center rounded-lg border-2 border-cyan-400 bg-cyan-400/10 px-4 py-3 text-cyan-300 shadow-[0_0_15px_-4px_rgba(34,211,238,0.7)] hover:bg-cyan-400/20">
+          <Share2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FlockBucksCard({ bucks, wallet }: { bucks: number; wallet: string | null }) {
+  const rows = useMemo(() => {
+    if (!wallet) return FLOCK_HOLDERS;
+    return [
+      ...FLOCK_HOLDERS,
+      { rank: 6, name: `${wallet.slice(0, 6)}…${wallet.slice(-4)}`, pts: bucks, status: "You (Wants Refund)", dot: "#f97316" },
+    ];
+  }, [wallet, bucks]);
+
+  return (
+    <div className="relative rounded-2xl border-2 border-green-400/70 bg-[#120826]/85 p-5 shadow-[0_0_30px_-6px_rgba(34,197,94,0.5),inset_0_0_20px_rgba(34,197,94,0.08)]">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-green-400/60 bg-green-500/10 text-green-300">
+          <Trophy className="h-4 w-4" />
+        </span>
+        <div>
+          <div className="font-display text-2xl tracking-wider text-green-300 [text-shadow:0_0_10px_rgba(34,197,94,0.7)]">BIRD BUCKS</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-green-200/60">
+            Worthless points. <span className="text-pink-300">Definitely not market data.</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[24px_1fr_auto_auto] items-center gap-3 border-b border-purple-500/30 pb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-purple-200/70">
+        <span>#</span><span>Holder</span><span>Bird Bucks</span><span className="hidden sm:inline">Status</span>
+      </div>
+
+      <ul className="mt-2 space-y-2">
+        {rows.map((r) => (
+          <li key={r.rank}
+              className="grid grid-cols-[24px_1fr_auto_auto] items-center gap-3 rounded-lg border border-purple-500/40 bg-[#0a0416] px-3 py-2.5">
+            <span className="font-display text-lg text-yellow-300">{r.rank}</span>
+            <span className="flex items-center gap-2 truncate">
+              <span className="inline-block h-4 w-4 rounded-sm" style={{ backgroundColor: r.dot, boxShadow: `0 0 8px ${r.dot}88` }} />
+              <span className="truncate font-mono text-sm text-cyan-200">{r.name}</span>
+            </span>
+            <span className={`font-mono text-sm tabular-nums ${r.pts < 0 ? "text-pink-400" : "text-ink"}`}>{r.pts.toLocaleString()}</span>
+            <span className="hidden font-mono text-[10px] uppercase tracking-widest text-purple-200/70 sm:inline">{r.status}</span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-4 font-mono text-[11px] leading-relaxed text-pink-200/80">
+        Earn Bird Bucks by ordering, calling the kitchen, hiring employees, and making memes. They do nothing.
+      </p>
+    </div>
+  );
+}
+
+function FlockReceiptCard({ bucks }: { bucks: number }) {
+  return (
+    <div className="relative rounded-2xl border-2 border-pink-400/70 bg-[#120826]/85 p-5 shadow-[0_0_30px_-6px_rgba(236,72,153,0.55),inset_0_0_20px_rgba(236,72,153,0.08)]">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-pink-400/60 bg-pink-500/10 text-pink-300">
+          <Receipt className="h-4 w-4" />
+        </span>
+        <div>
+          <div className="font-display text-2xl tracking-wider text-pink-300 [text-shadow:0_0_10px_rgba(236,72,153,0.7)]">YOUR RECEIPT</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-pink-200/60">Thanks for supporting Bird Burger</div>
+        </div>
+      </div>
+
+      <div
+        className="relative mx-auto max-w-sm rounded-sm bg-[#f4ecd8] px-6 pt-6 pb-8 font-mono text-[12px] text-[#1a1a1a] shadow-[0_10px_25px_rgba(0,0,0,0.5)]"
+        style={{
+          clipPath: "polygon(0 8px,4% 0,8% 8px,12% 0,16% 8px,20% 0,24% 8px,28% 0,32% 8px,36% 0,40% 8px,44% 0,48% 8px,52% 0,56% 8px,60% 0,64% 8px,68% 0,72% 8px,76% 0,80% 8px,84% 0,88% 8px,92% 0,96% 8px,100% 0,100% calc(100% - 8px),96% 100%,92% calc(100% - 8px),88% 100%,84% calc(100% - 8px),80% 100%,76% calc(100% - 8px),72% 100%,68% calc(100% - 8px),64% 100%,60% calc(100% - 8px),56% 100%,52% calc(100% - 8px),48% 100%,44% calc(100% - 8px),40% 100%,36% calc(100% - 8px),32% 100%,28% calc(100% - 8px),24% 100%,20% calc(100% - 8px),16% 100%,12% calc(100% - 8px),8% 100%,4% calc(100% - 8px),0 100%)",
+        }}
+      >
+        <div className="flex flex-col items-center gap-1">
+          <PixelBird className="h-8 w-8" />
+          <div className="font-display text-2xl tracking-wider text-[#1a1a1a]">BIRD BURGER</div>
+          <div className="text-[9px] uppercase tracking-[0.25em] text-[#333]">The Worst Restaurant on the Blockchain</div>
+        </div>
+        <div className="my-3 border-t border-dashed border-[#1a1a1a]/50" />
+        <div className="space-y-1">
+          <div className="flex justify-between"><span>1x Regret Deluxe</span><span>$1.21</span></div>
+          <div className="flex justify-between"><span>1x Side of Silence</span><span>$1.69</span></div>
+          <div className="flex justify-between"><span>Tip (nobody earned)</span><span>$0.00</span></div>
+        </div>
+        <div className="my-3 border-t border-dashed border-[#1a1a1a]/50" />
+        <div className="flex justify-between font-bold"><span>TOTAL</span><span>$4.19</span></div>
+        <div className="mt-3 text-center text-[9px] uppercase tracking-[0.25em] text-[#555]">*** please regret your decisions ***</div>
+
+        <div className="mt-5 flex items-center justify-center">
+          <div className="flex items-center gap-3 rounded-sm border-2 border-dashed border-purple-700/70 px-4 py-2">
+            <PixelBird className="h-5 w-5 opacity-70" />
+            <div className="text-center leading-tight">
+              <div className="text-[9px] uppercase tracking-[0.25em] text-[#333]">Bird Bucks earned:</div>
+              <div className="font-display text-2xl text-purple-700">{bucks}</div>
+            </div>
+            <PixelBird className="h-5 w-5 opacity-70" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: string | null; onDownload: () => void }) {
   return (
-    <section id="community-band" className="relative border-y-4 border-mustard/60 bg-gradient-to-br from-grape via-grape/90 to-[#3a1d6b] py-16">
-      <div className="absolute inset-0 grain opacity-30" aria-hidden />
+    <section
+      id="community-band"
+      className="relative overflow-hidden border-y-2 border-purple-500/30 py-16"
+      style={{
+        background:
+          "radial-gradient(1200px 500px at 50% -10%, rgba(124,58,237,0.35), transparent 60%), linear-gradient(180deg, #0d0620 0%, #14082e 50%, #0d0620 100%)",
+      }}
+    >
+      {/* pixel-dot corners */}
+      <div
+        className="pointer-events-none absolute left-0 top-0 h-40 w-40 opacity-40"
+        style={{
+          backgroundImage: "radial-gradient(#7c3aed 1px, transparent 1px)",
+          backgroundSize: "8px 8px",
+          maskImage: "linear-gradient(135deg, black, transparent)",
+          WebkitMaskImage: "linear-gradient(135deg, black, transparent)",
+        }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute right-0 top-0 h-40 w-40 opacity-40"
+        style={{
+          backgroundImage: "radial-gradient(#7c3aed 1px, transparent 1px)",
+          backgroundSize: "8px 8px",
+          maskImage: "linear-gradient(-135deg, black, transparent)",
+          WebkitMaskImage: "linear-gradient(-135deg, black, transparent)",
+        }}
+        aria-hidden
+      />
+      <SparklesDeco />
+
       <div className="relative mx-auto max-w-7xl px-4">
-        <div className="mb-8 text-center">
-          <div className="mb-1 font-mono text-xs uppercase tracking-[0.3em] text-mustard">Holder Perks (Not Really)</div>
-          <h2 className="font-display text-3xl neon-pink md:text-4xl">JOIN THE FLOCK</h2>
+        <div className="mb-10 flex flex-col items-center text-center">
+          <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.4em] text-green-400 [text-shadow:0_0_10px_rgba(34,197,94,0.6)]">
+            Holder Perks (Not Really)
+          </div>
+          <div className="flex items-center justify-center gap-4 md:gap-8">
+            <PixelBird className="hidden h-10 w-10 md:block" />
+            <h2 className="font-display text-4xl uppercase tracking-[0.08em] text-pink-300 md:text-6xl [text-shadow:0_0_15px_rgba(236,72,153,0.8),0_0_35px_rgba(236,72,153,0.5)]">
+              Join the Flock
+            </h2>
+            <PixelBird className="hidden h-10 w-10 md:block" />
+          </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border-2 border-mustard/60 bg-black/40 p-5">
-            <div className="mb-3 font-display text-lg neon-cyan">🎨 MEME MACHINE</div>
-            <MemeGenerator onDownload={onDownload} embedded />
-          </div>
-          <div className="rounded-lg border-2 border-cyan/60 bg-black/40 p-5">
-            <div className="mb-3 font-display text-lg neon-green">🏆 BIRD BUCKS</div>
-            <Leaderboard bucks={bucks} wallet={wallet} embedded />
-          </div>
-          <div className="rounded-lg border-2 border-robin/60 bg-black/40 p-5">
-            <div className="mb-3 font-display text-lg neon-pink">🧾 YOUR RECEIPT</div>
-            <div className="rounded-sm bg-[#f5f0e0] p-4 font-mono text-[11px] text-[#1a1a1a]">
-              <div className="text-center font-display text-sm">BIRD BURGER</div>
-              <div className="text-center text-[9px] uppercase tracking-widest text-[#666]">The Worst Restaurant on the Blockchain</div>
-              <div className="my-2 border-t border-dashed border-[#1a1a1a]/40" />
-              <div className="flex justify-between"><span>1x Regret Deluxe</span><span>$4.20</span></div>
-              <div className="flex justify-between"><span>1x Side of Silence</span><span>$0.69</span></div>
-              <div className="flex justify-between"><span>Tip (nobody earned)</span><span>$0.00</span></div>
-              <div className="my-2 border-t border-dashed border-[#1a1a1a]/40" />
-              <div className="flex justify-between font-bold"><span>TOTAL</span><span>$4.89</span></div>
-              <div className="mt-2 text-center text-[9px] uppercase tracking-widest text-[#666]">*** PLEASE REGRET YOUR DECISION ***</div>
-              <div className="mt-2 text-center">Bird Bucks earned: <span className="font-bold text-grape">{bucks}</span></div>
-            </div>
-          </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <FlockMemeCard onDownload={onDownload} />
+          <FlockBucksCard bucks={bucks} wallet={wallet} />
+          <FlockReceiptCard bucks={bucks} />
         </div>
       </div>
     </section>
