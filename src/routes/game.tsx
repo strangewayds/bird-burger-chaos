@@ -732,6 +732,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   // Touch controls (mobile)
   const touchRef = useRef<{ dx: number; dy: number } | null>(null);
   const [showTouch, setShowTouch] = useState(false);
+  const [hudOpen, setHudOpen] = useState(false);
   useEffect(() => {
     setShowTouch("ontouchstart" in window);
   }, []);
@@ -2282,11 +2283,19 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
 
         {/* Top-left: logo + kitchen stats + disaster */}
-        <div className="absolute left-2 top-2 w-[220px] space-y-2 md:left-4 md:top-4">
-          <div className="rounded-lg border-2 border-[#7C3AED] bg-[#2E1065]/85 p-2 backdrop-blur">
-            <div className="[font-family:'Bungee','Impact',sans-serif] text-sm leading-none text-[#7C3AED]">BIRD BURGER</div>
-            <div className="[font-family:'Bungee','Impact',sans-serif] text-xs leading-none text-[#EC4899]">KITCHEN CHAOS</div>
+        <div className="absolute left-2 top-2 w-[170px] space-y-1.5 md:left-4 md:top-4">
+          <div className="flex items-center gap-1.5 rounded-lg border-2 border-[#7C3AED] bg-[#2E1065]/85 p-2 backdrop-blur">
+            <div className="flex-1">
+              <div className="[font-family:'Bungee','Impact',sans-serif] text-xs leading-none text-[#7C3AED]">BIRD BURGER</div>
+              <div className="[font-family:'Bungee','Impact',sans-serif] text-[10px] leading-none text-[#EC4899]">KITCHEN CHAOS</div>
+            </div>
+            <button
+              onClick={() => setHudOpen((v) => !v)}
+              className="rounded border-2 border-[#FACC15]/60 bg-[#FACC15]/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-[#FACC15] hover:bg-[#FACC15]/25"
+              title="Show/hide stats & settings"
+            >{hudOpen ? "×" : "…"}</button>
           </div>
+          {hudOpen && (
           <div className="rounded-lg border-2 border-[#7C3AED]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
             <div className="mb-1 font-black text-[#FACC15]">KITCHEN STATS</div>
             <StatRow label="Completed" value={statsRef.current.ordersCompleted} />
@@ -2296,6 +2305,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             <StatRow label="Pigeons Chased" value={statsRef.current.pigeonsChased} />
             <StatRow label="Dropped" value={statsRef.current.dropped} />
           </div>
+          )}
           {(() => {
             const mop = mopRef.current;
             const chargePct = mop.has ? mop.charges / mop.max : 0;
@@ -2431,6 +2441,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             );
           })()}
 
+          {hudOpen && (<>
           {/* Perf mode toggle */}
           <div className="rounded-lg border-2 border-[#22D3EE]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
             <div className="mb-1 flex items-center justify-between font-black text-[#22D3EE]">
@@ -2487,6 +2498,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
               {motionMode === "reduced" ? "No dash trails or strobe flashes; softer shake & squash." : "Full shake, trails, flashes & squash chaos."}
             </div>
           </div>
+          </>)}
         </div>
 
 
