@@ -732,7 +732,45 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           }
         }
         fireCd = (explode ? 14 : 10) + Math.random() * 10;
+        // Explosions also splatter grease
+        if (explode) {
+          for (let i = 0; i < 3; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const rad = 0.05 + Math.random() * 0.09;
+            spillsRef.current.push({
+              x: clamp(st.x + st.w/2 + Math.cos(ang) * rad, 0.05, 0.95),
+              y: clamp(st.y + st.h/2 + Math.sin(ang) * rad, 0.12, 0.94),
+              r: 0.035 + Math.random() * 0.02,
+              life: 18 + Math.random() * 8,
+              cleanT: 0,
+              hue: Math.random() < 0.5 ? 42 : 30,
+              wob: Math.random() * Math.PI * 2,
+            });
+          }
+        }
       }
+      // Grease spills: random splatters near cook stations
+      spillCd -= dt;
+      if (spillCd <= 0 && spillsRef.current.length < 6) {
+        const near = Math.random() < 0.7
+          ? STATIONS.find((s) => s.id === (Math.random() < 0.5 ? "grill" : "fryer"))!
+          : STATIONS[Math.floor(Math.random() * STATIONS.length)];
+        const ang = Math.random() * Math.PI * 2;
+        const rad = 0.05 + Math.random() * 0.1;
+        spillsRef.current.push({
+          x: clamp(near.x + near.w/2 + Math.cos(ang) * rad, 0.05, 0.95),
+          y: clamp(near.y + near.h/2 + Math.sin(ang) * rad, 0.14, 0.94),
+          r: 0.03 + Math.random() * 0.025,
+          life: 22 + Math.random() * 10,
+          cleanT: 0,
+          hue: Math.random() < 0.5 ? 42 : 30,
+          wob: Math.random() * Math.PI * 2,
+        });
+        spillCd = 7 + Math.random() * 8;
+      }
+      // spill decay: shrink slowly + expire
+      spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.15); });
+      spillsRef.current = spillsRef.current.filter((sp) => sp.life > 0);
       // shake / flash decay
       shakeRef.current = Math.max(0, shakeRef.current - dt);
       explosionRef.current = Math.max(0, explosionRef.current - dt * 1.6);
