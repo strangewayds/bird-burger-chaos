@@ -333,6 +333,9 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; color: string; kind: "dust" | "flash" };
   const particlesRef = useRef<Particle[]>([]);
   const lastHopSinRef = useRef(0);
+  type Trail = { x: number; y: number; face: number; hopY: number; t: number };
+  const trailRef = useRef<Trail[]>([]);
+  const lastDrawTimeRef = useRef<number>(0);
 
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
