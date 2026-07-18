@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
+import kitchenCamImg from "@/assets/kitchen-cam.png.asset.json";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
 
 export const Route = createFileRoute("/")({
@@ -1035,27 +1036,17 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
         <span className="flex items-center gap-1.5 text-grease"><span className="h-2 w-2 animate-pulse rounded-full bg-grease"/>LIVE</span>
       </div>
       <div className="relative aspect-video overflow-hidden scanlines">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(124,58,237,0.3),transparent_70%),linear-gradient(180deg,#1a0b2e_0%,#000_100%)]"/>
-        {/* Simulated kitchen */}
-        <div className="absolute inset-0 opacity-70">
-          <div className="absolute bottom-8 left-1/3 h-16 w-16 rounded bg-black/70 shadow-[0_0_20px_rgba(239,68,68,0.4)]"/>
-          <div className="absolute bottom-8 right-1/4 h-12 w-20 rounded bg-black/60"/>
-          <motion.div
-            animate={{ x: [-20, 240, -20] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-            className="absolute bottom-10 left-0 text-3xl"
-          >🐦</motion.div>
-          <motion.div
-            animate={{ x: [400, -50] }}
-            transition={{ duration: 5, repeat: Infinity, delay: 2, ease: "linear" }}
-            className="absolute bottom-16 text-2xl"
-          >🍔</motion.div>
-          <motion.div
-            animate={{ opacity: [0.2, 0.8, 0.2], y: [0, -30, 0] }}
-            transition={{ duration: 4, repeat: Infinity }}
-            className="absolute bottom-24 left-1/3 h-10 w-10 rounded-full bg-white/30 blur-lg"
-          />
-        </div>
+        <img
+          src={kitchenCamImg.url}
+          alt="Bird Burger kitchen surveillance feed"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(124,58,237,0.15),transparent_70%)] mix-blend-overlay"/>
+        <motion.div
+          animate={{ opacity: [0.05, 0.15, 0.05] }}
+          transition={{ duration: 0.15, repeat: Infinity }}
+          className="absolute inset-0 bg-white/10 pointer-events-none"
+        />
         <div className="absolute left-2 top-2 font-mono text-[10px] text-grease">CAM 04 — FRY STATION</div>
         <div className="absolute right-2 top-2 font-mono text-[10px] text-cyan">{time}</div>
         <AnimatePresence>
