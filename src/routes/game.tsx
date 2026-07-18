@@ -1054,6 +1054,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             playerRef.current.slipT = 0.6;
             shakeRef.current = 0.55;
             explosionRef.current = 1;
+            sfxRef.current.boom(1.1);
             floatsRef.current.push({ x: st.x + st.w/2, y: st.y - 0.02, text: "💥 BOOM!", color: "#FACC15", life: 1.2 });
             floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "OSHA WHO?", color: "#EF4444", life: 1.2 });
           }
