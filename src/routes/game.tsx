@@ -85,6 +85,7 @@ type Phase = "start" | "playing" | "results";
 
 type Fire = { x: number; y: number; stationId: string; life: number };
 type Pigeon = { x: number; y: number; vx: number; vy: number; hp: number };
+type Spill = { x: number; y: number; r: number; life: number; cleanT: number; hue: number; wob: number };
 type FloatText = { x: number; y: number; text: string; color: string; life: number };
 
 const EMPLOYEES = [
@@ -320,6 +321,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   const orderIdRef = useRef(1);
   const firesRef = useRef<Fire[]>([]);
   const pigeonsRef = useRef<Pigeon[]>([]);
+  const spillsRef = useRef<Spill[]>([]);
   const floatsRef = useRef<FloatText[]>([]);
   const hasExtinguisherRef = useRef(false);
   const grillRef = useRef({ progress: 0, item: null as Ing | null });
@@ -451,6 +453,22 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   }
 
   function interact() {
+    // Clean grease spill if standing on one with empty hands
+    const p = playerRef.current;
+    const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.01);
+    if (spillHit && carryRef.current.length === 0) {
+      spillHit.cleanT += 0.34;
+      if (spillHit.cleanT >= 1) {
+        spillsRef.current = spillsRef.current.filter((sp) => sp !== spillHit);
+        scoreRef.current += 40;
+        setScore(scoreRef.current);
+        chaosRef.current = Math.max(0, chaosRef.current - 0.4);
+        pushFloat("+ MOPPED", "#22D3EE");
+      } else {
+        pushFloat("MOPPING…", "#22D3EE");
+      }
+      return;
+    }
     const s = nearestStation();
     if (!s) return;
     const carry = carryRef.current;
@@ -580,6 +598,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     let last = performance.now();
     let fireCd = 8;
     let pigeonCd = 15;
+    let spillCd = 6;
     let orderTickAcc = 0;
     let uiTickAcc = 0;
 
@@ -607,6 +626,17 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       p.vx = dx * speed; p.vy = dy * speed;
       p.x = clamp(p.x + dx * speed * dt, 0.02, 0.98);
       p.y = clamp(p.y + dy * speed * dt, 0.10, 0.96);
+      // Grease spills: overlapping puddle → boost slipT (drunk-like slide)
+      for (const sp of spillsRef.current) {
+        if (Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r) {
+          p.slipT = Math.max(p.slipT, dashing ? 0.9 : 0.55);
+          // small perpendicular nudge for a "banana peel" feel
+          const nudge = (dashing ? 0.05 : 0.025) * dt * 60 * 0.016;
+          p.x = clamp(p.x + (-dy) * nudge, 0.02, 0.98);
+          p.y = clamp(p.y + (dx) * nudge, 0.10, 0.96);
+          break;
+        }
+      }
       // Facing: smoothly ease toward movement direction (continuous flip)
       const faceTarget = Math.abs(dx) > 0.05 ? (dx > 0 ? 1 : -1) : (p.face === 0 ? 1 : (p.face > 0 ? 1 : -1));
       const faceRate = 12; // higher = snappier
@@ -702,7 +732,45 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           }
         }
         fireCd = (explode ? 14 : 10) + Math.random() * 10;
+        // Explosions also splatter grease
+        if (explode) {
+          for (let i = 0; i < 3; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const rad = 0.05 + Math.random() * 0.09;
+            spillsRef.current.push({
+              x: clamp(st.x + st.w/2 + Math.cos(ang) * rad, 0.05, 0.95),
+              y: clamp(st.y + st.h/2 + Math.sin(ang) * rad, 0.12, 0.94),
+              r: 0.035 + Math.random() * 0.02,
+              life: 18 + Math.random() * 8,
+              cleanT: 0,
+              hue: Math.random() < 0.5 ? 42 : 30,
+              wob: Math.random() * Math.PI * 2,
+            });
+          }
+        }
       }
+      // Grease spills: random splatters near cook stations
+      spillCd -= dt;
+      if (spillCd <= 0 && spillsRef.current.length < 6) {
+        const near = Math.random() < 0.7
+          ? STATIONS.find((s) => s.id === (Math.random() < 0.5 ? "grill" : "fryer"))!
+          : STATIONS[Math.floor(Math.random() * STATIONS.length)];
+        const ang = Math.random() * Math.PI * 2;
+        const rad = 0.05 + Math.random() * 0.1;
+        spillsRef.current.push({
+          x: clamp(near.x + near.w/2 + Math.cos(ang) * rad, 0.05, 0.95),
+          y: clamp(near.y + near.h/2 + Math.sin(ang) * rad, 0.14, 0.94),
+          r: 0.03 + Math.random() * 0.025,
+          life: 22 + Math.random() * 10,
+          cleanT: 0,
+          hue: Math.random() < 0.5 ? 42 : 30,
+          wob: Math.random() * Math.PI * 2,
+        });
+        spillCd = 7 + Math.random() * 8;
+      }
+      // spill decay: shrink slowly + expire
+      spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.15); });
+      spillsRef.current = spillsRef.current.filter((sp) => sp.life > 0);
       // shake / flash decay
       shakeRef.current = Math.max(0, shakeRef.current - dt);
       explosionRef.current = Math.max(0, explosionRef.current - dt * 1.6);
@@ -881,6 +949,60 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     const fs = STATIONS.find((s) => s.id === "fryer")!;
     const fr = fryerRef.current;
     if (fr.item) drawProgress(ctx, (fs.x + fs.w/2)*W, (fs.y - 0.02)*H, Math.min(1, fr.progress), fr.progress > 1 ? "#EF4444" : "#FACC15");
+
+    // Grease spills (draw beneath fires/pigeons but above floor)
+    for (const sp of spillsRef.current) {
+      const cx = sp.x * W, cy = sp.y * H;
+      const rx = sp.r * W * 1.15;
+      const ry = sp.r * H * 0.75;
+      const fade = Math.min(1, sp.life / 4) * (1 - sp.cleanT);
+      ctx.save();
+      // dark oily body
+      ctx.globalAlpha = 0.72 * fade;
+      const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, Math.max(rx, ry));
+      grad.addColorStop(0, `hsl(${sp.hue}, 55%, 18%)`);
+      grad.addColorStop(0.7, `hsl(${sp.hue}, 45%, 10%)`);
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // glossy highlight streak
+      ctx.globalAlpha = 0.55 * fade;
+      ctx.fillStyle = `hsl(${sp.hue}, 95%, 68%)`;
+      const gx = cx - rx * 0.35 + Math.sin(performance.now() / 700 + sp.wob) * 2;
+      const gy = cy - ry * 0.35;
+      ctx.beginPath();
+      ctx.ellipse(gx, gy, rx * 0.32, ry * 0.18, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      // little droplets around edge
+      ctx.globalAlpha = 0.5 * fade;
+      ctx.fillStyle = `hsl(${sp.hue}, 60%, 22%)`;
+      for (let i = 0; i < 4; i++) {
+        const a = sp.wob + i * 1.7;
+        const dx = Math.cos(a) * rx * 1.15;
+        const dy = Math.sin(a) * ry * 1.15;
+        ctx.beginPath();
+        ctx.arc(cx + dx, cy + dy, 2 + (i % 2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // cleaning progress ring
+      if (sp.cleanT > 0.01) {
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = "#22D3EE";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(rx, ry) + 4, -Math.PI / 2, -Math.PI / 2 + sp.cleanT * Math.PI * 2);
+        ctx.stroke();
+      }
+      // warning label
+      ctx.globalAlpha = 0.85 * fade;
+      ctx.fillStyle = "#FACC15";
+      ctx.font = "bold 9px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("⚠ GREASE", cx, cy + ry + 12);
+      ctx.restore();
+    }
 
     // Fires
     for (const fi of firesRef.current) {
