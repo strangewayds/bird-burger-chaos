@@ -2131,11 +2131,13 @@ function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: stri
 
 
 
-function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, onConnect, wallet, wrongNet }: {
+function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volume, setVolume, onConnect, wallet, wrongNet }: {
   open: boolean; setOpen: (b: boolean) => void; muted: boolean; setMuted: (b: boolean) => void;
   onRandomizeTrack: () => void; trackName: string;
+  volume: number; setVolume: (n: number) => void;
   onConnect: () => void; wallet: string | null; wrongNet: boolean;
 }) {
+  const volPct = Math.round(volume * 100);
   return (
     <header className="sticky top-0 z-50 border-b-2 border-grape/40 bg-bg/85 backdrop-blur-md">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
@@ -2164,9 +2166,34 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, onCo
           >
             <Shuffle className="h-4 w-4" />
           </button>
-          <button onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute sounds" : "Mute sounds"} className="grid h-10 w-10 place-items-center rounded-md border border-ink/20 text-ink/70 hover:bg-ink/10">
-            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-          </button>
+          <div className="flex items-center gap-2 rounded-md border border-ink/20 bg-bg/60 px-2 py-1.5">
+            <button
+              onClick={() => setMuted(!muted)}
+              aria-label={muted ? "Unmute sounds" : "Mute sounds"}
+              className="grid h-7 w-7 place-items-center rounded text-ink/80 hover:bg-ink/10"
+            >
+              {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={muted ? 0 : volPct}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10) / 100;
+                setVolume(v);
+                if (muted && v > 0) setMuted(false);
+                if (!muted && v === 0) setMuted(true);
+              }}
+              aria-label="Volume"
+              title={`Volume ${muted ? 0 : volPct}%`}
+              className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-ink/20 accent-mustard sm:w-24"
+              style={{
+                backgroundImage: `linear-gradient(to right, var(--color-mustard, #f4b400) 0%, var(--color-mustard, #f4b400) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) 100%)`,
+              }}
+            />
+          </div>
           <button
             onClick={onConnect}
             className={`hidden items-center gap-2 rounded-md border-2 px-3 py-2 text-xs font-bold uppercase tracking-wider transition-all sm:inline-flex ${
