@@ -712,7 +712,9 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       if (mag > 0 && prevSin > 0.05 && curSin <= 0) {
         const fx = p.x;
         const fy = p.y + 0.03; // at feet (normalized)
-        const count = dashing ? 10 : 6;
+        const scale = perfRef.current.scale;
+        const baseCount = dashing ? 10 : 6;
+        const count = Math.max(1, Math.round(baseCount * scale));
         for (let i = 0; i < count; i++) {
           const ang = Math.PI + (Math.random() - 0.5) * Math.PI * 0.9;
           const spd = 0.05 + Math.random() * (dashing ? 0.11 : 0.07);
@@ -728,7 +730,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
             kind: "dust",
           });
         }
-        particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: dashing ? 22 : 16, color: "#FFF6C2", kind: "flash" });
+        // Flash: skip probabilistically when perf-mode is reducing effects
+        if (scale > 0.55 || Math.random() < scale) {
+          particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: (dashing ? 22 : 16) * (0.7 + 0.3 * scale), color: "#FFF6C2", kind: "flash" });
+        }
         p.landT = dashing ? 0.16 : 0.13;
       }
       lastHopSinRef.current = curSin;
