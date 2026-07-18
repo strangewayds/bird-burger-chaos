@@ -221,6 +221,88 @@ function useSound(muted: boolean) {
   };
 }
 
+function useFartSong(muted: boolean) {
+  const ctxRef = useRef<AudioContext | null>(null);
+  const stoppedRef = useRef(true);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (muted) {
+      stoppedRef.current = true;
+      if (timerRef.current) { window.clearTimeout(timerRef.current); timerRef.current = null; }
+      if (ctxRef.current) { try { ctxRef.current.suspend(); } catch {} }
+      return;
+    }
+    try {
+      if (!ctxRef.current) ctxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch { return; }
+    const ctx = ctxRef.current!;
+    if (ctx.state === "suspended") ctx.resume();
+    stoppedRef.current = false;
+
+    // Goofy "fart tuba" melody — [semitone offset, seconds]
+    const melody: [number, number][] = [
+      [0, 0.22], [4, 0.22], [7, 0.28], [4, 0.22],
+      [0, 0.34], [7, 0.22], [12, 0.28], [10, 0.22],
+      [7, 0.28], [4, 0.22], [0, 0.22], [-3, 0.5],
+      [5, 0.22], [3, 0.22], [0, 0.22], [-5, 0.6],
+    ];
+    const baseFreq = 98; // G2 – low & flatulent
+
+    const playFart = (when: number, semi: number, dur: number) => {
+      if (!ctxRef.current) return;
+      const f0 = baseFreq * Math.pow(2, semi / 12);
+      const osc = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      const g = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(1600, when);
+      filter.frequency.exponentialRampToValueAtTime(600, when + dur);
+      osc.type = "sawtooth";
+      osc2.type = "square";
+      osc.frequency.setValueAtTime(f0 * 1.35, when);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(40, f0 * 0.75), when + dur * 0.95);
+      osc2.frequency.setValueAtTime(f0 * 0.55, when);
+      osc2.frequency.exponentialRampToValueAtTime(Math.max(30, f0 * 0.4), when + dur * 0.95);
+      lfo.frequency.value = 24;
+      lfoGain.gain.value = 22;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfoGain.connect(osc2.frequency);
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(0.09, when + 0.025);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      osc.connect(filter); osc2.connect(filter); filter.connect(g); g.connect(ctx.destination);
+      osc.start(when); osc2.start(when); lfo.start(when);
+      const stopAt = when + dur + 0.05;
+      osc.stop(stopAt); osc2.stop(stopAt); lfo.stop(stopAt);
+    };
+
+    let cursor = ctx.currentTime + 0.15;
+    const schedule = () => {
+      if (stoppedRef.current || !ctxRef.current) return;
+      const now = ctx.currentTime;
+      while (cursor < now + 1.5 && !stoppedRef.current) {
+        for (const [semi, dur] of melody) {
+          playFart(cursor, semi, dur);
+          cursor += dur + 0.04;
+        }
+        cursor += 0.4; // gap between loops
+      }
+      timerRef.current = window.setTimeout(schedule, 500);
+    };
+    schedule();
+
+    return () => {
+      stoppedRef.current = true;
+      if (timerRef.current) { window.clearTimeout(timerRef.current); timerRef.current = null; }
+    };
+  }, [muted]);
+}
+
 /* ─────────────────────────  PAGE  ───────────────────────── */
 
 function BirdBurgerPage() {
@@ -233,6 +315,7 @@ function BirdBurgerPage() {
   const [bucks, setBucks] = useState(0);
 
   const play = useSound(muted);
+  useFartSong(muted);
 
   useEffect(() => {
     const saved = localStorage.getItem("bb_bucks");
