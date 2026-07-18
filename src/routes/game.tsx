@@ -2168,6 +2168,20 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
       ctx.fillStyle = "#000";
       ctx.fillRect(px - 32, py - 24, 8, 4);
     }
+    if (mopRef.current.has) {
+      ctx.save();
+      ctx.translate(px + 26, py - 4);
+      ctx.rotate(-0.35);
+      // handle
+      ctx.fillStyle = "#A0522D";
+      ctx.fillRect(-2, -26, 4, 32);
+      // mop head
+      ctx.fillStyle = mopRef.current.charges > 0 ? "#22D3EE" : "#6B7280";
+      ctx.fillRect(-8, -32, 16, 8);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(-8, -24, 16, 2);
+      ctx.restore();
+    }
 
     // Floats
     for (const fl of floatsRef.current) {
