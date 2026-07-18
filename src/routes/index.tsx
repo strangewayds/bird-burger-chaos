@@ -1035,28 +1035,32 @@ function MemeGenerator({ onDownload, embedded = false }: { onDownload: () => voi
 
 /* ─────────────────────────  LEADERBOARD  ───────────────────────── */
 
-function Leaderboard({ bucks, wallet }: { bucks: number; wallet: string | null }) {
+function Leaderboard({ bucks, wallet, embedded = false }: { bucks: number; wallet: string | null; embedded?: boolean }) {
   const rows = useMemo(() => {
     const me = wallet ? { rank: 6, name: `${wallet.slice(0,6)}…${wallet.slice(-4)}`, pts: bucks, note: "You (Wants Refund)" } : null;
     return me ? [...LEADERBOARD, me] : LEADERBOARD;
   }, [wallet, bucks]);
+  const body = (
+    <>
+      {!embedded && <div className="mb-1 font-display text-xl md:text-2xl">🏆 BIRD BUCKS LEADERBOARD</div>}
+      <div className="mb-4 text-xs uppercase tracking-widest text-ink/60">Completely worthless restaurant points · <span className="text-grease">Definitely Not Market Data</span></div>
+      <ul className="space-y-1.5">
+        {rows.map((r) => (
+          <li key={r.rank} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 rounded border border-ink/10 bg-black/40 px-3 py-2 font-mono text-sm">
+            <span className="font-display text-mustard w-6">{r.rank}</span>
+            <span className="truncate text-cyan">{r.name}</span>
+            <span className={r.pts < 0 ? "text-grease" : "text-ink"}>{r.pts.toLocaleString()}</span>
+            <span className="hidden text-xs text-ink/60 sm:inline">{r.note}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 text-center font-mono text-[10px] text-ink/50">Earn Bird Bucks by ordering, calling the kitchen, firing employees, and making memes. They do nothing.</div>
+    </>
+  );
+  if (embedded) return <div>{body}</div>;
   return (
     <section className="mx-auto max-w-7xl px-4 py-8">
-      <div className="rounded-lg border-2 border-mustard/40 bg-card p-5">
-        <div className="mb-1 font-display text-xl md:text-2xl">🏆 BIRD BUCKS LEADERBOARD</div>
-        <div className="mb-4 text-xs uppercase tracking-widest text-ink/60">Completely worthless restaurant points · <span className="text-grease">Definitely Not Market Data</span></div>
-        <ul className="space-y-1.5">
-          {rows.map((r) => (
-            <li key={r.rank} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 rounded border border-ink/10 bg-black/40 px-3 py-2 font-mono text-sm">
-              <span className="font-display text-mustard w-6">{r.rank}</span>
-              <span className="truncate text-cyan">{r.name}</span>
-              <span className={r.pts < 0 ? "text-grease" : "text-ink"}>{r.pts.toLocaleString()}</span>
-              <span className="hidden text-xs text-ink/60 sm:inline">{r.note}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-3 text-center font-mono text-[10px] text-ink/50">Earn Bird Bucks by ordering, calling the kitchen, firing employees, and making memes. They do nothing.</div>
-      </div>
+      <div className="rounded-lg border-2 border-mustard/40 bg-card p-5">{body}</div>
     </section>
   );
 }
