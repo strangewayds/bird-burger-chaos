@@ -1953,7 +1953,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     ctx.restore();
     // Explosion flash overlay (drawn without transform)
     if (explosionRef.current > 0) {
-      ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current})`;
+      ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current * M})`;
       ctx.fillRect(0, 0, W, H);
     }
     // Smoke alarm overlay: pulsing red vignette + strobe banner
