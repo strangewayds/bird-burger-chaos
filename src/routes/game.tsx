@@ -993,42 +993,45 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     ctx.beginPath();
     ctx.ellipse(px, py + 28, 24 * shadowScale, 8 * shadowScale, 0, 0, Math.PI*2);
     ctx.fill();
+    const pxs = px + sway;
     const m = mascotImgRef.current;
     if (m) {
       const size = 76;
       const drawY = py - size + 16 + hopY;
       ctx.save();
-      ctx.translate(px, py + 16);
+      ctx.translate(pxs, py + 16);
       ctx.scale(p.face * scaleX, scaleY);
-      ctx.translate(-px, -(py + 16));
-      // slight tilt into direction of travel
+      ctx.translate(-pxs, -(py + 16));
+      // slight tilt into direction of travel + subtle roll on big hops
       if (moving) {
-        const tilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
-        ctx.translate(px, py + 16);
+        const baseTilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
+        const bigRoll = isBig ? Math.sin(p.hopPhase) * 0.08 * p.face : 0;
+        const tilt = baseTilt + bigRoll;
+        ctx.translate(pxs, py + 16);
         ctx.rotate(tilt);
-        ctx.translate(-px, -(py + 16));
+        ctx.translate(-pxs, -(py + 16));
       }
-      ctx.drawImage(m, px - size/2, drawY, size, size);
+      ctx.drawImage(m, pxs - size/2, drawY, size, size);
       ctx.globalCompositeOperation = "source-atop";
       ctx.fillStyle = employee.tint + "40";
-      ctx.fillRect(px - size/2, drawY, size, size);
+      ctx.fillRect(pxs - size/2, drawY, size, size);
       ctx.restore();
     } else {
       ctx.fillStyle = employee.tint;
       ctx.beginPath();
-      ctx.arc(px, py + hopY, 18, 0, Math.PI*2);
+      ctx.arc(pxs, py + hopY, 18, 0, Math.PI*2);
       ctx.fill();
     }
     // Name tag (follows hop)
     const tagY = py - 78 + hopY;
     ctx.fillStyle = "#7C3AED";
-    ctx.fillRect(px - 42, tagY, 84, 18);
+    ctx.fillRect(pxs - 42, tagY, 84, 18);
     ctx.strokeStyle = "#FACC15";
-    ctx.strokeRect(px - 42, tagY, 84, 18);
+    ctx.strokeRect(pxs - 42, tagY, 84, 18);
     ctx.fillStyle = "#FFF";
     ctx.font = "bold 11px system-ui";
     ctx.textAlign = "center";
-    ctx.fillText(employee.name.toUpperCase(), px, tagY + 13);
+    ctx.fillText(employee.name.toUpperCase(), pxs, tagY + 13);
 
     // Carrying stack
     const carry = carryRef.current;
