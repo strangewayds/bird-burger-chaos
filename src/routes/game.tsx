@@ -1093,6 +1093,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
         }
         p.landT = dashing ? 0.16 : 0.13;
         sfxRef.current.land(dashing ? 1.2 : 0.85);
+        // Extra punch on a dash landing — layered on top of the regular land thump
+        if (p.dashCd > 0.5) sfxRef.current.dashLand(1);
       }
       lastHopSinRef.current = curSin;
       p.landT = Math.max(0, p.landT - dt);
