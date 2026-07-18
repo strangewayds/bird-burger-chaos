@@ -641,8 +641,11 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           });
         }
         particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: dashing ? 22 : 16, color: "#FFF6C2", kind: "flash" });
+        p.landT = dashing ? 0.16 : 0.13;
       }
       lastHopSinRef.current = curSin;
+      p.landT = Math.max(0, p.landT - dt);
+      if (mag <= 0) p.idleT += dt; else p.idleT = 0;
 
       // Grill cooking
       const g = grillRef.current;
