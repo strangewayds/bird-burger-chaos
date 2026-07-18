@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, VolumeX, Vibrate, VibrateOff } from "lucide-react";
 import kitchenBg from "@/assets/game-kitchen.jpg";
-import mascotHero from "@/assets/bird-mascot.png.asset.json";
+import mascotHero from "@/assets/bird-mascot.png";
 
 export const Route = createFileRoute("/game")({
   head: () => ({
@@ -244,7 +244,7 @@ function StartScreen({ employee, setEmployee, onStart, onHelp }: {
         <div className="relative mx-auto">
           <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-72 w-72 rounded-full bg-[#7C3AED]/40 blur-3xl" />
           <motion.img
-            src={mascotHero.url}
+            src={mascotHero}
             alt="Larry the Bird Burger mascot"
             width={520}
             height={520}
@@ -272,7 +272,7 @@ function EmployeePicker({ current, onPick, onClose }: { current: string; onPick:
               className={`flex flex-col items-center rounded-lg border-2 p-3 transition-all ${current === e.id ? "border-[#FACC15] bg-[#FACC15]/10 shadow-[0_0_20px_rgba(250,204,21,0.5)]" : "border-[#7C3AED]/40 bg-[#09090B]/40 hover:border-[#EC4899]"}`}
             >
               <div className="grid h-16 w-16 place-items-center rounded-full" style={{ background: `radial-gradient(${e.tint}, transparent 70%)` }}>
-                <img src={mascotHero.url} alt="" width={64} height={64} className="h-14 w-14 object-contain" style={{ filter: `hue-rotate(${hueFor(e.tint)}deg)` }} />
+                <img src={mascotHero} alt="" width={64} height={64} className="h-14 w-14 object-contain" style={{ filter: `hue-rotate(${hueFor(e.tint)}deg)` }} />
               </div>
               <div className="mt-2 text-xs font-black uppercase tracking-widest text-white">{e.name}</div>
               <div className="mt-1 text-[9px] uppercase tracking-widest text-white/60">{e.desc}</div>
@@ -753,7 +753,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     bg.src = kitchenBg;
     bg.onload = () => { bgImgRef.current = bg; };
     const m = new Image();
-    m.src = mascotHero.url;
+    m.src = mascotHero;
     m.onload = () => { mascotImgRef.current = m; };
   }, []);
 

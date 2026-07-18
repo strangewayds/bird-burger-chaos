@@ -33,17 +33,17 @@ import {
   UtensilsCrossed,
 
 } from "lucide-react";
-import mascotHero from "@/assets/bird-mascot.png.asset.json";
+import mascotHero from "@/assets/bird-mascot.png";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
-import kitchenCamImg from "@/assets/kitchen-cam.png.asset.json";
-import menuMcrug from "@/assets/menu-mcrug.png.asset.json";
-import menuFries from "@/assets/menu-liquidity-fries.png.asset.json";
-import menuShake from "@/assets/menu-pump-shake.png.asset.json";
-import menuNuggets from "@/assets/menu-diamond-nuggets.png.asset.json";
-import menuCombo from "@/assets/menu-exit-combo.png.asset.json";
-import menuChud from "@/assets/menu-chudburger.png.asset.json";
-import menuKids from "@/assets/menu-paper-hands.png.asset.json";
-import menuNothing from "@/assets/menu-nothing-burger.png.asset.json";
+import kitchenCamImg from "@/assets/kitchen-cam.png";
+import menuMcrug from "@/assets/menu-mcrug.png";
+import menuFries from "@/assets/menu-liquidity-fries.png";
+import menuShake from "@/assets/menu-pump-shake.png";
+import menuNuggets from "@/assets/menu-diamond-nuggets.png";
+import menuCombo from "@/assets/menu-exit-combo.png";
+import menuChud from "@/assets/menu-chudburger.png";
+import menuKids from "@/assets/menu-paper-hands.png";
+import menuNothing from "@/assets/menu-nothing-burger.png";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
 
 export const Route = createFileRoute("/")({
@@ -68,14 +68,14 @@ const NAV_LINKS = [
 ];
 
 const MENU_ITEMS = [
-  { name: "McRug Pull", price: "$6.90", desc: "The burger disappears immediately after purchase.", img: menuMcrug.url, rating: 0.3 },
-  { name: "Liquidity Fries", price: "$4.20", desc: "Your fries have been permanently locked.", img: menuFries.url, rating: 1.1 },
-  { name: "Pump & Shake", price: "$8.88", desc: "Goes straight up before violently coming back down.", img: menuShake.url, rating: 0.7 },
-  { name: "Diamond Hands Nuggets", price: "$12.00", desc: "So hard you physically cannot sell them.", img: menuNuggets.url, rating: 2.4 },
-  { name: "Exit Liquidity Combo", price: "$69.00", desc: "Designed specifically for our most loyal customers.", img: menuCombo.url, rating: 0.1 },
-  { name: "Chudburger Deluxe", price: "$14.99", desc: "Two patties, no vegetables, negative social awareness.", img: menuChud.url, rating: 1.9 },
-  { name: "Paper Hands Kids Meal", price: "$3.33", desc: "Customer sells the toy before opening the box.", img: menuKids.url, rating: 0.5 },
-  { name: "Nothing Burger", price: "$99.99", desc: "Contains exactly what the project promised.", img: menuNothing.url, rating: 5.0 },
+  { name: "McRug Pull", price: "$6.90", desc: "The burger disappears immediately after purchase.", img: menuMcrug, rating: 0.3 },
+  { name: "Liquidity Fries", price: "$4.20", desc: "Your fries have been permanently locked.", img: menuFries, rating: 1.1 },
+  { name: "Pump & Shake", price: "$8.88", desc: "Goes straight up before violently coming back down.", img: menuShake, rating: 0.7 },
+  { name: "Diamond Hands Nuggets", price: "$12.00", desc: "So hard you physically cannot sell them.", img: menuNuggets, rating: 2.4 },
+  { name: "Exit Liquidity Combo", price: "$69.00", desc: "Designed specifically for our most loyal customers.", img: menuCombo, rating: 0.1 },
+  { name: "Chudburger Deluxe", price: "$14.99", desc: "Two patties, no vegetables, negative social awareness.", img: menuChud, rating: 1.9 },
+  { name: "Paper Hands Kids Meal", price: "$3.33", desc: "Customer sells the toy before opening the box.", img: menuKids, rating: 0.5 },
+  { name: "Nothing Burger", price: "$99.99", desc: "Contains exactly what the project promised.", img: menuNothing, rating: 5.0 },
 ];
 
 const TICKER_MSGS = [
@@ -1037,7 +1037,7 @@ function CallKitchenCard({ onStart, onEnd: _onEnd }: { onStart: () => void; onEn
         />
         {/* Faint bird silhouette behind phone */}
         <img
-          src={mascotHero.url}
+          src={mascotHero}
           alt=""
           aria-hidden
           className="absolute inset-8 h-auto w-auto max-h-[62%] max-w-[62%] object-contain opacity-20 mix-blend-screen"
@@ -1290,7 +1290,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = mascotHero.url;
+    img.src = mascotHero;
     img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
@@ -1992,7 +1992,7 @@ function FlockMemeCard({ onDownload }: { onDownload: () => void }) {
     const ctx = c.getContext("2d"); if (!ctx) return;
     c.width = 800; c.height = 800;
     ctx.fillStyle = "#7C3AED"; ctx.fillRect(0, 0, 800, 800);
-    const img = new Image(); img.crossOrigin = "anonymous"; img.src = mascotHero.url;
+    const img = new Image(); img.crossOrigin = "anonymous"; img.src = mascotHero;
     img.onload = () => {
       ctx.drawImage(img, 100, 100, 600, 600);
       ctx.font = "900 68px Impact, 'Bungee', sans-serif";
@@ -2423,7 +2423,7 @@ function Hero({ onOrder, onBuy }: { onOrder: () => void; onBuy: () => void }) {
             transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
             className="relative mx-auto max-w-md"
           >
-            <img src={mascotHero.url} alt="Bird Burger mascot holding a burger" width={1024} height={1024} className="w-full drop-shadow-[0_20px_60px_rgba(124,58,237,0.55)]" />
+            <img src={mascotHero} alt="Bird Burger mascot holding a burger" width={1024} height={1024} className="w-full drop-shadow-[0_20px_60px_rgba(124,58,237,0.55)]" />
             <div className="absolute -left-3 -top-3 -rotate-6 rounded bg-grease px-2 py-1 font-display text-xs text-white shadow-md">GREASY</div>
             <div className="absolute -right-3 top-6 rotate-6 rounded bg-mustard px-2 py-1 font-display text-xs text-bg shadow-md">$BRGR</div>
           </motion.div>
@@ -2922,7 +2922,7 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
     const t2 = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = kitchenCamImg.url;
+    img.src = kitchenCamImg;
     img.onload = () => { camImgRef.current = img; };
     return () => { clearInterval(t); clearInterval(t2); };
   }, []);
@@ -3111,7 +3111,7 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
       </div>
       <div className="relative aspect-video overflow-hidden scanlines">
         <img
-          src={kitchenCamImg.url}
+          src={kitchenCamImg}
           alt="Bird Burger kitchen surveillance feed"
           className="absolute inset-0 h-full w-full object-cover"
         />
@@ -3144,7 +3144,7 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
 
             {/* bird body with slight bob + CCTV grade */}
             <motion.img
-              src={mascotHero.url}
+              src={mascotHero}
               alt=""
               className="absolute inset-0 h-full w-full object-contain"
               style={{
@@ -3271,7 +3271,7 @@ function BirdOfTheDay({ onFire }: { onFire: () => void }) {
       <AnimatePresence mode="wait">
         <motion.div key={emp.name} initial={{ x: 200, opacity: 0, rotate: 15 }} animate={{ x: 0, opacity: 1, rotate: 0 }} exit={{ x: -400, opacity: 0, rotate: -20 }} transition={{ type: "spring", damping: 15 }}>
           <div className="mt-3 flex gap-3">
-            <img src={mascotHero.url} alt="Employee" loading="lazy" width={1024} height={1024} className="h-24 w-24 rounded border-2 border-grape bg-grape/20 object-cover"/>
+            <img src={mascotHero} alt="Employee" loading="lazy" width={1024} height={1024} className="h-24 w-24 rounded border-2 border-grape bg-grape/20 object-cover"/>
             <div className="flex-1 min-w-0">
               <div className="font-display text-lg neon-purple truncate">{emp.name.toUpperCase()}</div>
               <div className="text-xs text-ink/70">{emp.role}</div>
@@ -3423,7 +3423,7 @@ function MemeGenerator({ onDownload, embedded = false }: { onDownload: () => voi
     const ctx = c.getContext("2d")!;
     c.width = 800; c.height = 800;
     ctx.fillStyle = "#7C3AED"; ctx.fillRect(0,0,800,800);
-    const img = new Image(); img.crossOrigin = "anonymous"; img.src = mascotHero.url;
+    const img = new Image(); img.crossOrigin = "anonymous"; img.src = mascotHero;
     img.onload = () => {
       ctx.drawImage(img, 100, 100, 600, 600);
       ctx.font = "bold 64px Impact, sans-serif";
