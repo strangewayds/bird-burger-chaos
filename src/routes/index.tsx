@@ -725,7 +725,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
 
     ctx.save();
     ctx.clearRect(0, 0, size, size);
-    if (platform === "x") {
+    if (plat === "x") {
       ctx.beginPath(); ctx.arc(size/2, size/2, size/2, 0, Math.PI*2); ctx.clip();
     } else {
       roundRect(ctx, 0, 0, size, size, size * 0.1875); ctx.clip();
