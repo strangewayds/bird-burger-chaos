@@ -695,11 +695,16 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
-  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated) => {
-    const jx = anim ? ((frame * 73) % 5) - 2 : 0;
-    const jy = anim ? ((frame * 131) % 5) - 2 : 0;
-    const blinking = anim && (frame % 60) < 4;
-    const pulse = anim ? 0.5 + 0.5 * Math.sin(frame / 6) : 0.7;
+  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number) => {
+    const iv = (intensityOverride ?? intensity) / 100; // 0..1
+    const jitterAmp = anim ? Math.max(1, Math.round(iv * 4)) : 0;
+    const jRange = jitterAmp * 2 + 1;
+    const jx = anim ? ((frame * 73) % jRange) - jitterAmp : 0;
+    const jy = anim ? ((frame * 131) % jRange) - jitterAmp : 0;
+    const blinkPeriod = Math.max(24, Math.round(90 - iv * 60)); // more intense = faster
+    const blinkDuration = Math.max(2, Math.round(3 + iv * 4));
+    const blinking = anim && iv > 0.05 && (frame % blinkPeriod) < blinkDuration;
+    const pulse = anim ? 0.5 + 0.5 * Math.sin(frame / 6) * (0.4 + iv * 0.6) : 0.7;
 
     ctx.save();
     ctx.clearRect(0, 0, size, size);
@@ -718,7 +723,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     }
     ctx.fillRect(0, 0, size, size);
 
-    ctx.globalAlpha = 0.08;
+    const scanAlpha = 0.02 + iv * 0.16;
+    ctx.globalAlpha = scanAlpha;
     const shift = anim ? frame % 3 : 0;
     for (let y = shift; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
     ctx.globalAlpha = 1;
@@ -750,15 +756,16 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       ctx.fillText("🐦", size/2, size*0.65);
     }
 
-    const hatBob = anim ? Math.sin(frame / 8) * 3 : 0;
+    const hatBob = anim ? Math.sin(frame / 8) * (1 + iv * 4) : 0;
     ctx.font = `bold ${size*0.176}px 'Apple Color Emoji','Segoe UI Emoji',sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(employee.hat, size*0.72 + jx, size*0.32 + hatBob);
 
-    if (anim && (frame % 30) < 18) {
+    const livePeriod = Math.max(14, Math.round(40 - iv * 26));
+    if (anim && (frame % livePeriod) < Math.round(livePeriod * 0.6)) {
       ctx.save();
       ctx.fillStyle = "#ff2e63";
-      ctx.shadowColor = "#ff2e63"; ctx.shadowBlur = 12;
+      ctx.shadowColor = "#ff2e63"; ctx.shadowBlur = 8 + iv * 14;
       ctx.beginPath(); ctx.arc(size*0.12, size*0.11, size*0.018, 0, Math.PI*2); ctx.fill();
       ctx.restore();
       ctx.fillStyle = "#fff";
