@@ -1088,11 +1088,11 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
 function BirdOfTheDay({ onFire }: { onFire: () => void }) {
   const [idx, setIdx] = useState(0);
   const [fired, setFired] = useState(0);
-  const emp = CREW[idx]!;
+  const emp = EMPLOYEES[idx]!;
   const fire = () => {
     onFire();
     setFired((f) => f + 1);
-    setTimeout(() => setIdx((i) => (i + 1 + Math.floor(Math.random() * (CREW.length - 1))) % CREW.length), 400);
+    setTimeout(() => setIdx((i) => (i + 1 + Math.floor(Math.random() * (EMPLOYEES.length - 1))) % EMPLOYEES.length), 400);
   };
   return (
     <div id="bird-of-the-day" className="rounded-lg border-2 border-mustard/50 bg-card p-4">
