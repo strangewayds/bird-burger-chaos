@@ -34,7 +34,7 @@ const ING_META: Record<Ing, { color: string; label: string; emoji: string }> = {
   nugget: { color: "#22D3EE", label: "Nuggets", emoji: "🍗" },
 };
 
-type StationKind = "fridge" | "cutting" | "raw_patty" | "cheese" | "sauce" | "grill" | "fryer" | "drink" | "assembly" | "pickup" | "extinguisher";
+type StationKind = "fridge" | "cutting" | "raw_patty" | "cheese" | "sauce" | "grill" | "fryer" | "drink" | "assembly" | "pickup" | "extinguisher" | "mop";
 
 type Station = {
   id: string;
