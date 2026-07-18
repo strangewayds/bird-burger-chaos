@@ -256,6 +256,7 @@ function BirdBurgerPage() {
         <TodaysSpecials />
         <RecentActivityCard wallet={wallet} />
       </div>
+      <PfpCreator onDownload={() => earn(40)} />
       <PurpleBand bucks={bucks} wallet={wallet} onDownload={() => earn(20)} />
       <Menu onOrder={(name) => { setOrderItem(name); play("bell"); earn(50); }} />
       <Reviews />
