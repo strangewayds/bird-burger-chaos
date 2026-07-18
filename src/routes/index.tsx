@@ -29,6 +29,7 @@ import {
   Trophy,
   Receipt,
   Download,
+  Shuffle,
 } from "lucide-react";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
