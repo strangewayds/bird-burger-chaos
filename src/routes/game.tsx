@@ -2296,6 +2296,37 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             <StatRow label="Pigeons Chased" value={statsRef.current.pigeonsChased} />
             <StatRow label="Dropped" value={statsRef.current.dropped} />
           </div>
+          {(() => {
+            const mop = mopRef.current;
+            const chargePct = mop.has ? mop.charges / mop.max : 0;
+            const empty = mop.has && mop.charges === 0;
+            const borderColor = !mop.has ? "border-white/20" : empty ? "border-[#EF4444]" : "border-[#22D3EE]/60";
+            return (
+              <div className={`rounded-lg border-2 ${borderColor} bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur`}>
+                <div className="mb-1 flex items-center justify-between font-black text-[#22D3EE]">
+                  <span>🪣 MOP BUCKET</span>
+                  <span className={empty ? "text-[#EF4444]" : "text-white/70"}>
+                    {mop.has ? `${mop.charges}/${mop.max}` : "MISSING"}
+                  </span>
+                </div>
+                {mop.has ? (
+                  <>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full transition-[width] duration-150"
+                        style={{ width: `${chargePct * 100}%`, background: empty ? "#EF4444" : chargePct > 0.4 ? "#22D3EE" : "#FACC15" }}
+                      />
+                    </div>
+                    <div className="mt-1 text-white/60">
+                      {empty ? "Return to 🪣 to refill." : "E / SPACE to mop spills."}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-white/60">Grab the 🪣 bucket to mop grease spills.</div>
+                )}
+              </div>
+            );
+          })()}
           {firesRef.current.length > 0 && (() => {
             const worst = firesRef.current.reduce((a, b) => (a.danger < b.danger ? a : b));
             const pct = Math.max(0, Math.min(1, worst.danger / worst.dangerMax));
