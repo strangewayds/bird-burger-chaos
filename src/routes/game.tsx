@@ -969,6 +969,10 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
         p.hopPhase += (target - p.hopPhase) * Math.min(1, dt * 8);
       }
       const curSin = Math.sin(p.hopPhase);
+      // Takeoff detection: sin crossed from ~0 upward while moving
+      if (mag > 0 && prevSin <= 0.05 && curSin > 0.05) {
+        sfxRef.current.hop(dashing ? 1.15 : 0.9);
+      }
       // Landing detection: sin crossed from positive to non-positive while moving
       if (mag > 0 && prevSin > 0.05 && curSin <= 0) {
         const fx = p.x;
@@ -996,6 +1000,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
           particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: (dashing ? 22 : 16) * (0.7 + 0.3 * scale), color: "#FFF6C2", kind: "flash" });
         }
         p.landT = dashing ? 0.16 : 0.13;
+        sfxRef.current.land(dashing ? 1.2 : 0.85);
       }
       lastHopSinRef.current = curSin;
       p.landT = Math.max(0, p.landT - dt);
