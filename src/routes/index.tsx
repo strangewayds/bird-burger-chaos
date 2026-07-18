@@ -1113,7 +1113,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
           >
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-robin">Seamless loop · {LOOP_LEN} frames · ~2s</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-robin">Seamless loop · {LOOP_LEN} frames · ~2s · {gifPreview.platform === "x" ? "𝕏 CIRCLE" : "DISCORD ROUNDED"}</div>
                 <div className="font-display text-lg tracking-widest">PREVIEW YOUR GIF</div>
               </div>
               <button
