@@ -732,6 +732,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   // Touch controls (mobile)
   const touchRef = useRef<{ dx: number; dy: number } | null>(null);
   const [showTouch, setShowTouch] = useState(false);
+  const [hudOpen, setHudOpen] = useState(false);
   useEffect(() => {
     setShowTouch("ontouchstart" in window);
   }, []);
