@@ -676,6 +676,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   const [handle, setHandle] = useState("@bird_burger");
   const [showBadge, setShowBadge] = useState(true);
   const [animated, setAnimated] = useState(true);
+  const [intensity, setIntensity] = useState(60);
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
