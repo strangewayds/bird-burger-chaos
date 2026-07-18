@@ -2305,6 +2305,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             <StatRow label="Pigeons Chased" value={statsRef.current.pigeonsChased} />
             <StatRow label="Dropped" value={statsRef.current.dropped} />
           </div>
+          )}
           {(() => {
             const mop = mopRef.current;
             const chargePct = mop.has ? mop.charges / mop.max : 0;
