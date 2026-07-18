@@ -1211,17 +1211,55 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     // Fires
     for (const fi of firesRef.current) {
       const cx = fi.x * W, cy = fi.y * H;
+      // danger ring — pulses faster + turns redder as timer drops
+      const dpct = Math.max(0, Math.min(1, fi.danger / fi.dangerMax));
+      const pulseRate = 3 + (1 - dpct) * 12;
+      const ringPulse = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * pulseRate);
+      ctx.save();
+      ctx.lineWidth = 3 + (1 - dpct) * 3;
+      ctx.strokeStyle = `rgba(239,68,68,${0.35 + 0.5 * ringPulse * (1 - dpct)})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 26 + (1 - dpct) * 6, 0, Math.PI * 2);
+      ctx.stroke();
+      // danger arc (remaining time)
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = dpct > 0.5 ? "#FACC15" : dpct > 0.25 ? "#F97316" : "#EF4444";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * dpct);
+      ctx.stroke();
+      ctx.restore();
+      // flames
       for (let i = 0; i < 5; i++) {
-        const t = Math.sin(performance.now()/120 + i) * 6;
+        const tt = Math.sin(performance.now()/120 + i) * 6;
         ctx.fillStyle = i % 2 ? "#FACC15" : "#EF4444";
         ctx.beginPath();
-        ctx.arc(cx + (i-2)*10, cy + t - 10, 12 - i*1.2, 0, Math.PI*2);
+        ctx.arc(cx + (i-2)*10, cy + tt - 10, 12 - i*1.2, 0, Math.PI*2);
         ctx.fill();
       }
       ctx.fillStyle = "#FFF";
       ctx.font = "bold 12px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText("🔥 FIRE!", cx, cy + 30);
+      ctx.fillText(`🔥 ${fi.danger.toFixed(1)}s`, cx, cy + 30);
+      // spray cone from player
+      if (fi.sprayT > 0.05) {
+        const px = playerRef.current.x * W, py = playerRef.current.y * H;
+        const ang = Math.atan2(cy - py, cx - px);
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(ang);
+        const len = Math.hypot(cx - px, cy - py);
+        const grad = ctx.createLinearGradient(0, 0, len, 0);
+        grad.addColorStop(0, `rgba(226,232,240,${0.75 * fi.sprayT})`);
+        grad.addColorStop(1, "rgba(226,232,240,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(len, -len * 0.18);
+        ctx.lineTo(len, len * 0.18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
     // Fryer flare-up ring (expanding radial burst)
