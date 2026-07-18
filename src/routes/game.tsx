@@ -512,6 +512,14 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   const [perfActive, setPerfActive] = useState(false);
   const [perfFps, setPerfFps] = useState(60);
 
+  // Motion sensitivity — reduces shake, flash, and squash/stretch for accessibility
+  const motionRef = useRef({
+    mode: (typeof localStorage !== "undefined" && (localStorage.getItem("bb_motion") as any)) || "full", // "full" | "reduced"
+    scale: 1, // motion multiplier applied at render time (1 full, 0.25 reduced)
+  });
+  motionRef.current.scale = motionRef.current.mode === "reduced" ? 0.25 : 1;
+  const [motionMode, setMotionMode] = useState<"full" | "reduced">(motionRef.current.mode);
+
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
   const [score, setScore] = useState(0);
@@ -1416,12 +1424,13 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     if (!ctx) return;
     const W = cv.width, H = cv.height;
     ctx.clearRect(0, 0, W, H);
-    // Screen shake + drunk-cam wobble
-    const shakeAmt = shakeRef.current;
+    // Screen shake + drunk-cam wobble (scaled by motion sensitivity)
+    const M = motionRef.current.scale;
+    const shakeAmt = shakeRef.current * M;
     const buzz = viceRef.current.buzz;
     const t = performance.now() / 1000;
-    const sx = (shakeAmt > 0 ? (Math.random() - 0.5) * shakeAmt * 24 : 0) + (buzz > 0 ? Math.sin(t * 1.7) * 6 * Math.min(1, buzz) : 0);
-    const sy = (shakeAmt > 0 ? (Math.random() - 0.5) * shakeAmt * 24 : 0) + (buzz > 0 ? Math.cos(t * 1.3) * 4 * Math.min(1, buzz) : 0);
+    const sx = (shakeAmt > 0 ? (Math.random() - 0.5) * shakeAmt * 24 : 0) + (buzz > 0 ? Math.sin(t * 1.7) * 6 * Math.min(1, buzz) * M : 0);
+    const sy = (shakeAmt > 0 ? (Math.random() - 0.5) * shakeAmt * 24 : 0) + (buzz > 0 ? Math.cos(t * 1.3) * 4 * Math.min(1, buzz) * M : 0);
     ctx.save();
     ctx.translate(sx, sy);
 
@@ -1790,8 +1799,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     const headBobPx = moving ? -Math.cos(p.hopPhase * 2) * 1.6 * hopAmp : Math.sin(p.idleT * 2.6) * 0.6;
     // Head sway: gentle side-to-side wobble in the sprite's local X, faces travel direction
     const headSwayPx = moving ? Math.sin(p.hopPhase) * 0.9 * p.face : 0;
-    const scaleY = 1 + airT * 0.14 * hopAmp - landSquashY - antiT + breatheY;
-    const scaleX = 1 - airT * 0.07 * hopAmp + landStretchX + antiT * 0.6 + breatheX + wingFlap + idleFlap;
+    const scaleY = 1 + airT * 0.14 * hopAmp * M - landSquashY * M - antiT * M + breatheY;
+    const scaleX = 1 - airT * 0.07 * hopAmp * M + landStretchX * M + antiT * 0.6 * M + breatheX + wingFlap + idleFlap;
     // shadow (shrinks when airborne; expands briefly on landing)
     const shadowScale = (1 - airT * 0.55) * (1 + landK * 0.15);
     ctx.fillStyle = `rgba(0,0,0,${0.5 - airT * 0.25})`;
@@ -1944,12 +1953,13 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     ctx.restore();
     // Explosion flash overlay (drawn without transform)
     if (explosionRef.current > 0) {
-      ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current})`;
+      ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current * M})`;
       ctx.fillRect(0, 0, W, H);
     }
     // Smoke alarm overlay: pulsing red vignette + strobe banner
     if (alarmRef.current.life > 0) {
-      const pulse = 0.5 + 0.5 * Math.sin(alarmRef.current.strobe);
+      // in reduced motion, freeze strobe at mid-brightness (no flashing)
+      const pulse = motionRef.current.mode === "reduced" ? 0.5 : 0.5 + 0.5 * Math.sin(alarmRef.current.strobe);
       // red edge vignette
       const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
       vg.addColorStop(0, "rgba(239,68,68,0)");
@@ -2158,6 +2168,35 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             </div>
             <div className="mt-1 text-[8px] leading-tight text-white/50">
               {perfMode === "auto" ? "Auto-cuts dust & flashes when it gets hectic." : perfMode === "high" ? "Every spark, every puff." : "Minimal particles for smooth play."}
+            </div>
+          </div>
+
+          {/* Motion sensitivity toggle */}
+          <div className="rounded-lg border-2 border-[#A78BFA]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+            <div className="mb-1 flex items-center justify-between font-black text-[#A78BFA]">
+              <span>MOTION</span>
+              <span className="text-[9px] text-white/60">{motionMode === "reduced" ? "GENTLE" : "SPICY"}</span>
+            </div>
+            <div className="flex gap-1">
+              {(["full", "reduced"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    motionRef.current.mode = m;
+                    motionRef.current.scale = m === "reduced" ? 0.25 : 1;
+                    try { localStorage.setItem("bb_motion", m); } catch {}
+                    setMotionMode(m);
+                  }}
+                  className={`flex-1 rounded border-2 px-1.5 py-1 text-[9px] font-black transition ${
+                    motionMode === m
+                      ? "border-[#A78BFA] bg-[#A78BFA]/25 text-[#A78BFA]"
+                      : "border-white/20 bg-white/5 text-white/60 hover:border-white/40"
+                  }`}
+                >{m === "full" ? "FULL" : "REDUCED"}</button>
+              ))}
+            </div>
+            <div className="mt-1 text-[8px] leading-tight text-white/50">
+              {motionMode === "reduced" ? "Softer shake, no strobe flashing, gentler squash." : "Full shake, flash & squash chaos."}
             </div>
           </div>
         </div>
