@@ -1958,7 +1958,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     }
     // Smoke alarm overlay: pulsing red vignette + strobe banner
     if (alarmRef.current.life > 0) {
-      const pulse = 0.5 + 0.5 * Math.sin(alarmRef.current.strobe);
+      // in reduced motion, freeze strobe at mid-brightness (no flashing)
+      const pulse = motionRef.current.mode === "reduced" ? 0.5 : 0.5 + 0.5 * Math.sin(alarmRef.current.strobe);
       // red edge vignette
       const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
       vg.addColorStop(0, "rgba(239,68,68,0)");
