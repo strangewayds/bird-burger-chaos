@@ -679,6 +679,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   const [intensity, setIntensity] = useState(60);
   const [exporting, setExporting] = useState(false);
   const [exportPct, setExportPct] = useState(0);
+  const [gifPreview, setGifPreview] = useState<{ url: string; blob: Blob } | null>(null);
+  const LOOP_LEN = 30;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const imgReady = useRef(false);
@@ -695,16 +697,29 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
-  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number) => {
+  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number, loopLen: number = LOOP_LEN) => {
     const iv = (intensityOverride ?? intensity) / 100; // 0..1
+    // Normalize into a single loop so first and last frame align exactly.
+    const fMod = ((frame % loopLen) + loopLen) % loopLen;
+    const phase = fMod / loopLen; // 0..1
+    const twoPi = Math.PI * 2;
+
+    // Jitter: sinusoidal so it returns to origin at phase 0/1 (seamless).
     const jitterAmp = anim ? Math.max(1, Math.round(iv * 4)) : 0;
-    const jRange = jitterAmp * 2 + 1;
-    const jx = anim ? ((frame * 73) % jRange) - jitterAmp : 0;
-    const jy = anim ? ((frame * 131) % jRange) - jitterAmp : 0;
-    const blinkPeriod = Math.max(24, Math.round(90 - iv * 60)); // more intense = faster
-    const blinkDuration = Math.max(2, Math.round(3 + iv * 4));
-    const blinking = anim && iv > 0.05 && (frame % blinkPeriod) < blinkDuration;
-    const pulse = anim ? 0.5 + 0.5 * Math.sin(frame / 6) * (0.4 + iv * 0.6) : 0.7;
+    const jx = anim ? Math.round(Math.sin(twoPi * phase) * jitterAmp) : 0;
+    const jy = anim ? Math.round(Math.cos(twoPi * phase * 2) * jitterAmp) : 0;
+
+    // Blinks: integer number of blinks per loop, each blink at a fixed phase.
+    const blinksPerLoop = anim && iv > 0.05 ? Math.min(3, Math.max(1, Math.round(iv * 3))) : 0;
+    const blinkDuration = Math.max(2, Math.round(2 + iv * 3));
+    let blinking = false;
+    if (blinksPerLoop > 0) {
+      const seg = loopLen / blinksPerLoop; // 30/{1,2,3} → integer
+      const posInSeg = fMod % seg;
+      blinking = posInSeg < blinkDuration;
+    }
+
+    const pulse = anim ? 0.5 + 0.5 * Math.sin(twoPi * phase) * (0.4 + iv * 0.6) : 0.7;
 
     ctx.save();
     ctx.clearRect(0, 0, size, size);
@@ -725,7 +740,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
 
     const scanAlpha = 0.02 + iv * 0.16;
     ctx.globalAlpha = scanAlpha;
-    const shift = anim ? frame % 3 : 0;
+    // loopLen (30) is divisible by 3, so mod-3 shift is also seamless.
+    const shift = anim ? fMod % 3 : 0;
     for (let y = shift; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
     ctx.globalAlpha = 1;
 
@@ -756,13 +772,22 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       ctx.fillText("🐦", size/2, size*0.65);
     }
 
-    const hatBob = anim ? Math.sin(frame / 8) * (1 + iv * 4) : 0;
+    // Hat bob: 2 full cycles per loop → returns to origin at seam.
+    const hatBob = anim ? Math.sin(twoPi * phase * 2) * (1 + iv * 4) : 0;
     ctx.font = `bold ${size*0.176}px 'Apple Color Emoji','Segoe UI Emoji',sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(employee.hat, size*0.72 + jx, size*0.32 + hatBob);
 
-    const livePeriod = Math.max(14, Math.round(40 - iv * 26));
-    if (anim && (frame % livePeriod) < Math.round(livePeriod * 0.6)) {
+    // LIVE dot: integer flashes per loop from the set of loopLen divisors {1,2,3,5}.
+    const FLASHES = [1, 2, 3, 5];
+    const liveFlashes = anim ? FLASHES[Math.min(FLASHES.length - 1, Math.max(0, Math.round(iv * 3)))]! : 0;
+    let liveOn = false;
+    if (liveFlashes > 0) {
+      const seg = loopLen / liveFlashes;
+      const posInSeg = fMod % seg;
+      liveOn = posInSeg < seg * 0.6;
+    }
+    if (liveOn) {
       ctx.save();
       ctx.fillStyle = "#ff2e63";
       ctx.shadowColor = "#ff2e63"; ctx.shadowBlur = 8 + iv * 14;
@@ -830,8 +855,10 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     onDownload();
   };
 
-  const downloadGif = async () => {
+  const renderGif = async () => {
     if (exporting) return;
+    // Discard any stale preview when re-rendering.
+    if (gifPreview) { URL.revokeObjectURL(gifPreview.url); setGifPreview(null); }
     setExporting(true); setExportPct(0);
     try {
       const [{ default: GIF }, workerUrlMod] = await Promise.all([
@@ -842,7 +869,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       const off = document.createElement("canvas");
       off.width = size; off.height = size;
       const octx = off.getContext("2d")!;
-      const frames = 30;
+      const frames = LOOP_LEN;
       const delay = 66;
       if (!imgReady.current) {
         await new Promise<void>((res) => {
@@ -858,20 +885,18 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
         workerScript: (workerUrlMod as { default: string }).default,
       });
       const exportIntensity = animated ? intensity : Math.max(60, intensity);
+      // Render frames 0..LOOP_LEN-1. Because every animated quantity in
+      // drawFrame is periodic over LOOP_LEN, frame 0 and frame LOOP_LEN are
+      // pixel-identical → the GIF loops with no visible seam.
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i, true, exportIntensity);
+        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN);
         gif.addFrame(octx, { copy: true, delay });
       }
       gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
       gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `bird-burger-${employee.id}-${platform}.gif`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setGifPreview({ url, blob });
         setExporting(false); setExportPct(0);
-        onDownload();
       });
       gif.render();
     } catch (err) {
@@ -879,6 +904,23 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
       setExporting(false); setExportPct(0);
     }
   };
+
+  const confirmDownloadGif = () => {
+    if (!gifPreview) return;
+    const a = document.createElement("a");
+    a.href = gifPreview.url;
+    a.download = `bird-burger-${employee.id}-${platform}.gif`;
+    a.click();
+    onDownload();
+  };
+
+  const closeGifPreview = () => {
+    if (gifPreview) URL.revokeObjectURL(gifPreview.url);
+    setGifPreview(null);
+  };
+
+  useEffect(() => () => { if (gifPreview) URL.revokeObjectURL(gifPreview.url); }, [gifPreview]);
+
 
   const share = async () => {
     const text = `I got hired as ${employee.name} (${employee.role}) at Bird Burger 🐦🍔 — "${employee.quote}"`;
@@ -940,11 +982,11 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
               PNG
             </button>
             <button
-              onClick={downloadGif}
+              onClick={renderGif}
               disabled={exporting}
               className="rounded-md border-2 border-robin bg-robin px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition disabled:cursor-wait disabled:opacity-60"
             >
-              {exporting ? `RENDERING ${exportPct}%` : "ANIMATED GIF"}
+              {exporting ? `RENDERING ${exportPct}%` : "PREVIEW GIF LOOP"}
             </button>
           </div>
           <button onClick={share} className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-3 py-2 font-display text-xs tracking-widest text-cyan">
@@ -1029,6 +1071,56 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
           </div>
         </div>
       </div>
+
+      {gifPreview && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={closeGifPreview}
+          role="dialog"
+          aria-modal="true"
+          aria-label="GIF loop preview"
+        >
+          <div
+            className="w-full max-w-md rounded-lg border-2 border-robin bg-card p-5 shadow-[6px_6px_0_#000]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-robin">Seamless loop · {LOOP_LEN} frames · ~2s</div>
+                <div className="font-display text-lg tracking-widest">PREVIEW YOUR GIF</div>
+              </div>
+              <button
+                onClick={closeGifPreview}
+                className="rounded-md border border-ink/20 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-ink/70 hover:bg-ink/5"
+                aria-label="Close preview"
+              >✕</button>
+            </div>
+            <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-md border-2 border-grape/40 bg-black">
+              <img src={gifPreview.url} alt="Animated PFP loop preview" className="h-full w-full" />
+              <div className="pointer-events-none absolute left-2 top-2 rounded bg-black/70 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-robin">
+                ● LOOPING
+              </div>
+            </div>
+            <p className="mt-3 text-center font-mono text-[11px] italic text-ink/60">
+              First and last frames match — no seam. Not what you want? Tweak sliders and re-render.
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { closeGifPreview(); renderGif(); }}
+                className="rounded-md border-2 border-cyan bg-cyan/10 px-3 py-3 font-display text-xs tracking-widest text-cyan hover:bg-cyan/20 transition"
+              >
+                RE-RENDER
+              </button>
+              <button
+                onClick={() => { confirmDownloadGif(); closeGifPreview(); }}
+                className="rounded-md border-2 border-mustard bg-mustard px-3 py-3 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition"
+              >
+                DOWNLOAD GIF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
