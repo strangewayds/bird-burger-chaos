@@ -411,6 +411,8 @@ function BirdBurgerPage() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-bg text-ink grain">
+      <Toaster position="bottom-center" theme="dark" richColors />
+
       <Nav
         open={navOpen}
         setOpen={setNavOpen}
