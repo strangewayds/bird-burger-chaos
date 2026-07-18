@@ -362,7 +362,12 @@ function Hero({ onOrder, onBuy }: { onOrder: () => void; onBuy: () => void }) {
 
   return (
     <section id="top" className="relative overflow-hidden border-b-2 border-grape/30">
-      <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 py-10 md:grid-cols-2 md:py-16">
+      <div aria-hidden className="absolute inset-0 -z-10">
+        <img src={kitchenBg} alt="" width={1536} height={1024} className="h-full w-full object-cover opacity-40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-bg/70 via-bg/55 to-bg" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,140,0,0.18),transparent_50%)]" />
+      </div>
+      <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-10 md:grid-cols-2 md:py-16">
         <div className="relative z-10">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
