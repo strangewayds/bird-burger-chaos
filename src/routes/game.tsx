@@ -729,7 +729,8 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         const target = explode ? "grill" : (Math.random() < 0.5 ? "grill" : "fryer");
         const st = STATIONS.find((s) => s.id === target)!;
         if (!firesRef.current.some((fi) => fi.stationId === target)) {
-          firesRef.current.push({ x: st.x + st.w/2, y: st.y + st.h/2, stationId: target, life: 12 });
+          const dangerMax = explode ? 3.5 : (target === "grill" ? 5.5 : 7);
+          firesRef.current.push({ x: st.x + st.w/2, y: st.y + st.h/2, stationId: target, life: 12, danger: dangerMax, dangerMax, sprayT: 0 });
           statsRef.current.fires++;
           chaosRef.current = Math.min(6, chaosRef.current + (explode ? 1.5 : 1));
           if (explode) {
