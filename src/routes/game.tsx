@@ -694,19 +694,54 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           break;
         }
       }
-      // Facing: smoothly ease toward movement direction (continuous flip)
-      const faceTarget = Math.abs(dx) > 0.05 ? (dx > 0 ? 1 : -1) : (p.face === 0 ? 1 : (p.face > 0 ? 1 : -1));
-      // Anticipation lean: kick a pre-turn tilt when the target flips against current facing,
-      // so the bird leans into the new direction BEFORE it rotates through.
-      if (Math.sign(faceTarget) !== 0 && Math.sign(faceTarget) !== Math.sign(p.face) && Math.sign(p.leanDir) !== Math.sign(faceTarget)) {
-        p.leanDir = Math.sign(faceTarget);
-        p.lean = 1; // fresh anticipation impulse
+      // Facing: weighted-average of recent horizontal input, driven by a critically-damped spring
+      // to eliminate jitter on rapid direction changes (angular-velocity smoothing).
+      {
+        const hist = dirHistoryRef.current;
+        // Push current sample; weight scales with input magnitude so idle frames don't dilute intent
+        hist.push({ dx, w: Math.min(1, Math.abs(dx) * 4 + 0.05) });
+        // Keep ~180ms window (assuming ~60fps → ~11 samples). Trim by time via dt accumulator would be ideal;
+        // a fixed cap works reliably enough for smoothing purposes.
+        if (hist.length > 12) hist.shift();
+        // Exponentially-weighted average (newer samples weigh more)
+        let sum = 0, wsum = 0;
+        for (let i = 0; i < hist.length; i++) {
+          const recency = Math.pow(0.82, hist.length - 1 - i); // most recent = 1
+          const w = hist[i].w * recency;
+          sum += hist[i].dx * w;
+          wsum += w;
+        }
+        const dirAvgRaw = wsum > 0 ? sum / wsum : (p.face >= 0 ? 1 : -1);
+        // Deadband: below threshold, hold last facing to prevent zero-crossing jitter
+        const active = Math.abs(dirAvgRaw) > 0.06;
+        p.dirAvg = active ? dirAvgRaw : p.dirAvg;
+        const faceTarget = active
+          ? (p.dirAvg > 0 ? 1 : -1)
+          : (p.face >= 0 ? 1 : -1);
+
+        // Anticipation lean triggers on target flip (uses smoothed target, not raw input)
+        if (Math.sign(faceTarget) !== 0 && Math.sign(faceTarget) !== Math.sign(p.face) && Math.sign(p.leanDir) !== Math.sign(faceTarget)) {
+          p.leanDir = Math.sign(faceTarget);
+          p.lean = 1;
+        }
+        p.lean = Math.max(0, p.lean - dt * 3.6);
+
+        // Critically-damped spring: face -> faceTarget with angular velocity faceVel
+        // omega = natural freq (rad/s); zeta = 1 for critical damping (no overshoot, no ringing)
+        const omega = 9.0;
+        const zeta = 1.0;
+        const err = faceTarget - p.face;
+        const accel = omega * omega * err - 2 * zeta * omega * p.faceVel;
+        // Clamp dt for spring stability on frame hitches
+        const sdt = Math.min(dt, 1 / 30);
+        p.faceVel += accel * sdt;
+        p.face += p.faceVel * sdt;
+        // Micro-damp tiny residual velocity to eliminate sub-pixel jitter when settled
+        if (Math.abs(err) < 0.002 && Math.abs(p.faceVel) < 0.05) {
+          p.face = faceTarget;
+          p.faceVel = 0;
+        }
       }
-      // Decay lean impulse (~0.28s falloff)
-      p.lean = Math.max(0, p.lean - dt * 3.6);
-      // Slower face rate so anticipation is visible before the flip completes
-      const faceRate = 7.5;
-      p.face += (faceTarget - p.face) * Math.min(1, dt * faceRate);
       // Hop animation: advance phase only while moving; faster when dashing
       const prevSin = lastHopSinRef.current;
       if (mag > 0) {
