@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, VolumeX } from "lucide-react";
+import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, VolumeX, Vibrate, VibrateOff } from "lucide-react";
 import kitchenBg from "@/assets/game-kitchen.jpg";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 
