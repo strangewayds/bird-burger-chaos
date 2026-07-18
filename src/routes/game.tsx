@@ -951,8 +951,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
               kind: "dust",
             });
           }
-          // Small crisp pixel-flash at the pivot point (skipped under perf pressure)
-          if (scale2 > 0.55 || Math.random() < scale2) {
+          // Small crisp pixel-flash at the pivot point (skipped under perf pressure or reduced motion)
+          if (motionRef.current.mode !== "reduced" && (scale2 > 0.55 || Math.random() < scale2)) {
             particlesRef.current.push({
               x: fx, y: fy, vx: 0, vy: 0, life: 0,
               max: 0.14,
