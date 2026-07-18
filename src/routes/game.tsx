@@ -212,10 +212,13 @@ type Outcome = "win" | "evicted" | "shutdown";
 /* ─────────────────────────  COMPONENT  ───────────────────────── */
 
 function GamePage() {
-  // ?autostart skips the start screen (used for automated visual testing)
-  const [phase, setPhase] = useState<Phase>(() =>
-    typeof window !== "undefined" && window.location.search.includes("autostart") ? "playing" : "start",
-  );
+  // ?autostart skips the start screen (used for automated visual testing).
+  // Applied post-mount so SSR and client hydrate identically.
+  const [phase, setPhase] = useState<Phase>("start");
+  useEffect(() => {
+    if (window.location.search.includes("autostart")) setPhase("playing");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [employee, setEmployee] = useState(EMPLOYEES[0]);
   const [showHelp, setShowHelp] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -1025,13 +1028,14 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   const timeRef = useRef(SHIFT_SECONDS);
   const inspectorRef = useRef(-1); // >=0 while the shutdown countdown is running
   const [inspectorT, setInspectorT] = useState(-1);
-  // Phones: the shift STARTS in takeover mode — no button hunting, the game just fills the screen
-  // (?fstest forces it for automated visual testing)
-  const [isFs, setIsFs] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      (window.matchMedia("(pointer: coarse) and (max-width: 1023px)").matches || window.location.search.includes("fstest")),
-  );
+  // Phones: the shift STARTS in takeover mode — no button hunting, the game just fills the screen.
+  // Set after mount (not in the initializer) so SSR and first client render match — no hydration mismatch.
+  const [isFs, setIsFs] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(pointer: coarse) and (max-width: 1023px)").matches || window.location.search.includes("fstest")) {
+      setIsFs(true);
+    }
+  }, []);
 
   // While the game owns the screen, the page must not scroll or rubber-band underneath it
   useEffect(() => {
@@ -1844,7 +1848,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
             floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "OSHA WHO?", color: "#EF4444", life: 1.2 });
           }
         }
-        fireCd = (explode ? 14 : 10) + Math.random() * 10;
+        fireCd = (explode ? 26 : 20) + Math.random() * 14;
         // Explosions also splatter grease
         if (explode) {
           for (let i = 0; i < 3; i++) {
@@ -1871,8 +1875,11 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       if (spillCd <= 0 && spillsRef.current.length < spillCap && !inTutorial) {
         const spawnCount = 1 + (comboN >= 3 ? 1 : 0) + (comboN >= 6 ? 1 : 0);
         for (let i = 0; i < spawnCount; i++) {
+          // Roll the target ONCE — rolling inside the callback made find() miss
+          // entirely ~17% of the time, crashing the game loop mid-shift.
+          const spillTarget = Math.random() < 0.5 ? "grill" : "fryer";
           const near = Math.random() < 0.7
-            ? STATIONS.find((s) => s.id === (Math.random() < 0.5 ? "grill" : "fryer"))!
+            ? STATIONS.find((s) => s.id === spillTarget)!
             : STATIONS[Math.floor(Math.random() * STATIONS.length)];
           const ang = Math.random() * Math.PI * 2;
           const rad = 0.05 + Math.random() * 0.1;
@@ -2165,12 +2172,12 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       floatsRef.current = floatsRef.current.filter((fl) => fl.life > 0);
 
       // Chaos slowly cools off (Gary cools it faster) so a bad stretch is recoverable
-      chaosRef.current = Math.max(0, chaosRef.current - dt * 0.055 * employee.calm);
+      chaosRef.current = Math.max(0, chaosRef.current - dt * 0.085 * employee.calm);
       if (viceAnimRef.current.t > 0) viceAnimRef.current.t -= dt;
 
       // HEALTH INSPECTOR: chaos pegged at max starts a 5s shutdown countdown
       if (chaosRef.current >= 5.75) {
-        if (inspectorRef.current < 0) inspectorRef.current = 5;
+        if (inspectorRef.current < 0) inspectorRef.current = 8;
         inspectorRef.current -= dt;
         if (inspectorRef.current <= 0) {
           cancelAnimationFrame(raf);
