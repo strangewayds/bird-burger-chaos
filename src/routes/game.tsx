@@ -354,6 +354,16 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   type Trail = { x: number; y: number; face: number; hopY: number; t: number };
   const trailRef = useRef<Trail[]>([]);
   const lastDrawTimeRef = useRef<number>(0);
+  // Perf mode — caps particles + throttles flashes when the kitchen gets busy
+  const perfRef = useRef({
+    mode: (typeof localStorage !== "undefined" && (localStorage.getItem("bb_perf") as any)) || "auto", // "auto" | "low" | "high"
+    fps: 60,
+    scale: 1, // 0..1 — effective particle budget
+    active: false, // true when auto-reducer engaged
+  });
+  const [perfMode, setPerfMode] = useState<"auto" | "low" | "high">(perfRef.current.mode);
+  const [perfActive, setPerfActive] = useState(false);
+  const [perfFps, setPerfFps] = useState(60);
 
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
@@ -623,6 +633,34 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
+      // FPS tracking + perf-mode scale
+      {
+        const instFps = dt > 0 ? 1 / dt : 60;
+        const pr = perfRef.current;
+        pr.fps = pr.fps * 0.92 + instFps * 0.08;
+        let targetScale = 1;
+        if (pr.mode === "low") targetScale = 0.35;
+        else if (pr.mode === "high") targetScale = 1;
+        else {
+          // auto: react to fps AND on-screen busy-ness
+          const busy = firesRef.current.length + signsRef.current.length + spillsRef.current.length * 0.5 + pigeonsRef.current.length + (explosionRef.current > 0.1 ? 3 : 0);
+          if (pr.fps < 30 || busy > 10) targetScale = 0.25;
+          else if (pr.fps < 45 || busy > 6) targetScale = 0.5;
+          else if (pr.fps < 55 || busy > 4) targetScale = 0.75;
+          else targetScale = 1;
+        }
+        pr.scale += (targetScale - pr.scale) * Math.min(1, dt * 3);
+        const wasActive = pr.active;
+        pr.active = pr.scale < 0.9;
+        // cap live particle count
+        const cap = Math.max(24, Math.floor(220 * pr.scale));
+        if (particlesRef.current.length > cap) {
+          particlesRef.current.splice(0, particlesRef.current.length - cap);
+        }
+        if (pr.active !== wasActive) setPerfActive(pr.active);
+      }
+
+
       // Movement
       const p = playerRef.current;
       let dx = 0, dy = 0;
@@ -674,7 +712,9 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       if (mag > 0 && prevSin > 0.05 && curSin <= 0) {
         const fx = p.x;
         const fy = p.y + 0.03; // at feet (normalized)
-        const count = dashing ? 10 : 6;
+        const scale = perfRef.current.scale;
+        const baseCount = dashing ? 10 : 6;
+        const count = Math.max(1, Math.round(baseCount * scale));
         for (let i = 0; i < count; i++) {
           const ang = Math.PI + (Math.random() - 0.5) * Math.PI * 0.9;
           const spd = 0.05 + Math.random() * (dashing ? 0.11 : 0.07);
@@ -690,7 +730,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
             kind: "dust",
           });
         }
-        particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: dashing ? 22 : 16, color: "#FFF6C2", kind: "flash" });
+        // Flash: skip probabilistically when perf-mode is reducing effects
+        if (scale > 0.55 || Math.random() < scale) {
+          particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: (dashing ? 22 : 16) * (0.7 + 0.3 * scale), color: "#FFF6C2", kind: "flash" });
+        }
         p.landT = dashing ? 0.16 : 0.13;
       }
       lastHopSinRef.current = curSin;
@@ -953,7 +996,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
             fi.life -= dt * 6;
             fi.danger = Math.min(fi.dangerMax, fi.danger + dt * 2); // resets timer
             // spray particles
-            if (Math.random() < 0.85) {
+            if (Math.random() < 0.85 * perfRef.current.scale) {
               const ang = Math.atan2(fi.y - playerRef.current.y, fi.x - playerRef.current.x) + (Math.random() - 0.5) * 0.5;
               particlesRef.current.push({
                 type: "dust",
@@ -1058,6 +1101,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         setScore(scoreRef.current);
         setChaos(chaosRef.current);
         setTick((t) => t + 1);
+        setPerfFps(Math.round(perfRef.current.fps));
       }
 
       draw();
@@ -1799,7 +1843,36 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
               </div>
             );
           })()}
+
+          {/* Perf mode toggle */}
+          <div className="rounded-lg border-2 border-[#22D3EE]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+            <div className="mb-1 flex items-center justify-between font-black text-[#22D3EE]">
+              <span>PERF MODE</span>
+              <span className={`text-[9px] ${perfFps < 40 ? "text-[#EF4444]" : perfFps < 55 ? "text-[#FACC15]" : "text-white/60"}`}>{perfFps} FPS{perfActive ? " · LEAN" : ""}</span>
+            </div>
+            <div className="flex gap-1">
+              {(["auto", "high", "low"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    perfRef.current.mode = m;
+                    try { localStorage.setItem("bb_perf", m); } catch {}
+                    setPerfMode(m);
+                  }}
+                  className={`flex-1 rounded border-2 px-1.5 py-1 text-[9px] font-black transition ${
+                    perfMode === m
+                      ? "border-[#22D3EE] bg-[#22D3EE]/25 text-[#22D3EE]"
+                      : "border-white/20 bg-white/5 text-white/60 hover:border-white/40"
+                  }`}
+                >{m === "auto" ? "AUTO" : m === "high" ? "FULL FX" : "LEAN"}</button>
+              ))}
+            </div>
+            <div className="mt-1 text-[8px] leading-tight text-white/50">
+              {perfMode === "auto" ? "Auto-cuts dust & flashes when it gets hectic." : perfMode === "high" ? "Every spark, every puff." : "Minimal particles for smooth play."}
+            </div>
+          </div>
         </div>
+
 
         {/* Top: order queue */}
         <div className="pointer-events-none absolute inset-x-0 top-2 mx-auto flex max-w-[62%] justify-center gap-2 md:top-4">
