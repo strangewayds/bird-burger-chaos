@@ -1808,8 +1808,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     ctx.ellipse(px, py + 28, 24 * shadowScale, 8 * shadowScale, 0, 0, Math.PI*2);
     ctx.fill();
 
-    // Dash smear trail (short, crisp silhouettes — not motion blur)
-    {
+    // Dash smear trail (short, crisp silhouettes — not motion blur). Disabled under reduced motion.
+    if (motionRef.current.mode !== "reduced") {
       const now = performance.now() / 1000;
       const ddt = lastDrawTimeRef.current ? Math.min(0.05, now - lastDrawTimeRef.current) : 1 / 60;
       lastDrawTimeRef.current = now;
