@@ -637,18 +637,52 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         }
       }
 
-      // Fires
+      // Fires + mishaps
       fireCd -= dt;
       if (fireCd <= 0) {
-        // random chance of fire at grill or fryer
-        const target = Math.random() < 0.5 ? "grill" : "fryer";
+        // random chance of fire at grill or fryer; small chance of GRILL EXPLOSION
+        const explode = Math.random() < 0.28;
+        const target = explode ? "grill" : (Math.random() < 0.5 ? "grill" : "fryer");
         const st = STATIONS.find((s) => s.id === target)!;
         if (!firesRef.current.some((fi) => fi.stationId === target)) {
           firesRef.current.push({ x: st.x + st.w/2, y: st.y + st.h/2, stationId: target, life: 12 });
           statsRef.current.fires++;
-          chaosRef.current = Math.min(6, chaosRef.current + 1);
+          chaosRef.current = Math.min(6, chaosRef.current + (explode ? 1.5 : 1));
+          if (explode) {
+            // knockback player away from station center, screen shake, flash
+            const px = playerRef.current.x, py = playerRef.current.y;
+            const dxk = px - (st.x + st.w/2);
+            const dyk = py - (st.y + st.h/2);
+            const dk = Math.hypot(dxk, dyk) || 1;
+            const dist = Math.min(0.22, 0.25 / (dk + 0.4));
+            playerRef.current.x = clamp(px + (dxk/dk) * dist, 0.02, 0.98);
+            playerRef.current.y = clamp(py + (dyk/dk) * dist, 0.10, 0.96);
+            playerRef.current.slipT = 0.6;
+            shakeRef.current = 0.55;
+            explosionRef.current = 1;
+            floatsRef.current.push({ x: st.x + st.w/2, y: st.y - 0.02, text: "💥 BOOM!", color: "#FACC15", life: 1.2 });
+            floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "OSHA WHO?", color: "#EF4444", life: 1.2 });
+          }
         }
-        fireCd = 10 + Math.random() * 10;
+        fireCd = (explode ? 14 : 10) + Math.random() * 10;
+      }
+      // shake / flash decay
+      shakeRef.current = Math.max(0, shakeRef.current - dt);
+      explosionRef.current = Math.max(0, explosionRef.current - dt * 1.6);
+      // vice cooldowns
+      viceRef.current.smokeCd = Math.max(0, viceRef.current.smokeCd - dt);
+      viceRef.current.drinkCd = Math.max(0, viceRef.current.drinkCd - dt);
+      viceRef.current.buzz = Math.max(0, viceRef.current.buzz - dt);
+      // fade minimap when player is near it (bottom-left)
+      if (minimapRef.current) {
+        const px = playerRef.current.x, py = playerRef.current.y;
+        // minimap approx region 0..0.15 x, 0.75..1 y
+        const nx = Math.max(0, Math.min(1, (0.18 - px) / 0.10));
+        const ny = Math.max(0, Math.min(1, (py - 0.72) / 0.10));
+        const near = Math.min(nx, ny);
+        const op = 1 - near * 0.85;
+        minimapRef.current.style.opacity = op.toFixed(3);
+        minimapRef.current.style.pointerEvents = near > 0.5 ? "none" : "auto";
       }
       // fire life
       firesRef.current.forEach((fi) => { fi.life -= dt; });
