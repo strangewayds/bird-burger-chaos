@@ -15,6 +15,8 @@ import {
   Flame,
   RefreshCw,
   ChevronDown,
+  ChevronRight,
+  Clock,
   Star,
   ShoppingBag,
   Bird,
