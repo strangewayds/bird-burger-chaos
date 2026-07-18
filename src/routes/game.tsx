@@ -2196,7 +2196,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
               ))}
             </div>
             <div className="mt-1 text-[8px] leading-tight text-white/50">
-              {motionMode === "reduced" ? "Softer shake, no strobe flashing, gentler squash." : "Full shake, flash & squash chaos."}
+              {motionMode === "reduced" ? "No dash trails or strobe flashes; softer shake & squash." : "Full shake, trails, flashes & squash chaos."}
             </div>
           </div>
         </div>
