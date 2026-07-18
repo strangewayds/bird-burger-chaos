@@ -786,10 +786,14 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     const phase = fMod / loopLen; // 0..1
     const twoPi = Math.PI * 2;
 
+    const sv = seedVariations(seedOverride ?? seed, loopLen);
+
     // Jitter: sinusoidal so it returns to origin at phase 0/1 (seamless).
+    // Seed shifts phase offset and picks integer freq for the vertical axis.
     const jitterAmp = anim ? Math.max(1, Math.round(iv * 4)) : 0;
-    const jx = anim ? Math.round(Math.sin(twoPi * phase) * jitterAmp) : 0;
-    const jy = anim ? Math.round(Math.cos(twoPi * phase * 2) * jitterAmp) : 0;
+    const jx = anim ? Math.round(Math.sin(twoPi * phase + sv.jitterPhase) * jitterAmp) : 0;
+    const jy = anim ? Math.round(Math.cos(twoPi * phase * sv.jitterFreq + sv.jitterPhase) * jitterAmp) : 0;
+
 
     // Blinks: integer number of blinks per loop, each blink at a fixed phase.
     const blinksPerLoop = anim && iv > 0.05 ? Math.min(3, Math.max(1, Math.round(iv * 3))) : 0;
