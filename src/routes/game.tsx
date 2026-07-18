@@ -1522,6 +1522,51 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current})`;
       ctx.fillRect(0, 0, W, H);
     }
+    // Smoke alarm overlay: pulsing red vignette + strobe banner
+    if (alarmRef.current.life > 0) {
+      const pulse = 0.5 + 0.5 * Math.sin(alarmRef.current.strobe);
+      // red edge vignette
+      const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+      vg.addColorStop(0, "rgba(239,68,68,0)");
+      vg.addColorStop(1, `rgba(239,68,68,${0.55 * pulse})`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, W, H);
+      // top strobe banner
+      const bh = 34;
+      ctx.fillStyle = pulse > 0.5 ? "#EF4444" : "#09090B";
+      ctx.fillRect(0, 0, W, bh);
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 2;
+      // hazard stripes
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, bh - 6, W, 6);
+      ctx.clip();
+      const off = (performance.now() / 40) % 24;
+      for (let x = -24 - off; x < W + 24; x += 24) {
+        ctx.fillStyle = "#FACC15";
+        ctx.beginPath();
+        ctx.moveTo(x, bh - 6);
+        ctx.lineTo(x + 12, bh - 6);
+        ctx.lineTo(x + 6, bh);
+        ctx.lineTo(x - 6, bh);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = pulse > 0.5 ? "#09090B" : "#FACC15";
+      ctx.font = "bold 16px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(`🚨 SMOKE ALARM — ${alarmRef.current.life.toFixed(1)}s`, W / 2, 22);
+      // corner strobe circle
+      const sx = W - 26, sy = 20;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 10 + pulse * 4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(239,68,68,${0.6 + 0.4 * pulse})`;
+      ctx.fill();
+      ctx.strokeStyle = "#FACC15";
+      ctx.stroke();
+    }
   }, [employee]);
 
   // Resize canvas
