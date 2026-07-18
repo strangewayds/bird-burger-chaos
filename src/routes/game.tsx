@@ -1034,6 +1034,44 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
               <div className="text-white/70">PUT IT OUT!</div>
             </motion.div>
           )}
+          {/* Vices — because the place has 1★ reviews anyway */}
+          <div className="rounded-lg border-2 border-[#FACC15]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+            <div className="mb-1 font-black text-[#FACC15]">SHIFT VICES</div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => {
+                  const v = viceRef.current;
+                  if (v.smokeCd > 0) return;
+                  v.smokeCd = 12; v.buzz = Math.min(2.5, v.buzz + 1.2);
+                  scoreRef.current += 15;
+                  chaosRef.current = Math.max(0, chaosRef.current - 0.75);
+                  setChaos(chaosRef.current);
+                  floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🚬 SMOKE BREAK", color: "#FACC15", life: 1.3 });
+                  setViceTick((n) => n + 1);
+                }}
+                disabled={viceRef.current.smokeCd > 0}
+                className="rounded border-2 border-[#FACC15]/70 bg-[#FACC15]/10 px-2 py-1 text-[10px] font-black text-[#FACC15] transition hover:bg-[#FACC15]/25 disabled:opacity-40"
+                title="Smoke a dart. Calms the chaos. Makes the room wobble."
+              >🚬 SMOKE</button>
+              <button
+                onClick={() => {
+                  const v = viceRef.current;
+                  if (v.drinkCd > 0) return;
+                  v.drinkCd = 15; v.buzz = Math.min(3, v.buzz + 2);
+                  scoreRef.current += 25;
+                  chaosRef.current = Math.max(0, chaosRef.current - 1);
+                  setChaos(chaosRef.current);
+                  playerRef.current.slipT = 0.8; // drunk feet
+                  floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "🍺 CRACK OPEN", color: "#22D3EE", life: 1.3 });
+                  setViceTick((n) => n + 1);
+                }}
+                disabled={viceRef.current.drinkCd > 0}
+                className="rounded border-2 border-[#22D3EE]/70 bg-[#22D3EE]/10 px-2 py-1 text-[10px] font-black text-[#22D3EE] transition hover:bg-[#22D3EE]/25 disabled:opacity-40"
+                title="Crack a cold one. Chaos drops. So does your motor control."
+              >🍺 BEER</button>
+            </div>
+            <div className="mt-1 text-[8px] leading-tight text-white/50">Reviews are already 1★. Live a little.</div>
+          </div>
         </div>
 
         {/* Top: order queue */}
