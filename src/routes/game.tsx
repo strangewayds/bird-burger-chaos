@@ -1299,8 +1299,17 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
         });
         spillCd = 7 + Math.random() * 8;
       }
-      // spill decay: shrink slowly + expire
-      spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.15); });
+      // spill decay: shrink slowly + expire (slower cleanT decay so player retains progress)
+      spillsRef.current.forEach((sp) => { sp.life -= dt; sp.cleanT = Math.max(0, sp.cleanT - dt * 0.1); });
+      // Combo timeout — expire chain if idle
+      {
+        const combo = cleanComboRef.current;
+        if (combo.count > 0 && performance.now() > combo.expires) {
+          combo.count = 0;
+          setCleanCombo(0);
+        }
+      }
+
       spillsRef.current = spillsRef.current.filter((sp) => sp.life > 0);
 
       // ─── KITCHEN DISASTERS ───
