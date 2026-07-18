@@ -400,7 +400,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       const cx = s.x + s.w / 2;
       const cy = s.y + s.h / 2;
       const d = Math.hypot(p.x - cx, p.y - cy);
-      const range = Math.max(s.w, s.h) * 0.9 + 0.04;
+      const range = Math.max(s.w, s.h) * 0.85 + 0.025;
       if (d < range && (!best || d < best.d)) best = { s, d };
     }
     return best?.s ?? null;
