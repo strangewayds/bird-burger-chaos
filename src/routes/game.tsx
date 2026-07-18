@@ -326,7 +326,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
 
   // Persistent refs (game loop reads/writes)
   const keysRef = useRef<Record<string, boolean>>({});
-  const playerRef = useRef({ x: 0.4, y: 0.55, vx: 0, vy: 0, dashCd: 0, slipT: 0, face: 1, moveT: 0, hopPhase: 0, landT: 0, hopIdx: -1, idleT: 0 });
+  const playerRef = useRef({ x: 0.4, y: 0.55, vx: 0, vy: 0, dashCd: 0, slipT: 0, face: 1, moveT: 0, hopPhase: 0, landT: 0, hopIdx: -1, idleT: 0, lean: 0, leanDir: 0 });
   const carryRef = useRef<Ing[]>([]);
   const ordersRef = useRef<Order[]>([]);
   const orderIdRef = useRef(1);
@@ -694,7 +694,16 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       }
       // Facing: smoothly ease toward movement direction (continuous flip)
       const faceTarget = Math.abs(dx) > 0.05 ? (dx > 0 ? 1 : -1) : (p.face === 0 ? 1 : (p.face > 0 ? 1 : -1));
-      const faceRate = 12; // higher = snappier
+      // Anticipation lean: kick a pre-turn tilt when the target flips against current facing,
+      // so the bird leans into the new direction BEFORE it rotates through.
+      if (Math.sign(faceTarget) !== 0 && Math.sign(faceTarget) !== Math.sign(p.face) && Math.sign(p.leanDir) !== Math.sign(faceTarget)) {
+        p.leanDir = Math.sign(faceTarget);
+        p.lean = 1; // fresh anticipation impulse
+      }
+      // Decay lean impulse (~0.28s falloff)
+      p.lean = Math.max(0, p.lean - dt * 3.6);
+      // Slower face rate so anticipation is visible before the flip completes
+      const faceRate = 7.5;
       p.face += (faceTarget - p.face) * Math.min(1, dt * faceRate);
       // Hop animation: advance phase only while moving; faster when dashing
       const prevSin = lastHopSinRef.current;
@@ -1580,7 +1589,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       if (moving) {
         const baseTilt = Math.max(-0.12, Math.min(0.12, p.vx * 0.6)) * p.face;
         const bigRoll = isBig ? Math.sin(p.hopPhase) * 0.08 * p.face : 0;
-        const tilt = baseTilt + bigRoll;
+        // Anticipation lean: eases out (1 - (1-lean)^2) and points to new direction in scaled space
+        const leanEase = 1 - (1 - p.lean) * (1 - p.lean);
+        const antic = leanEase * p.leanDir * 0.26 * (p.face >= 0 ? 1 : -1);
+        const tilt = baseTilt + bigRoll + antic;
         ctx.translate(pxs, py + 16);
         ctx.rotate(tilt);
         ctx.translate(-pxs, -(py + 16));
