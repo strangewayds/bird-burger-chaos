@@ -1051,8 +1051,11 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
           <button onClick={onQuit} className="self-end rounded border border-[#EF4444] bg-[#EF4444]/20 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#EF4444] hover:bg-[#EF4444]/40">Clock Out</button>
         </div>
 
-        {/* Bottom-left: minimap */}
-        <div className="absolute bottom-2 left-2 h-[110px] w-[160px] rounded-lg border-2 border-[#7C3AED] bg-[#09090B]/80 p-1 backdrop-blur md:bottom-4 md:left-4">
+        {/* Bottom-left: minimap (fades when player walks over it) */}
+        <div
+          ref={minimapRef}
+          className="absolute bottom-2 left-2 h-[110px] w-[160px] rounded-lg border-2 border-[#7C3AED] bg-[#09090B]/80 p-1 backdrop-blur transition-opacity duration-150 md:bottom-4 md:left-4"
+        >
           <div className="mb-0.5 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-[#EC4899]"><span>PIGEON MENACE</span><span className="text-[#FACC15]">MAP</span></div>
           <Minimap
             player={playerRef.current}
