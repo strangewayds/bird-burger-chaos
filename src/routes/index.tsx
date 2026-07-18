@@ -315,6 +315,7 @@ function BirdBurgerPage() {
   const [bucks, setBucks] = useState(0);
 
   const play = useSound(muted);
+  useFartSong(muted);
 
   useEffect(() => {
     const saved = localStorage.getItem("bb_bucks");
