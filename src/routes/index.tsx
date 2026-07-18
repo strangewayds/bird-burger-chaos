@@ -801,11 +801,12 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     let blinking = false;
     if (blinksPerLoop > 0) {
       const seg = loopLen / blinksPerLoop; // 30/{1,2,3} → integer
-      const posInSeg = fMod % seg;
+      const posInSeg = ((fMod + sv.blinkOffset) % loopLen) % seg;
       blinking = posInSeg < blinkDuration;
     }
 
-    const pulse = anim ? 0.5 + 0.5 * Math.sin(twoPi * phase) * (0.4 + iv * 0.6) : 0.7;
+    const pulse = anim ? 0.5 + 0.5 * Math.sin(twoPi * phase + sv.pulsePhase) * (0.4 + iv * 0.6) : 0.7;
+
 
     ctx.save();
     ctx.clearRect(0, 0, size, size);
