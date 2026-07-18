@@ -3121,6 +3121,71 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
           transition={{ duration: 0.15, repeat: Infinity }}
           className="absolute inset-0 bg-white/10 pointer-events-none"
         />
+
+        {/* Looping bird chef — live pan-flip animation */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-[6%] flex justify-center">
+          <motion.div
+            className="relative"
+            style={{ width: "26%", aspectRatio: "1 / 1" }}
+            animate={{ y: [0, -4, 0, -2, 0] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+          >
+            {/* stove flame flicker under the bird */}
+            <motion.div
+              className="absolute left-1/2 -translate-x-1/2 bottom-[4%] h-[14%] w-[52%] rounded-full"
+              style={{
+                background:
+                  "radial-gradient(ellipse at center, rgba(249,115,22,0.75), rgba(239,68,68,0.35) 60%, transparent 78%)",
+                filter: "blur(3px)",
+              }}
+              animate={{ opacity: [0.55, 1, 0.7, 0.95, 0.6], scaleY: [1, 1.35, 1, 1.2, 1] }}
+              transition={{ duration: 0.32, repeat: Infinity, ease: "easeInOut" }}
+            />
+
+            {/* bird body with slight bob + CCTV grade */}
+            <motion.img
+              src={mascotHero.url}
+              alt=""
+              className="absolute inset-0 h-full w-full object-contain"
+              style={{
+                filter:
+                  "grayscale(0.55) contrast(1.15) brightness(0.85) saturate(0.7) drop-shadow(0 4px 8px rgba(0,0,0,0.7))",
+              }}
+              animate={{ rotate: [-1.5, 1.5, -1.5], y: [0, -2, 0, -1, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+            />
+
+            {/* pan + flipping patty (arcs up on the beat) */}
+            <motion.div
+              className="absolute left-1/2 top-[46%] -translate-x-1/2"
+              style={{ width: "58%", transformOrigin: "50% 50%" }}
+              animate={{ y: [0, -28, 0, -14, 0], rotate: [-4, -22, -4, 10, -4] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <div className="relative h-[6px] w-full rounded-full bg-neutral-900 shadow-[0_1px_0_#000]">
+                <div className="absolute right-[-32%] top-[1px] h-[4px] w-[32%] rounded-full bg-neutral-800" />
+              </div>
+              {/* flipping patty */}
+              <motion.div
+                className="absolute left-1/2 -translate-x-1/2"
+                style={{ top: -8, width: "42%", height: 7 }}
+                animate={{ y: [0, -26, 0, -12, 0], rotate: [0, 380, 720, 940, 1080] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <div className="h-full w-full rounded-full bg-[#4a2412] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]" />
+              </motion.div>
+            </motion.div>
+
+            {/* tiny grease puff on each flip peak */}
+            <motion.div
+              className="absolute left-1/2 top-[28%] -translate-x-1/2 h-2 w-2 rounded-full bg-white/40"
+              style={{ filter: "blur(2px)" }}
+              animate={{ opacity: [0, 0.6, 0, 0.4, 0], scale: [0.6, 1.4, 0.6, 1.2, 0.6] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }}
+            />
+          </motion.div>
+        </div>
+
         <div className="absolute left-2 top-2 font-mono text-[10px] text-grease">CAM 04 — FRY STATION</div>
         <div className="absolute right-2 top-2 font-mono text-[10px] text-cyan">{time}</div>
         <AnimatePresence>
