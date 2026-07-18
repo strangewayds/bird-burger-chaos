@@ -620,18 +620,17 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       const curSin = Math.sin(p.hopPhase);
       // Landing detection: sin crossed from positive to non-positive while moving
       if (mag > 0 && prevSin > 0.05 && curSin <= 0) {
-        const fx = p.x * W;
-        const fy = p.y * H + 26; // at feet
+        const fx = p.x;
+        const fy = p.y + 0.03; // at feet (normalized)
         const count = dashing ? 10 : 6;
         for (let i = 0; i < count; i++) {
           const ang = Math.PI + (Math.random() - 0.5) * Math.PI * 0.9;
-          const spd = 40 + Math.random() * (dashing ? 90 : 55);
-          const dirBias = p.face * (30 + Math.random() * 40);
+          const spd = 0.05 + Math.random() * (dashing ? 0.11 : 0.07);
           particlesRef.current.push({
-            x: fx + (Math.random() - 0.5) * 6,
-            y: fy + (Math.random() - 0.5) * 3,
-            vx: Math.cos(ang) * spd + dirBias * -0.4,
-            vy: -Math.abs(Math.sin(ang)) * spd * 0.6 - 20,
+            x: fx + (Math.random() - 0.5) * 0.008,
+            y: fy + (Math.random() - 0.5) * 0.004,
+            vx: Math.cos(ang) * spd + p.face * -0.02,
+            vy: -Math.abs(Math.sin(ang)) * spd * 0.5 - 0.03,
             life: 0,
             max: 0.35 + Math.random() * 0.25,
             size: 2 + Math.floor(Math.random() * 3),
@@ -639,7 +638,6 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
             kind: "dust",
           });
         }
-        // Impact flash ring
         particlesRef.current.push({ x: fx, y: fy, vx: 0, vy: 0, life: 0, max: 0.18, size: dashing ? 22 : 16, color: "#FFF6C2", kind: "flash" });
       }
       lastHopSinRef.current = curSin;
