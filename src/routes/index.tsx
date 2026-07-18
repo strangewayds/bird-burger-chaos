@@ -256,7 +256,97 @@ function useSound(muted: boolean) {
   };
 }
 
-function useFartSong(muted: boolean) {
+type MemeTrack = {
+  id: string;
+  name: string;
+  bpm: number;
+  melody: [number | null, number][];
+  bass: [number, number][];
+  lead: OscillatorType;
+  buzz: OscillatorType;
+  doinkStart: number;
+  doinkEnd: number;
+};
+
+const MEME_TRACKS: MemeTrack[] = [
+  {
+    id: "derp-walk",
+    name: "Derp Walk",
+    bpm: 150,
+    lead: "sawtooth",
+    buzz: "square",
+    doinkStart: 1200, doinkEnd: 180,
+    melody: [
+      [7,1],[9,1],[12,1],[9,1],[7,1],[4,1],[7,2],
+      [9,1],[12,1],[14,1],[12,1],[9,1],[7,1],[4,2],
+      [12,1],[11,1],[9,1],[7,1],[4,1],[2,1],[0,2],
+      [7,1],[4,1],[2,1],[4,1],[7,2],[null,2],
+    ],
+    bass: [[0,2],[7,2],[0,2],[7,2],[-3,2],[4,2],[-5,2],[7,2]],
+  },
+  {
+    id: "circus-limp",
+    name: "Circus Limp",
+    bpm: 128,
+    lead: "square",
+    buzz: "square",
+    doinkStart: 900, doinkEnd: 90,
+    melody: [
+      [0,2],[4,1],[7,1],[12,2],[7,1],[4,1],
+      [5,2],[9,1],[12,1],[16,2],[12,1],[9,1],
+      [3,2],[7,1],[10,1],[14,2],[10,1],[7,1],
+      [-1,1],[2,1],[5,1],[7,1],[12,2],[null,2],
+    ],
+    bass: [[0,2],[7,2],[5,2],[0,2],[3,2],[-2,2],[-5,2],[7,2]],
+  },
+  {
+    id: "chiptune-sneak",
+    name: "Chiptune Sneak",
+    bpm: 172,
+    lead: "square",
+    buzz: "triangle",
+    doinkStart: 1800, doinkEnd: 240,
+    melody: [
+      [0,1],[3,1],[7,1],[10,1],[7,1],[3,1],[0,1],[null,1],
+      [-2,1],[1,1],[5,1],[8,1],[5,1],[1,1],[-2,1],[null,1],
+      [3,1],[6,1],[10,1],[13,1],[10,1],[6,1],[3,1],[null,1],
+      [7,1],[10,1],[14,1],[17,1],[14,2],[null,2],
+    ],
+    bass: [[0,2],[0,2],[-2,2],[-2,2],[3,2],[3,2],[7,2],[7,2]],
+  },
+  {
+    id: "kazoo-parade",
+    name: "Kazoo Parade",
+    bpm: 110,
+    lead: "sawtooth",
+    buzz: "sawtooth",
+    doinkStart: 700, doinkEnd: 120,
+    melody: [
+      [7,2],[7,1],[9,1],[7,2],[4,2],
+      [9,2],[9,1],[11,1],[12,4],
+      [12,2],[11,1],[9,1],[7,2],[4,2],
+      [2,1],[4,1],[7,2],[0,4],
+    ],
+    bass: [[0,4],[5,4],[-3,4],[7,4]],
+  },
+  {
+    id: "goblin-hop",
+    name: "Goblin Hop",
+    bpm: 160,
+    lead: "triangle",
+    buzz: "square",
+    doinkStart: 1500, doinkEnd: 300,
+    melody: [
+      [3,1],[3,1],[7,1],[3,1],[10,1],[7,1],[3,1],[null,1],
+      [5,1],[5,1],[8,1],[5,1],[12,1],[8,1],[5,1],[null,1],
+      [7,1],[10,1],[12,1],[15,1],[12,1],[10,1],[7,1],[3,1],
+      [0,2],[7,2],[10,2],[null,2],
+    ],
+    bass: [[-5,2],[-5,2],[0,2],[0,2],[-3,2],[-3,2],[3,2],[3,2]],
+  },
+];
+
+function useFartSong(muted: boolean, trackId: string) {
   const ctxRef = useRef<AudioContext | null>(null);
   const stoppedRef = useRef(true);
   const timerRef = useRef<number | null>(null);
@@ -275,28 +365,9 @@ function useFartSong(muted: boolean) {
     if (ctx.state === "suspended") ctx.resume();
     stoppedRef.current = false;
 
-    // Goofy "derp walk" — bouncy kazoo melody over oom-pah tuba bass.
-    // Notes as semitones from C4 (261.63 Hz). Rhythm in 16th-note beats @ 150bpm.
-    const BPM = 150;
-    const B = 60 / BPM / 2; // one 16th note in seconds (~0.2s)
-
-    // Kazoo melody (semi from C4, beats). Silly hopping pentatonic riff.
-    const melody: [number | null, number][] = [
-      [7, 1], [9, 1], [12, 1], [9, 1],
-      [7, 1], [4, 1], [7, 2],
-      [9, 1], [12, 1], [14, 1], [12, 1],
-      [9, 1], [7, 1], [4, 2],
-      [12, 1], [11, 1], [9, 1], [7, 1],
-      [4, 1], [2, 1], [0, 2],
-      [7, 1], [4, 1], [2, 1], [4, 1],
-      [7, 2], [null, 2],
-    ];
-
-    // Oom-pah tuba bass pattern (semi from C2, beats). Alternates root / fifth.
-    const bass: [number, number][] = [
-      [0, 2], [7, 2], [0, 2], [7, 2],
-      [-3, 2], [4, 2], [-5, 2], [7, 2],
-    ];
+    const track = MEME_TRACKS.find((t) => t.id === trackId) ?? MEME_TRACKS[0];
+    const B = 60 / track.bpm / 2;
+    const { melody, bass, lead, buzz, doinkStart, doinkEnd } = track;
 
     const kazoo = (when: number, semi: number, dur: number) => {
       if (!ctxRef.current) return;
@@ -308,7 +379,7 @@ function useFartSong(muted: boolean) {
       const g = ctx.createGain();
       const bp = ctx.createBiquadFilter();
       bp.type = "bandpass"; bp.frequency.value = f * 2.2; bp.Q.value = 4;
-      osc.type = "sawtooth"; osc2.type = "square";
+      osc.type = lead; osc2.type = buzz;
       osc.frequency.value = f; osc2.frequency.value = f * 2;
       vib.frequency.value = 8; vibGain.gain.value = f * 0.03;
       vib.connect(vibGain); vibGain.connect(osc.frequency); vibGain.connect(osc2.frequency);
@@ -324,7 +395,7 @@ function useFartSong(muted: boolean) {
 
     const tuba = (when: number, semi: number, dur: number) => {
       if (!ctxRef.current) return;
-      const f = 65.41 * Math.pow(2, semi / 12); // C2 base
+      const f = 65.41 * Math.pow(2, semi / 12);
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
       const lp = ctx.createBiquadFilter();
@@ -337,14 +408,13 @@ function useFartSong(muted: boolean) {
       osc.start(when); osc.stop(when + dur);
     };
 
-    // "Doink" plink to punctuate every 8 beats — very meme.
     const doink = (when: number) => {
       if (!ctxRef.current) return;
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.type = "sine";
-      o.frequency.setValueAtTime(1200, when);
-      o.frequency.exponentialRampToValueAtTime(180, when + 0.18);
+      o.frequency.setValueAtTime(doinkStart, when);
+      o.frequency.exponentialRampToValueAtTime(doinkEnd, when + 0.18);
       g.gain.setValueAtTime(0.0001, when);
       g.gain.exponentialRampToValueAtTime(0.12, when + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, when + 0.22);
@@ -359,19 +429,16 @@ function useFartSong(muted: boolean) {
       if (stoppedRef.current || !ctxRef.current) return;
       const now = ctx.currentTime;
       while (cursor < now + 2 && !stoppedRef.current) {
-        // Melody
         let t = cursor;
         for (const [semi, beats] of melody) {
           if (semi !== null) kazoo(t, semi, beats * B * 0.9);
           t += beats * B;
         }
-        // Bass in parallel
         let bt = cursor;
         for (const [semi, beats] of bass) {
           tuba(bt, semi, beats * B * 0.85);
           bt += beats * B;
         }
-        // Doink at the very end for that meme punchline
         doink(cursor + (loopBeats - 1) * B);
         cursor += loopBeats * B + 0.15;
       }
@@ -383,7 +450,7 @@ function useFartSong(muted: boolean) {
       stoppedRef.current = true;
       if (timerRef.current) { window.clearTimeout(timerRef.current); timerRef.current = null; }
     };
-  }, [muted]);
+  }, [muted, trackId]);
 }
 
 
