@@ -23,8 +23,7 @@ import {
   Zap,
   Trash2,
 } from "lucide-react";
-import mascotHero from "@/assets/mascot-hero.jpg";
-import mascotEmployee from "@/assets/mascot-employee.jpg";
+import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
 
 export const Route = createFileRoute("/")({
