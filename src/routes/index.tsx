@@ -509,7 +509,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     ctx.textAlign = "center";
     ctx.fillText(employee.hat, size*0.72 + jx, size*0.32 + hatBob);
 
-    if (animated && (frame % 30) < 18) {
+    if (anim && (frame % 30) < 18) {
       ctx.save();
       ctx.fillStyle = "#ff2e63";
       ctx.shadowColor = "#ff2e63"; ctx.shadowBlur = 12;
