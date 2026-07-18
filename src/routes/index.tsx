@@ -206,6 +206,34 @@ const clean = (s: string) =>
     .replace(/\b(fuck|shit|bitch|slur1|slur2)\b/gi, "****")
     .slice(0, 140);
 
+// Seeded PRNG (mulberry32) — deterministic 0..1 sequence per seed.
+function mulberry32(seed: number) {
+  let a = (seed >>> 0) || 1;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Compute seamless-safe variations from a seed. Integer frequencies and
+// segment offsets are chosen so frame 0 and frame loopLen still match.
+function seedVariations(seed: number, loopLen: number) {
+  const r = mulberry32(seed);
+  const freqs = [1, 2, 3, 5]; // all divide 30
+  const jitterFreq = freqs[Math.floor(r() * freqs.length)]!;
+  const hatFreq = freqs[Math.floor(r() * freqs.length)]!;
+  const jitterPhase = r() * Math.PI * 2;
+  const hatPhase = r() * Math.PI * 2;
+  const pulsePhase = r() * Math.PI * 2;
+  const scanDir = r() < 0.5 ? 1 : -1;
+  const blinkOffset = Math.floor(r() * loopLen);
+  const liveOffset = Math.floor(r() * loopLen);
+  return { jitterFreq, hatFreq, jitterPhase, hatPhase, pulsePhase, scanDir, blinkOffset, liveOffset };
+}
+
+
 function useSound(muted: boolean) {
   const ctxRef = useRef<AudioContext | null>(null);
   return (kind: "beep" | "buzz" | "chirp" | "bell") => {
