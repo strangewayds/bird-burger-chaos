@@ -734,6 +734,9 @@ function BirdBurgerPage() {
         trackName={MEME_TRACKS.find((t) => t.id === trackId)?.name ?? ""}
         volume={volume}
         setVolume={setVolume}
+        ambVolume={ambVolume}
+        setAmbVolume={setAmbVolume}
+
         onConnect={() => setWalletOpen(true)}
         wallet={wallet}
         wrongNet={wrongNet}
