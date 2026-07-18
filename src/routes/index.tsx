@@ -820,7 +820,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empId, bgId, platform, handle, showBadge, animated]);
+  }, [empId, bgId, platform, handle, showBadge, animated, intensity]);
 
   const download = () => {
     const c = canvasRef.current; if (!c) return;
