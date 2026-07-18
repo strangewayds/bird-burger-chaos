@@ -887,17 +887,18 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
         workerScript: (workerUrlMod as { default: string }).default,
       });
       const exportIntensity = animated ? intensity : Math.max(60, intensity);
+      const targetPlatform: Platform = exportPlatform === "match" ? platform : exportPlatform;
       // Render frames 0..LOOP_LEN-1. Because every animated quantity in
       // drawFrame is periodic over LOOP_LEN, frame 0 and frame LOOP_LEN are
       // pixel-identical → the GIF loops with no visible seam.
       for (let i = 0; i < frames; i++) {
-        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN);
+        drawFrame(octx, size, i, true, exportIntensity, LOOP_LEN, targetPlatform);
         gif.addFrame(octx, { copy: true, delay });
       }
       gif.on("progress", (p: number) => setExportPct(Math.round(p * 100)));
       gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
-        setGifPreview({ url, blob });
+        setGifPreview({ url, blob, platform: targetPlatform });
         setExporting(false); setExportPct(0);
       });
       gif.render();
@@ -911,7 +912,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     if (!gifPreview) return;
     const a = document.createElement("a");
     a.href = gifPreview.url;
-    a.download = `bird-burger-${employee.id}-${platform}.gif`;
+    a.download = `bird-burger-${employee.id}-${gifPreview.platform}.gif`;
     a.click();
     onDownload();
   };
