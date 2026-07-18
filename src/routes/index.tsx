@@ -24,6 +24,7 @@ import {
   Trash2,
 } from "lucide-react";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
+import kitchenBg from "@/assets/kitchen-bg.jpg";
 import { BB_CONFIG, activeNetwork } from "@/lib/bird-burger-config";
 
 export const Route = createFileRoute("/")({
@@ -245,16 +246,19 @@ function BirdBurgerPage() {
       />
       <Hero onOrder={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })} onBuy={() => document.getElementById("token")?.scrollIntoView({ behavior: "smooth" })} />
       <Ticker />
-      <Menu onOrder={(name) => { setOrderItem(name); play("bell"); earn(50); }} />
-      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-8 md:grid-cols-3">
+      <div className="mx-auto grid max-w-7xl gap-4 px-4 pt-6 md:grid-cols-3">
         <KitchenStatus onRefresh={() => play("beep")} />
         <KitchenCam onIncident={() => play("buzz")} />
         <BirdOfTheDay onFire={() => { play("buzz"); earn(25); }} />
       </div>
-      <CallTheKitchen onStart={() => play("chirp")} onEnd={() => earn(30)} />
+      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-6 md:grid-cols-3">
+        <CallKitchenCard onStart={() => play("chirp")} onEnd={() => earn(30)} />
+        <TodaysSpecials />
+        <RecentActivityCard wallet={wallet} />
+      </div>
+      <PurpleBand bucks={bucks} wallet={wallet} onDownload={() => earn(20)} />
+      <Menu onOrder={(name) => { setOrderItem(name); play("bell"); earn(50); }} />
       <Reviews />
-      <MemeGenerator onDownload={() => earn(20)} />
-      <Leaderboard bucks={bucks} wallet={wallet} />
       <CommunitySection wallet={wallet} />
       <TokenSection wallet={wallet} />
       <HowToBuy />
@@ -279,7 +283,153 @@ function BirdBurgerPage() {
   );
 }
 
-/* ─────────────────────────  NAV  ───────────────────────── */
+/* ─────────  COMPACT REFERENCE-MATCH CARDS  ───────── */
+
+function CallKitchenCard({ onStart, onEnd: _onEnd }: { onStart: () => void; onEnd: () => void }) {
+  const [ringing, setRinging] = useState(false);
+  return (
+    <div className="rounded-lg border-2 border-mustard/50 bg-card p-4 shadow-[0_0_25px_rgba(255,193,7,0.15)]">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="font-display text-sm neon-pink">☎ CALL THE KITCHEN</div>
+        <span className="rounded bg-grease/20 px-2 py-0.5 font-mono text-[10px] uppercase text-grease">1-800-BIRD-BAD</span>
+      </div>
+      <div className="relative mx-auto my-3 grid h-28 w-28 place-items-center rounded-full border-4 border-mustard bg-mustard/10">
+        <span className="text-4xl">📞</span>
+        {ringing && (
+          <>
+            <span className="absolute inset-0 animate-ping rounded-full border-2 border-mustard/60" />
+            <span className="absolute -inset-2 animate-pulse rounded-full border border-mustard/40" />
+          </>
+        )}
+      </div>
+      <button
+        onClick={() => { setRinging(true); onStart(); setTimeout(() => setRinging(false), 3500); }}
+        className="w-full rounded-md border-2 border-mustard bg-mustard px-3 py-2.5 font-display text-xs tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition"
+      >
+        {ringing ? "RINGING…" : "CALL NOW"}
+      </button>
+      <p className="mt-2 text-center font-mono text-[10px] text-ink/50">Nobody's picking up. As always.</p>
+    </div>
+  );
+}
+
+const SPECIALS = [
+  { d: "MON", n: "Manic Monday Melt", p: "$4.20", note: "Now with 30% more panic" },
+  { d: "TUE", n: "Two-For-Tuesday", p: "$6.66", note: "You still only get one" },
+  { d: "WED", n: "Wednesday Rug", p: "$0.01", note: "Delivered in 3-5 business years" },
+  { d: "THU", n: "Thursday Throwaway", p: "$3.14", note: "Pi day, every day" },
+  { d: "FRI", n: "Fried Friday Fumble", p: "$9.99", note: "Contains regret" },
+];
+function TodaysSpecials() {
+  return (
+    <div className="relative rounded-sm bg-[#f5f0e0] p-4 text-[#1a1a1a] shadow-[6px_6px_0_rgba(124,58,237,0.5)]">
+      <div className="absolute inset-x-0 -top-2 h-4 bg-[repeating-linear-gradient(90deg,#f5f0e0_0_10px,transparent_10px_16px)]" aria-hidden />
+      <div className="text-center">
+        <div className="font-display text-lg tracking-widest">TODAY'S SPECIALS</div>
+        <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-[#666]">— Receipt #{Math.floor(Math.random()*99999)} —</div>
+      </div>
+      <div className="my-3 border-t-2 border-dashed border-[#1a1a1a]/40" />
+      <ul className="space-y-1.5 font-mono text-xs">
+        {SPECIALS.map((s) => (
+          <li key={s.d} className="grid grid-cols-[36px_1fr_auto] items-baseline gap-2">
+            <span className="rounded bg-grape px-1 py-0.5 text-center font-display text-[10px] text-white">{s.d}</span>
+            <span>
+              <div className="font-bold uppercase tracking-wide">{s.n}</div>
+              <div className="text-[10px] text-[#666]">{s.note}</div>
+            </span>
+            <span className="text-right font-bold text-grape">{s.p}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="my-3 border-t-2 border-dashed border-[#1a1a1a]/40" />
+      <div className="flex items-baseline justify-between font-mono text-xs">
+        <span>TOTAL</span>
+        <span className="font-display text-lg text-grease">$∞.99</span>
+      </div>
+      <div className="mt-2 text-center font-mono text-[10px] uppercase tracking-widest text-[#666]">*** THANK YOU / PLEASE REGRET ***</div>
+    </div>
+  );
+}
+
+const ACTIVITY = [
+  { u: "0xB1RD…D3AD", a: "burned 420 $BRGR", t: "2s ago", c: "text-grease" },
+  { u: "chef.eth", a: "renamed the Big Bird to Small Regret", t: "18s ago", c: "text-mustard" },
+  { u: "0xF00D…C0DE", a: "ordered a McRug Pull", t: "44s ago", c: "text-cyan" },
+  { u: "pigeon.dao", a: "released 12 pigeons into the DMs", t: "1m ago", c: "text-robin" },
+  { u: "0xDEAD…BEEF", a: "connected wallet, immediately left", t: "2m ago", c: "text-grease" },
+  { u: "manager.eth", a: "clocked in (still missing)", t: "3m ago", c: "text-pink-400" },
+];
+function RecentActivityCard({ wallet }: { wallet: string | null }) {
+  const [items, setItems] = useState(ACTIVITY);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setItems((prev) => [{ ...prev[Math.floor(Math.random()*prev.length)], t: "now" }, ...prev.slice(0, 5)]);
+    }, 4200);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="flex flex-col rounded-lg border-2 border-robin/50 bg-card p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="font-display text-sm neon-green">📡 RECENT ACTIVITY</div>
+        <span className="flex items-center gap-1 font-mono text-[10px] text-robin"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-robin"/>LIVE</span>
+      </div>
+      <ul className="flex-1 space-y-1.5 font-mono text-[11px]">
+        <AnimatePresence initial={false}>
+          {items.slice(0, 6).map((it, i) => (
+            <motion.li key={it.u + i} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="flex items-baseline justify-between gap-2 border-b border-ink/10 pb-1">
+              <span className="truncate"><span className={it.c}>{it.u}</span> <span className="text-ink/70">{it.a}</span></span>
+              <span className="shrink-0 text-ink/40">{it.t}</span>
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </ul>
+      <div className="mt-3 rounded border border-grape/40 bg-grape/10 p-2 font-mono text-[10px] text-ink/70">
+        {wallet ? <>You: <span className="text-cyan">{wallet.slice(0,6)}…{wallet.slice(-4)}</span> — behaving suspiciously.</> : "Connect wallet to be publicly judged."}
+      </div>
+    </div>
+  );
+}
+
+function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: string | null; onDownload: () => void }) {
+  return (
+    <section id="community-band" className="relative border-y-4 border-mustard/60 bg-gradient-to-br from-grape via-grape/90 to-[#3a1d6b] py-16">
+      <div className="absolute inset-0 grain opacity-30" aria-hidden />
+      <div className="relative mx-auto max-w-7xl px-4">
+        <div className="mb-8 text-center">
+          <div className="mb-1 font-mono text-xs uppercase tracking-[0.3em] text-mustard">Holder Perks (Not Really)</div>
+          <h2 className="font-display text-3xl neon-pink md:text-4xl">JOIN THE FLOCK</h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border-2 border-mustard/60 bg-black/40 p-5">
+            <div className="mb-3 font-display text-lg neon-cyan">🎨 MEME MACHINE</div>
+            <MemeGenerator onDownload={onDownload} embedded />
+          </div>
+          <div className="rounded-lg border-2 border-cyan/60 bg-black/40 p-5">
+            <div className="mb-3 font-display text-lg neon-green">🏆 BIRD BUCKS</div>
+            <Leaderboard bucks={bucks} wallet={wallet} embedded />
+          </div>
+          <div className="rounded-lg border-2 border-robin/60 bg-black/40 p-5">
+            <div className="mb-3 font-display text-lg neon-pink">🧾 YOUR RECEIPT</div>
+            <div className="rounded-sm bg-[#f5f0e0] p-4 font-mono text-[11px] text-[#1a1a1a]">
+              <div className="text-center font-display text-sm">BIRD BURGER</div>
+              <div className="text-center text-[9px] uppercase tracking-widest text-[#666]">The Worst Restaurant on the Blockchain</div>
+              <div className="my-2 border-t border-dashed border-[#1a1a1a]/40" />
+              <div className="flex justify-between"><span>1x Regret Deluxe</span><span>$4.20</span></div>
+              <div className="flex justify-between"><span>1x Side of Silence</span><span>$0.69</span></div>
+              <div className="flex justify-between"><span>Tip (nobody earned)</span><span>$0.00</span></div>
+              <div className="my-2 border-t border-dashed border-[#1a1a1a]/40" />
+              <div className="flex justify-between font-bold"><span>TOTAL</span><span>$4.89</span></div>
+              <div className="mt-2 text-center text-[9px] uppercase tracking-widest text-[#666]">*** PLEASE REGRET YOUR DECISION ***</div>
+              <div className="mt-2 text-center">Bird Bucks earned: <span className="font-bold text-grape">{bucks}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 
 function Nav({ open, setOpen, muted, setMuted, onConnect, wallet, wrongNet }: {
   open: boolean; setOpen: (b: boolean) => void; muted: boolean; setMuted: (b: boolean) => void;
@@ -358,7 +508,12 @@ function Hero({ onOrder, onBuy }: { onOrder: () => void; onBuy: () => void }) {
 
   return (
     <section id="top" className="relative overflow-hidden border-b-2 border-grape/30">
-      <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 py-10 md:grid-cols-2 md:py-16">
+      <div aria-hidden className="absolute inset-0 -z-10">
+        <img src={kitchenBg} alt="" width={1536} height={1024} className="h-full w-full object-cover opacity-40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-bg/70 via-bg/55 to-bg" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,140,0,0.18),transparent_50%)]" />
+      </div>
+      <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-10 md:grid-cols-2 md:py-16">
         <div className="relative z-10">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -815,7 +970,7 @@ function Reviews() {
 
 /* ─────────────────────────  MEME GENERATOR  ───────────────────────── */
 
-function MemeGenerator({ onDownload }: { onDownload: () => void }) {
+function MemeGenerator({ onDownload, embedded = false }: { onDownload: () => void; embedded?: boolean }) {
   const [top, setTop] = useState("THE BURGER IS");
   const [bot, setBot] = useState("DECENTRALIZED");
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -843,61 +998,69 @@ function MemeGenerator({ onDownload }: { onDownload: () => void }) {
     const text = `${top} ${bot} — from Bird Burger 🐦🍔`;
     try { if (navigator.share) await navigator.share({ text }); else await navigator.clipboard.writeText(text); } catch {}
   };
+  const body = (
+    <div className="grid gap-4 md:grid-cols-[1fr_1fr] items-start">
+      <div className="rounded-lg border-2 border-grape/50 bg-black/40 p-3">
+        <canvas ref={canvasRef} className="aspect-square w-full rounded"/>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="mb-1 block font-mono text-xs uppercase tracking-widest text-mustard">Top Text</label>
+          <input value={top} onChange={(e)=>setTop(e.target.value.slice(0,40).toUpperCase())} className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"/>
+        </div>
+        <div>
+          <label className="mb-1 block font-mono text-xs uppercase tracking-widest text-mustard">Bottom Text</label>
+          <input value={bot} onChange={(e)=>setBot(e.target.value.slice(0,40).toUpperCase())} className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"/>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {MEME_CAPTIONS.map((c) => (
+            <button key={c} onClick={() => { const [a,...b] = c.split(" "); setTop(a!); setBot(b.join(" ")); }} className="rounded border border-grape/50 bg-grape/10 px-2 py-1 text-[10px] uppercase tracking-widest text-ink/80 hover:bg-grape/20">{c}</button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={download} className="flex-1 rounded-md border-2 border-mustard bg-mustard px-4 py-3 font-display text-sm tracking-widest text-bg">DOWNLOAD MEME</button>
+          <button onClick={share} className="rounded-md border-2 border-cyan bg-cyan/10 px-4 py-3 font-display text-sm tracking-widest text-cyan"><Share2 className="h-4 w-4"/></button>
+        </div>
+      </div>
+    </div>
+  );
+  if (embedded) return body;
   return (
     <section className="mx-auto max-w-7xl px-4 py-16">
       <SectionTitle kicker="Make. Share. Confuse." title="BURGER PROPAGANDA MACHINE" />
-      <div className="grid gap-6 md:grid-cols-[1fr_1fr] items-start">
-        <div className="rounded-lg border-2 border-grape/50 bg-black/40 p-3">
-          <canvas ref={canvasRef} className="aspect-square w-full rounded"/>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block font-mono text-xs uppercase tracking-widest text-mustard">Top Text</label>
-            <input value={top} onChange={(e)=>setTop(e.target.value.slice(0,40).toUpperCase())} className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"/>
-          </div>
-          <div>
-            <label className="mb-1 block font-mono text-xs uppercase tracking-widest text-mustard">Bottom Text</label>
-            <input value={bot} onChange={(e)=>setBot(e.target.value.slice(0,40).toUpperCase())} className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"/>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {MEME_CAPTIONS.map((c) => (
-              <button key={c} onClick={() => { const [a,...b] = c.split(" "); setTop(a!); setBot(b.join(" ")); }} className="rounded border border-grape/50 bg-grape/10 px-2 py-1 text-[10px] uppercase tracking-widest text-ink/80 hover:bg-grape/20">{c}</button>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <button onClick={download} className="flex-1 rounded-md border-2 border-mustard bg-mustard px-4 py-3 font-display text-sm tracking-widest text-bg">DOWNLOAD MEME</button>
-            <button onClick={share} className="rounded-md border-2 border-cyan bg-cyan/10 px-4 py-3 font-display text-sm tracking-widest text-cyan"><Share2 className="h-4 w-4"/></button>
-          </div>
-        </div>
-      </div>
+      {body}
     </section>
   );
 }
 
 /* ─────────────────────────  LEADERBOARD  ───────────────────────── */
 
-function Leaderboard({ bucks, wallet }: { bucks: number; wallet: string | null }) {
+function Leaderboard({ bucks, wallet, embedded = false }: { bucks: number; wallet: string | null; embedded?: boolean }) {
   const rows = useMemo(() => {
     const me = wallet ? { rank: 6, name: `${wallet.slice(0,6)}…${wallet.slice(-4)}`, pts: bucks, note: "You (Wants Refund)" } : null;
     return me ? [...LEADERBOARD, me] : LEADERBOARD;
   }, [wallet, bucks]);
+  const body = (
+    <>
+      {!embedded && <div className="mb-1 font-display text-xl md:text-2xl">🏆 BIRD BUCKS LEADERBOARD</div>}
+      <div className="mb-4 text-xs uppercase tracking-widest text-ink/60">Completely worthless restaurant points · <span className="text-grease">Definitely Not Market Data</span></div>
+      <ul className="space-y-1.5">
+        {rows.map((r) => (
+          <li key={r.rank} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 rounded border border-ink/10 bg-black/40 px-3 py-2 font-mono text-sm">
+            <span className="font-display text-mustard w-6">{r.rank}</span>
+            <span className="truncate text-cyan">{r.name}</span>
+            <span className={r.pts < 0 ? "text-grease" : "text-ink"}>{r.pts.toLocaleString()}</span>
+            <span className="hidden text-xs text-ink/60 sm:inline">{r.note}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 text-center font-mono text-[10px] text-ink/50">Earn Bird Bucks by ordering, calling the kitchen, firing employees, and making memes. They do nothing.</div>
+    </>
+  );
+  if (embedded) return <div>{body}</div>;
   return (
     <section className="mx-auto max-w-7xl px-4 py-8">
-      <div className="rounded-lg border-2 border-mustard/40 bg-card p-5">
-        <div className="mb-1 font-display text-xl md:text-2xl">🏆 BIRD BUCKS LEADERBOARD</div>
-        <div className="mb-4 text-xs uppercase tracking-widest text-ink/60">Completely worthless restaurant points · <span className="text-grease">Definitely Not Market Data</span></div>
-        <ul className="space-y-1.5">
-          {rows.map((r) => (
-            <li key={r.rank} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 rounded border border-ink/10 bg-black/40 px-3 py-2 font-mono text-sm">
-              <span className="font-display text-mustard w-6">{r.rank}</span>
-              <span className="truncate text-cyan">{r.name}</span>
-              <span className={r.pts < 0 ? "text-grease" : "text-ink"}>{r.pts.toLocaleString()}</span>
-              <span className="hidden text-xs text-ink/60 sm:inline">{r.note}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-3 text-center font-mono text-[10px] text-ink/50">Earn Bird Bucks by ordering, calling the kitchen, firing employees, and making memes. They do nothing.</div>
-      </div>
+      <div className="rounded-lg border-2 border-mustard/40 bg-card p-5">{body}</div>
     </section>
   );
 }
