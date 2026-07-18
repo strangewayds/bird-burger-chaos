@@ -694,7 +694,16 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       }
       // Facing: smoothly ease toward movement direction (continuous flip)
       const faceTarget = Math.abs(dx) > 0.05 ? (dx > 0 ? 1 : -1) : (p.face === 0 ? 1 : (p.face > 0 ? 1 : -1));
-      const faceRate = 12; // higher = snappier
+      // Anticipation lean: kick a pre-turn tilt when the target flips against current facing,
+      // so the bird leans into the new direction BEFORE it rotates through.
+      if (Math.sign(faceTarget) !== 0 && Math.sign(faceTarget) !== Math.sign(p.face) && Math.sign(p.leanDir) !== Math.sign(faceTarget)) {
+        p.leanDir = Math.sign(faceTarget);
+        p.lean = 1; // fresh anticipation impulse
+      }
+      // Decay lean impulse (~0.28s falloff)
+      p.lean = Math.max(0, p.lean - dt * 3.6);
+      // Slower face rate so anticipation is visible before the flip completes
+      const faceRate = 7.5;
       p.face += (faceTarget - p.face) * Math.min(1, dt * faceRate);
       // Hop animation: advance phase only while moving; faster when dashing
       const prevSin = lastHopSinRef.current;
