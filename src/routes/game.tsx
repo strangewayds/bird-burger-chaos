@@ -329,6 +329,10 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   const explosionRef = useRef(0); // 0..1 flash intensity remaining
   const viceRef = useRef({ smokeCd: 0, drinkCd: 0, buzz: 0 });
   const [_viceTick, setViceTick] = useState(0);
+  // Movement particles: pixel dust puffs + impact flashes at feet
+  type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; color: string; kind: "dust" | "flash" };
+  const particlesRef = useRef<Particle[]>([]);
+  const lastHopSinRef = useRef(0);
 
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
