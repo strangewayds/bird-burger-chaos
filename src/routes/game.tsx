@@ -1952,7 +1952,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     }
     ctx.restore();
     // Explosion flash overlay (drawn without transform)
-    if (explosionRef.current > 0) {
+    if (explosionRef.current > 0 && motionRef.current.mode !== "reduced") {
       ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current * M})`;
       ctx.fillRect(0, 0, W, H);
     }
