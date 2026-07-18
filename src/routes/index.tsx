@@ -22,6 +22,10 @@ import {
   AlertTriangle,
   Zap,
   Trash2,
+  Palette,
+  Trophy,
+  Receipt,
+  Download,
 } from "lucide-react";
 import mascotHero from "@/assets/bird-mascot.png.asset.json";
 import kitchenBg from "@/assets/kitchen-bg.jpg";
