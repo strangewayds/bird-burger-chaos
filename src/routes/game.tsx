@@ -1696,17 +1696,33 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
             <StatRow label="Pigeons Chased" value={statsRef.current.pigeonsChased} />
             <StatRow label="Dropped" value={statsRef.current.dropped} />
           </div>
-          {firesRef.current.length > 0 && (
-            <motion.div
-              animate={{ borderColor: ["#EF4444", "#FACC15", "#EF4444"] }}
-              transition={{ duration: 0.6, repeat: Infinity }}
-              className="rounded-lg border-2 bg-[#EF4444]/20 p-2 text-[10px] uppercase tracking-widest"
-            >
-              <div className="flex items-center gap-1.5 font-black text-[#EF4444]"><Flame className="h-3 w-3" /> KITCHEN DISASTER</div>
-              <div className="mt-0.5 font-black text-white">FRYER FIRE!</div>
-              <div className="text-white/70">PUT IT OUT!</div>
-            </motion.div>
-          )}
+          {firesRef.current.length > 0 && (() => {
+            const worst = firesRef.current.reduce((a, b) => (a.danger < b.danger ? a : b));
+            const pct = Math.max(0, Math.min(1, worst.danger / worst.dangerMax));
+            const armed = pct < 0.35;
+            return (
+              <motion.div
+                animate={{ borderColor: armed ? ["#EF4444", "#FACC15", "#EF4444"] : ["#F97316", "#FACC15", "#F97316"] }}
+                transition={{ duration: armed ? 0.35 : 0.7, repeat: Infinity }}
+                className="rounded-lg border-2 bg-[#EF4444]/20 p-2 text-[10px] uppercase tracking-widest"
+              >
+                <div className="flex items-center gap-1.5 font-black text-[#EF4444]"><Flame className="h-3 w-3" /> KITCHEN DISASTER</div>
+                <div className="mt-0.5 font-black text-white">🔥 FIRE × {firesRef.current.length} — {worst.danger.toFixed(1)}s</div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full transition-[width] duration-150"
+                    style={{
+                      width: `${pct * 100}%`,
+                      background: pct > 0.5 ? "#FACC15" : pct > 0.25 ? "#F97316" : "#EF4444",
+                    }}
+                  />
+                </div>
+                <div className="mt-1 text-white/70">
+                  {hasExtinguisherRef.current ? "Hold E / SPACE near the flames to spray!" : "Grab the 🧯 extinguisher!"}
+                </div>
+              </motion.div>
+            );
+          })()}
           {/* Vices — because the place has 1★ reviews anyway */}
           {(() => {
             const v = viceRef.current;
