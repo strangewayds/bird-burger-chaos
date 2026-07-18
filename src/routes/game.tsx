@@ -512,6 +512,14 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
   const [perfActive, setPerfActive] = useState(false);
   const [perfFps, setPerfFps] = useState(60);
 
+  // Motion sensitivity — reduces shake, flash, and squash/stretch for accessibility
+  const motionRef = useRef({
+    mode: (typeof localStorage !== "undefined" && (localStorage.getItem("bb_motion") as any)) || "full", // "full" | "reduced"
+    scale: 1, // motion multiplier applied at render time (1 full, 0.25 reduced)
+  });
+  motionRef.current.scale = motionRef.current.mode === "reduced" ? 0.25 : 1;
+  const [motionMode, setMotionMode] = useState<"full" | "reduced">(motionRef.current.mode);
+
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
   const [score, setScore] = useState(0);
