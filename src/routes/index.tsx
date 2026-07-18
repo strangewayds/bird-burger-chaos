@@ -992,6 +992,30 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
               {exporting ? `RENDERING ${exportPct}%` : "PREVIEW GIF LOOP"}
             </button>
           </div>
+          <div className="mt-3 rounded-md border-2 border-robin/40 bg-black/30 p-3">
+            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">GIF export frame</div>
+            <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="GIF export frame shape">
+              {([
+                { id: "match", label: "MATCH PREVIEW", sub: platform === "x" ? "𝕏 · CIRCLE" : "DISCORD · SQUARE" },
+                { id: "x", label: "𝕏 · CIRCLE", sub: "Force circle" },
+                { id: "discord", label: "DISCORD", sub: "Force rounded" },
+              ] as { id: Platform | "match"; label: string; sub: string }[]).map((opt) => {
+                const active = exportPlatform === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setExportPlatform(opt.id)}
+                    className={`rounded-md border-2 px-2 py-2 text-left transition ${active ? "border-mustard bg-mustard/15 text-ink" : "border-ink/15 text-ink/60 hover:border-ink/30"}`}
+                  >
+                    <div className="font-display text-[10px] leading-tight tracking-widest">{opt.label}</div>
+                    <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-ink/50">{opt.sub}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <button onClick={share} className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-3 py-2 font-display text-xs tracking-widest text-cyan">
             <Share2 className="h-4 w-4"/> SHARE THE SHAME
           </button>
