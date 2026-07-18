@@ -256,6 +256,7 @@ function BirdBurgerPage() {
         <TodaysSpecials />
         <RecentActivityCard wallet={wallet} />
       </div>
+      <PfpCreator onDownload={() => earn(40)} />
       <PurpleBand bucks={bucks} wallet={wallet} onDownload={() => earn(20)} />
       <Menu onOrder={(name) => { setOrderItem(name); play("bell"); earn(50); }} />
       <Reviews />
@@ -388,6 +389,278 @@ function RecentActivityCard({ wallet }: { wallet: string | null }) {
       </div>
     </div>
   );
+}
+
+/* ─────────  PFP CREATOR  ───────── */
+
+const PFP_CREW = [
+  { id: "larry", name: "Larry", role: "Fry Cook", tint: "#f59e0b", hat: "🍟", quote: "Grease is a lifestyle." },
+  { id: "chad",  name: "Chad",  role: "Missing Manager", tint: "#7c3aed", hat: "👔", quote: "Out to lunch. Since 2021." },
+  { id: "cindy", name: "Cindy", role: "Cashier", tint: "#06b6d4", hat: "💅", quote: "Cash, card, or copium?" },
+  { id: "karen", name: "Karen", role: "Health Inspector", tint: "#ef4444", hat: "🚫", quote: "This place is a felony." },
+  { id: "bird",  name: "The Bird", role: "Mascot / CEO", tint: "#00c805", hat: "👑", quote: "I run this dump." },
+  { id: "gary",  name: "Gary",  role: "Dishwasher (allegedly)", tint: "#ec4899", hat: "🧽", quote: "I have not seen soap." },
+];
+
+const PFP_BGS = [
+  { id: "grape",   label: "Grape",   value: "#7c3aed" },
+  { id: "cyan",    label: "Cyan",    value: "#22d3ee" },
+  { id: "robin",   label: "Robin",   value: "#00c805" },
+  { id: "mustard", label: "Mustard", value: "#facc15" },
+  { id: "grease",  label: "Grease",  value: "#ef4444" },
+  { id: "noir",    label: "Noir",    value: "#0a0a0a" },
+  { id: "grad1",   label: "Sunset",  value: "linear:#7c3aed,#ec4899,#f59e0b" },
+  { id: "grad2",   label: "Neon",    value: "linear:#00c805,#22d3ee" },
+];
+
+type Platform = "x" | "discord";
+
+function PfpCreator({ onDownload }: { onDownload: () => void }) {
+  const [empId, setEmpId] = useState(PFP_CREW[0]!.id);
+  const [bgId, setBgId] = useState(PFP_BGS[0]!.id);
+  const [platform, setPlatform] = useState<Platform>("x");
+  const [handle, setHandle] = useState("@bird_burger");
+  const [showBadge, setShowBadge] = useState(true);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  const employee = PFP_CREW.find((e) => e.id === empId)!;
+  const bg = PFP_BGS.find((b) => b.id === bgId)!;
+
+  // Preload mascot image once
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = mascotHero.url;
+    img.onload = () => { imgRef.current = img; draw(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const draw = () => {
+    const c = canvasRef.current; if (!c) return;
+    const size = 512; c.width = size; c.height = size;
+    const ctx = c.getContext("2d"); if (!ctx) return;
+
+    // Background
+    ctx.save();
+    if (platform === "x") {
+      ctx.beginPath(); ctx.arc(size/2, size/2, size/2, 0, Math.PI*2); ctx.clip();
+    } else {
+      const r = 96; roundRect(ctx, 0, 0, size, size, r); ctx.clip();
+    }
+    if (bg.value.startsWith("linear:")) {
+      const stops = bg.value.slice(7).split(",");
+      const g = ctx.createLinearGradient(0, 0, size, size);
+      stops.forEach((s, i) => g.addColorStop(i / (stops.length - 1), s));
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = bg.value;
+    }
+    ctx.fillRect(0, 0, size, size);
+
+    // Grain / scanlines
+    ctx.globalAlpha = 0.08;
+    for (let y = 0; y < size; y += 3) { ctx.fillStyle = "#000"; ctx.fillRect(0, y, size, 1); }
+    ctx.globalAlpha = 1;
+
+    // Tint halo behind mascot
+    const halo = ctx.createRadialGradient(size/2, size*0.55, 20, size/2, size*0.55, size*0.55);
+    halo.addColorStop(0, employee.tint + "cc");
+    halo.addColorStop(1, "transparent");
+    ctx.fillStyle = halo; ctx.fillRect(0, 0, size, size);
+
+    // Mascot
+    const img = imgRef.current;
+    if (img) {
+      const mSize = size * 0.82;
+      const mx = (size - mSize) / 2;
+      const my = size - mSize + 20;
+      // Tinted shadow
+      ctx.save();
+      ctx.shadowColor = employee.tint; ctx.shadowBlur = 40;
+      ctx.drawImage(img, mx, my, mSize, mSize);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = "#fff"; ctx.font = "bold 180px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("🐦", size/2, size*0.65);
+    }
+
+    // Hat/prop emoji
+    ctx.font = "bold 90px 'Apple Color Emoji','Segoe UI Emoji',sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(employee.hat, size*0.72, size*0.32);
+
+    // Name badge
+    if (showBadge) {
+      ctx.save();
+      ctx.translate(size*0.16, size*0.82);
+      ctx.rotate(-0.06);
+      const w = size*0.68, h = 74;
+      roundRect(ctx, 0, 0, w, h, 8);
+      ctx.fillStyle = "#facc15"; ctx.fill();
+      ctx.fillStyle = "#0a0a0a";
+      ctx.font = "bold 30px 'Bungee', Impact, sans-serif";
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(employee.name.toUpperCase(), 18, 26);
+      ctx.font = "bold 16px monospace";
+      ctx.fillText(employee.role.toUpperCase(), 18, 54);
+      // handle
+      ctx.textAlign = "right";
+      ctx.fillText(handle, w - 18, 40);
+      ctx.restore();
+    }
+
+    // Frame ring
+    ctx.save();
+    ctx.lineWidth = 14;
+    ctx.strokeStyle = employee.tint;
+    if (platform === "x") {
+      ctx.beginPath(); ctx.arc(size/2, size/2, size/2 - 7, 0, Math.PI*2); ctx.stroke();
+    } else {
+      roundRect(ctx, 7, 7, size - 14, size - 14, 90); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.restore();
+  };
+
+  useEffect(() => { draw(); /* eslint-disable-next-line */ }, [empId, bgId, platform, handle, showBadge]);
+
+  const download = () => {
+    const c = canvasRef.current; if (!c) return;
+    const a = document.createElement("a");
+    a.download = `bird-burger-${employee.id}-${platform}.png`;
+    a.href = c.toDataURL("image/png"); a.click();
+    onDownload();
+  };
+
+  const share = async () => {
+    const text = `I got hired as ${employee.name} (${employee.role}) at Bird Burger 🐦🍔 — "${employee.quote}"`;
+    try { if (navigator.share) await navigator.share({ text }); else await navigator.clipboard.writeText(text); } catch {}
+  };
+
+  return (
+    <section id="pfp" className="mx-auto max-w-7xl px-4 py-16">
+      <SectionTitle
+        kicker="Employee of the Millisecond"
+        title="HIRE YOURSELF: PFP GENERATOR"
+        sub="Pick a Bird Burger crew member. Slap them on your X or Discord. Cause immediate distrust in your online friends."
+      />
+      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        {/* Preview */}
+        <div className="rounded-lg border-2 border-grape/50 bg-black/40 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <button
+              onClick={() => setPlatform("x")}
+              className={`flex-1 rounded-md border-2 px-3 py-2 font-display text-xs tracking-widest transition ${platform==="x" ? "border-cyan bg-cyan/20 text-cyan" : "border-ink/20 text-ink/60 hover:bg-ink/5"}`}
+            >𝕏 · CIRCLE</button>
+            <button
+              onClick={() => setPlatform("discord")}
+              className={`flex-1 rounded-md border-2 px-3 py-2 font-display text-xs tracking-widest transition ${platform==="discord" ? "border-grape bg-grape/20 text-ink" : "border-ink/20 text-ink/60 hover:bg-ink/5"}`}
+            >DISCORD · ROUNDED</button>
+          </div>
+          <div className="relative mx-auto aspect-square w-full max-w-sm">
+            <canvas ref={canvasRef} className="h-full w-full" style={{ imageRendering: "auto" }} />
+            <div className="absolute -bottom-2 -right-2 rotate-[-4deg] rounded bg-grease px-2 py-1 font-display text-[10px] tracking-widest text-white shadow-md">512 × 512</div>
+          </div>
+          <p className="mt-4 text-center font-mono text-[11px] italic text-ink/60">"{employee.quote}"</p>
+          <div className="mt-4 flex gap-2">
+            <button onClick={download} className="flex-1 rounded-md border-2 border-mustard bg-mustard px-4 py-3 font-display text-sm tracking-widest text-bg shadow-[3px_3px_0_#000] hover:translate-y-[-2px] transition">
+              DOWNLOAD PFP
+            </button>
+            <button onClick={share} className="rounded-md border-2 border-cyan bg-cyan/10 px-4 py-3 font-display text-sm tracking-widest text-cyan"><Share2 className="h-4 w-4"/></button>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="space-y-5">
+          <div>
+            <div className="mb-2 font-mono text-xs uppercase tracking-widest text-mustard">1 · Pick your employee</div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {PFP_CREW.map((e) => {
+                const active = e.id === empId;
+                return (
+                  <button
+                    key={e.id}
+                    onClick={() => setEmpId(e.id)}
+                    className={`rounded-lg border-2 p-3 text-left transition ${active ? "border-mustard bg-mustard/10 shadow-[0_0_20px_rgba(250,204,21,0.3)]" : "border-ink/15 bg-card hover:border-grape/60"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg"
+                        style={{ background: e.tint + "33", boxShadow: `0 0 12px ${e.tint}80` }}
+                      >{e.hat}</div>
+                      <div className="min-w-0">
+                        <div className="truncate font-display text-sm">{e.name}</div>
+                        <div className="truncate font-mono text-[10px] uppercase tracking-widest text-ink/60">{e.role}</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 font-mono text-xs uppercase tracking-widest text-mustard">2 · Background</div>
+            <div className="flex flex-wrap gap-2">
+              {PFP_BGS.map((b) => {
+                const style: React.CSSProperties = b.value.startsWith("linear:")
+                  ? { backgroundImage: `linear-gradient(135deg, ${b.value.slice(7).split(",").join(", ")})` }
+                  : { background: b.value };
+                const active = b.id === bgId;
+                return (
+                  <button
+                    key={b.id}
+                    onClick={() => setBgId(b.id)}
+                    className={`h-10 w-10 rounded-md border-2 transition ${active ? "border-mustard scale-110 shadow-[0_0_10px_rgba(250,204,21,0.6)]" : "border-ink/20 hover:border-ink/40"}`}
+                    style={style}
+                    aria-label={b.label}
+                    title={b.label}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 font-mono text-xs uppercase tracking-widest text-mustard">3 · Your handle</div>
+            <input
+              value={handle}
+              onChange={(e) => setHandle(e.target.value.slice(0, 24))}
+              placeholder="@your_handle"
+              className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"
+            />
+          </div>
+
+          <label className="flex items-center gap-3 rounded-md border border-ink/15 bg-black/30 px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showBadge}
+              onChange={(e) => setShowBadge(e.target.checked)}
+              className="h-4 w-4 accent-mustard"
+            />
+            <span>Show name badge & handle overlay</span>
+          </label>
+
+          <div className="rounded-md border-2 border-grape/40 bg-grape/10 p-4 text-xs text-ink/75">
+            <div className="mb-1 flex items-center gap-2 font-display text-sm text-mustard"><Star className="h-4 w-4 fill-mustard text-mustard"/> LEGAL NOTICE</div>
+            Using this PFP does not constitute actual employment. You will not be paid. You may still be fired.
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
 }
 
 function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: string | null; onDownload: () => void }) {
