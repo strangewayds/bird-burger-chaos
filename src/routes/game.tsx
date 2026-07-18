@@ -598,6 +598,7 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     let last = performance.now();
     let fireCd = 8;
     let pigeonCd = 15;
+    let spillCd = 6;
     let orderTickAcc = 0;
     let uiTickAcc = 0;
 
