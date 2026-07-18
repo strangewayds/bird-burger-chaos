@@ -717,9 +717,31 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
         // Deadband: below threshold, hold last facing to prevent zero-crossing jitter
         const active = Math.abs(dirAvgRaw) > 0.06;
         p.dirAvg = active ? dirAvgRaw : p.dirAvg;
-        const faceTarget = active
-          ? (p.dirAvg > 0 ? 1 : -1)
-          : (p.face >= 0 ? 1 : -1);
+
+        // ---- Turning estimation (predictive lookahead) ----
+        // Estimate d(dirAvg)/dt with a low-pass filter, then project ~110ms ahead so the
+        // face target flips slightly BEFORE the smoothed input actually crosses zero.
+        const te = turnEstRef.current;
+        const rawVel = dt > 0 ? (p.dirAvg - te.prevDirAvg) / dt : 0;
+        // EMA on angular-input velocity to keep the estimate stable (α ≈ 0.35)
+        te.dirVel = te.dirVel * 0.65 + rawVel * 0.35;
+        te.prevDirAvg = p.dirAvg;
+        // Lookahead grows when input is accelerating; capped so it can't overshoot into noise.
+        // Longer lookahead when NOT dashing (float feels planned); shorter on dash (already snappy).
+        const lookahead = (p.dashCd > 0.6 ? 0.06 : 0.12); // seconds
+        const predRaw = p.dirAvg + te.dirVel * lookahead;
+        te.predicted = Math.max(-1.5, Math.min(1.5, predRaw));
+
+        // Face target uses the *predicted* direction when a flip is imminent, else the smoothed dir.
+        // "Imminent" = predicted sign differs from current face sign AND |predicted| clears deadband.
+        const predSign = te.predicted > 0.06 ? 1 : te.predicted < -0.06 ? -1 : 0;
+        const smoothSign = p.dirAvg > 0 ? 1 : -1;
+        const willFlip = predSign !== 0 && predSign !== Math.sign(p.face) && Math.abs(te.dirVel) > 0.35;
+        const faceTarget = !active
+          ? (p.face >= 0 ? 1 : -1)
+          : willFlip
+            ? predSign
+            : smoothSign;
 
         // Dash-vs-normal blend: fresh dash window feels punchier and more committed;
         // normal hops feel floaty with a longer anticipation read.
