@@ -911,7 +911,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
       if (mag > 0) { dx /= mag; dy /= mag; }
       const dashing = (k["shift"] || false) && p.dashCd <= 0 && mag > 0;
       const speed = dashing ? 0.55 : 0.28;
-      if (dashing) p.dashCd = 1.2;
+      if (dashing) { p.dashCd = 1.2; sfxRef.current.whoosh("start", 1); }
       p.dashCd = Math.max(0, p.dashCd - dt);
       // slip if in grease
       if (p.slipT > 0) { p.slipT -= dt; }
