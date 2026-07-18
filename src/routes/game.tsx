@@ -1698,7 +1698,9 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     const m = mascotImgRef.current;
     if (m) {
       const size = 76;
-      const drawY = py - size + 16 + hopY;
+      // headBobPx adds a subtle 2x-frequency nod on top of hopY; headSwayPx pushes the whole sprite slightly along facing
+      const drawY = py - size + 16 + hopY + headBobPx;
+      const drawX = pxs - size / 2 + headSwayPx;
       ctx.save();
       ctx.translate(pxs, py + 16);
       ctx.scale(p.face * scaleX, scaleY);
