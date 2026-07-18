@@ -464,9 +464,18 @@ function BirdBurgerPage() {
   const [wallet, setWallet] = useState<string | null>(null);
   const [wrongNet, setWrongNet] = useState(false);
   const [bucks, setBucks] = useState(0);
+  const [trackId, setTrackId] = useState<string>(MEME_TRACKS[0].id);
 
   const play = useSound(muted);
-  useFartSong(muted);
+  useFartSong(muted, trackId);
+
+  const randomizeTrack = () => {
+    const others = MEME_TRACKS.filter((t) => t.id !== trackId);
+    const next = others[Math.floor(Math.random() * others.length)];
+    setTrackId(next.id);
+    if (muted) setMuted(false);
+    toast(`🎵 Now playing: ${next.name}`, { duration: 1800 });
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("bb_bucks");
