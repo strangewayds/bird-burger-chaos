@@ -1799,8 +1799,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
     const headBobPx = moving ? -Math.cos(p.hopPhase * 2) * 1.6 * hopAmp : Math.sin(p.idleT * 2.6) * 0.6;
     // Head sway: gentle side-to-side wobble in the sprite's local X, faces travel direction
     const headSwayPx = moving ? Math.sin(p.hopPhase) * 0.9 * p.face : 0;
-    const scaleY = 1 + airT * 0.14 * hopAmp - landSquashY - antiT + breatheY;
-    const scaleX = 1 - airT * 0.07 * hopAmp + landStretchX + antiT * 0.6 + breatheX + wingFlap + idleFlap;
+    const scaleY = 1 + airT * 0.14 * hopAmp * M - landSquashY * M - antiT * M + breatheY;
+    const scaleX = 1 - airT * 0.07 * hopAmp * M + landStretchX * M + antiT * 0.6 * M + breatheX + wingFlap + idleFlap;
     // shadow (shrinks when airborne; expands briefly on landing)
     const shadowScale = (1 - airT * 0.55) * (1 + landK * 0.15);
     ctx.fillStyle = `rgba(0,0,0,${0.5 - airT * 0.25})`;
