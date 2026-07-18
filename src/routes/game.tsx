@@ -996,6 +996,53 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
     ctx.beginPath();
     ctx.ellipse(px, py + 28, 24 * shadowScale, 8 * shadowScale, 0, 0, Math.PI*2);
     ctx.fill();
+
+    // Dash smear trail (short, crisp silhouettes — not motion blur)
+    {
+      const now = performance.now() / 1000;
+      const ddt = lastDrawTimeRef.current ? Math.min(0.05, now - lastDrawTimeRef.current) : 1 / 60;
+      lastDrawTimeRef.current = now;
+      const trail = trailRef.current;
+      // Capture snapshot only during the fresh window after dash trigger
+      if (p.dashCd > 0.95 && moving) {
+        const last = trail[trail.length - 1];
+        if (!last || Math.hypot(last.x - px, last.y - py) > 8) {
+          trail.push({ x: px, y: py, face: p.face, hopY, t: 0 });
+        }
+      }
+      // Age + prune
+      for (let i = trail.length - 1; i >= 0; i--) {
+        trail[i].t += ddt;
+        if (trail[i].t > 0.28) trail.splice(i, 1);
+      }
+      // Cap length
+      while (trail.length > 5) trail.shift();
+      // Render behind player
+      const mm = mascotImgRef.current;
+      if (mm && trail.length) {
+        const size = 76;
+        for (let i = 0; i < trail.length; i++) {
+          const s = trail[i];
+          const k = 1 - s.t / 0.28; // 1..0
+          const alpha = 0.32 * k * k;
+          if (alpha < 0.02) continue;
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(s.x, s.y + 16);
+          // slight squeeze along travel axis so it reads as speed lines, not blur
+          ctx.scale(s.face * (0.82 + k * 0.10), 0.94 + k * 0.06);
+          ctx.translate(-s.x, -(s.y + 16));
+          ctx.drawImage(mm, s.x - size / 2, s.y - size + 16 + s.hopY, size, size);
+          // tint pass to flatten detail into a silhouette
+          ctx.globalCompositeOperation = "source-atop";
+          ctx.globalAlpha = alpha * 1.4;
+          ctx.fillStyle = employee.tint;
+          ctx.fillRect(s.x - size / 2, s.y - size + 16 + s.hopY, size, size);
+          ctx.restore();
+        }
+      }
+    }
+
     const pxs = px + sway;
     const m = mascotImgRef.current;
     if (m) {
