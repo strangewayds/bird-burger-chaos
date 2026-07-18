@@ -2160,6 +2160,13 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
             <span className="h-2 w-2 animate-pulse rounded-full bg-robin shadow-[0_0_10px_#00C805]" />
             Store Open — Mgmt Missing
           </div>
+          <a
+            href="/game"
+            className="hidden items-center gap-1.5 rounded-md border-2 border-mustard bg-mustard/15 px-3 py-2 text-xs font-black uppercase tracking-widest text-mustard shadow-[0_0_20px_rgba(250,204,21,0.35)] hover:bg-mustard hover:text-bg sm:inline-flex"
+            title="Play Bird Burger: Kitchen Chaos"
+          >
+            <Flame className="h-4 w-4" /> Play Game
+          </a>
           <button
             onClick={onRandomizeTrack}
             title={`Shuffle track${trackName ? ` — now: ${trackName}` : ""}`}
@@ -2168,6 +2175,7 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
           >
             <Shuffle className="h-4 w-4" />
           </button>
+
           <div className="flex items-center gap-2 rounded-md border border-ink/20 bg-bg/60 px-2 py-1.5">
             <button
               onClick={() => setMuted(!muted)}

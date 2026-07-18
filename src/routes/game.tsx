@@ -1,0 +1,1227 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, VolumeX } from "lucide-react";
+import kitchenBg from "@/assets/game-kitchen.jpg";
+import mascotHero from "@/assets/bird-mascot.png.asset.json";
+
+export const Route = createFileRoute("/game")({
+  head: () => ({
+    meta: [
+      { title: "Bird Burger: Kitchen Chaos — Play the Game" },
+      { name: "description", content: "Serve absurd meals, extinguish fryer fires, and survive the worst shift on the blockchain. Play Bird Burger: Kitchen Chaos free in your browser." },
+      { property: "og:title", content: "Bird Burger: Kitchen Chaos" },
+      { property: "og:description", content: "The worst shift on the blockchain. Play free in your browser." },
+    ],
+  }),
+  component: GamePage,
+});
+
+/* ─────────────────────────  TYPES & CONSTANTS  ───────────────────────── */
+
+type Ing = "bun" | "patty_raw" | "patty_cooked" | "lettuce_raw" | "lettuce_chopped" | "cheese" | "sauce" | "fries" | "shake" | "nugget";
+
+const ING_META: Record<Ing, { color: string; label: string; emoji: string }> = {
+  bun: { color: "#FACC15", label: "Bun", emoji: "🍞" },
+  patty_raw: { color: "#B24545", label: "Raw Patty", emoji: "🥩" },
+  patty_cooked: { color: "#7C3A1F", label: "Cooked Patty", emoji: "🍖" },
+  lettuce_raw: { color: "#3DA34D", label: "Lettuce Head", emoji: "🥬" },
+  lettuce_chopped: { color: "#65D65C", label: "Chopped Lettuce", emoji: "🥗" },
+  cheese: { color: "#F5C518", label: "Cheese", emoji: "🧀" },
+  sauce: { color: "#EC4899", label: "Sauce", emoji: "🧂" },
+  fries: { color: "#FFD24A", label: "Fries", emoji: "🍟" },
+  shake: { color: "#F8B4D9", label: "Shake", emoji: "🥤" },
+  nugget: { color: "#22D3EE", label: "Nuggets", emoji: "🍗" },
+};
+
+type StationKind = "fridge" | "cutting" | "raw_patty" | "cheese" | "sauce" | "grill" | "fryer" | "drink" | "assembly" | "pickup" | "extinguisher";
+
+type Station = {
+  id: string;
+  kind: StationKind;
+  x: number; // normalized 0..1
+  y: number;
+  w: number;
+  h: number;
+  label: string;
+  color: string;
+};
+
+// Positions calibrated to game-kitchen.jpg (1920x1080)
+const STATIONS: Station[] = [
+  { id: "fridge", kind: "fridge", x: 0.08, y: 0.34, w: 0.10, h: 0.30, label: "FRIDGE", color: "#00C805" },
+  { id: "raw_patty", kind: "raw_patty", x: 0.04, y: 0.78, w: 0.11, h: 0.14, label: "PATTIES", color: "#EF4444" },
+  { id: "cutting", kind: "cutting", x: 0.19, y: 0.62, w: 0.13, h: 0.16, label: "CHOP", color: "#22D3EE" },
+  { id: "cheese", kind: "cheese", x: 0.27, y: 0.22, w: 0.11, h: 0.16, label: "CHEESE", color: "#FACC15" },
+  { id: "grill", kind: "grill", x: 0.46, y: 0.28, w: 0.14, h: 0.18, label: "GRILL", color: "#EF4444" },
+  { id: "fryer", kind: "fryer", x: 0.63, y: 0.32, w: 0.11, h: 0.18, label: "FRYER", color: "#F97316" },
+  { id: "drink", kind: "drink", x: 0.82, y: 0.55, w: 0.10, h: 0.20, label: "DRINKS", color: "#22D3EE" },
+  { id: "sauce", kind: "sauce", x: 0.45, y: 0.72, w: 0.14, h: 0.14, label: "SAUCE", color: "#EC4899" },
+  { id: "assembly", kind: "assembly", x: 0.36, y: 0.86, w: 0.15, h: 0.08, label: "ASSEMBLY", color: "#7C3AED" },
+  { id: "pickup", kind: "pickup", x: 0.91, y: 0.28, w: 0.07, h: 0.20, label: "PICK UP", color: "#EC4899" },
+  { id: "extinguisher", kind: "extinguisher", x: 0.72, y: 0.60, w: 0.05, h: 0.09, label: "EXT.", color: "#EF4444" },
+];
+
+/* ─────────────────────────  ORDER RECIPES  ───────────────────────── */
+
+type OrderTemplate = { name: string; items: Ing[]; time: number; score: number; emoji: string };
+
+const ORDER_POOL: OrderTemplate[] = [
+  { name: "McRug Pull", items: ["bun", "patty_cooked", "sauce"], time: 55, score: 220, emoji: "🍔" },
+  { name: "Liquidity Fries", items: ["fries", "sauce"], time: 45, score: 160, emoji: "🍟" },
+  { name: "Pump & Shake", items: ["shake"], time: 40, score: 120, emoji: "🥤" },
+  { name: "Chudburger Deluxe", items: ["bun", "patty_cooked", "patty_cooked", "cheese", "sauce"], time: 80, score: 380, emoji: "🍔" },
+  { name: "Diamond Nuggets", items: ["nugget", "sauce"], time: 50, score: 200, emoji: "🍗" },
+  { name: "Exit Combo", items: ["bun", "patty_cooked", "cheese", "fries", "shake"], time: 95, score: 460, emoji: "🥡" },
+  { name: "Paper Hands Meal", items: ["bun", "patty_cooked", "lettuce_chopped"], time: 60, score: 240, emoji: "🥪" },
+  { name: "Nothing Burger", items: ["bun"], time: 30, score: 90, emoji: "🍞" },
+];
+
+type Order = { id: number; template: OrderTemplate; remaining: number; };
+
+/* ─────────────────────────  GAME STATE  ───────────────────────── */
+
+type Phase = "start" | "playing" | "results";
+
+type Fire = { x: number; y: number; stationId: string; life: number };
+type Pigeon = { x: number; y: number; vx: number; vy: number; hp: number };
+type FloatText = { x: number; y: number; text: string; color: string; life: number };
+
+const EMPLOYEES = [
+  { id: "larry", name: "Larry", tint: "#C4A9F5", desc: "Tired. Always tired." },
+  { id: "frycook", name: "FryCook420", tint: "#22D3EE", desc: "Wears shades indoors." },
+  { id: "diamond", name: "Diamond Dave", tint: "#FACC15", desc: "Never sells." },
+  { id: "pete", name: "Paper Hands Pete", tint: "#EC4899", desc: "Drops everything." },
+  { id: "gary", name: "Manager Gary", tint: "#00C805", desc: "Reluctantly here." },
+];
+
+/* ─────────────────────────  COMPONENT  ───────────────────────── */
+
+function GamePage() {
+  const [phase, setPhase] = useState<Phase>("start");
+  const [employee, setEmployee] = useState(EMPLOYEES[0]);
+  const [showHelp, setShowHelp] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [finalStats, setFinalStats] = useState<GameStats | null>(null);
+
+  return (
+    <div className="min-h-screen bg-[#09090B] text-white">
+      <TopBar muted={muted} setMuted={setMuted} />
+      <AnimatePresence mode="wait">
+        {phase === "start" && (
+          <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <StartScreen
+              employee={employee}
+              setEmployee={setEmployee}
+              onStart={() => setPhase("playing")}
+              onHelp={() => setShowHelp(true)}
+            />
+          </motion.div>
+        )}
+        {phase === "playing" && (
+          <motion.div key="play" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <GameScreen
+              employee={employee}
+              muted={muted}
+              onEnd={(stats) => { setFinalStats(stats); setPhase("results"); }}
+              onQuit={() => setPhase("start")}
+            />
+          </motion.div>
+        )}
+        {phase === "results" && finalStats && (
+          <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <ResultsScreen
+              stats={finalStats}
+              onReplay={() => setPhase("playing")}
+              onQuit={() => setPhase("start")}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {showHelp && <HowToPlay onClose={() => setShowHelp(false)} />}
+    </div>
+  );
+}
+
+/* ─────────────────────────  TOP BAR  ───────────────────────── */
+
+function TopBar({ muted, setMuted }: { muted: boolean; setMuted: (v: boolean) => void }) {
+  return (
+    <header className="sticky top-0 z-40 border-b-2 border-[#7C3AED]/50 bg-[#09090B]/90 backdrop-blur">
+      <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-2 px-4 py-2.5">
+        <Link to="/" className="inline-flex items-center gap-2 rounded border border-[#7C3AED]/40 bg-[#2E1065]/60 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4A9F5] hover:bg-[#7C3AED]/30">
+          <ArrowLeft className="h-4 w-4" /> Restaurant
+        </Link>
+        <div className="flex min-w-0 items-center gap-2">
+          <img src="/favicon.png" alt="" width={28} height={28} className="h-7 w-7 rounded shadow-[0_0_16px_#7C3AED]" />
+          <div className="truncate font-black uppercase tracking-widest text-[#FACC15] [font-family:'Bungee','Impact',sans-serif]">
+            Bird Burger: <span className="text-[#EC4899]">Kitchen Chaos</span>
+          </div>
+        </div>
+        <button
+          onClick={() => setMuted(!muted)}
+          className="grid h-9 w-9 place-items-center rounded border border-[#7C3AED]/40 bg-[#2E1065]/60 text-[#C4A9F5] hover:bg-[#7C3AED]/30"
+          aria-label={muted ? "Unmute" : "Mute"}
+        >
+          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        </button>
+      </div>
+    </header>
+  );
+}
+
+/* ─────────────────────────  START SCREEN  ───────────────────────── */
+
+function StartScreen({ employee, setEmployee, onStart, onHelp }: {
+  employee: typeof EMPLOYEES[number];
+  setEmployee: (e: typeof EMPLOYEES[number]) => void;
+  onStart: () => void;
+  onHelp: () => void;
+}) {
+  const [showEmp, setShowEmp] = useState(false);
+  return (
+    <div className="relative min-h-[calc(100vh-56px)] overflow-hidden">
+      <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url(${kitchenBg})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)" }} />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#09090B]/80 via-[#2E1065]/60 to-[#09090B]" />
+      <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-6 py-16 md:grid-cols-2">
+        <div>
+          <div className="mb-3 inline-block rounded-full border border-[#EC4899]/60 bg-[#EC4899]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#EC4899]">
+            Round 1 • Rated E for Everyone Fired
+          </div>
+          <h1 className="[font-family:'Bungee','Impact',sans-serif] text-5xl leading-[0.9] tracking-tight text-[#7C3AED] drop-shadow-[0_0_28px_rgba(124,58,237,0.6)] md:text-7xl">
+            BIRD<br/>BURGER:
+          </h1>
+          <h2 className="mt-1 [font-family:'Bungee','Impact',sans-serif] text-3xl text-[#EC4899] drop-shadow-[0_0_20px_rgba(236,72,153,0.5)] md:text-5xl">
+            KITCHEN CHAOS
+          </h2>
+          <p className="mt-4 max-w-md text-lg font-bold uppercase tracking-wider text-[#FACC15]/90">
+            "The worst shift on the blockchain."
+          </p>
+          <p className="mt-3 max-w-md text-sm text-white/70">
+            Cook absurd meals, extinguish fryer fires, chase pigeons, and try to survive three minutes at the greasiest kitchen in Web3.
+          </p>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:max-w-md">
+            <button onClick={onStart} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-lg border-4 border-[#FACC15] bg-[#FACC15] px-6 py-4 text-lg font-black uppercase tracking-widest text-[#09090B] shadow-[0_6px_0_#B08807,0_0_28px_rgba(250,204,21,0.5)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5">
+              <Play className="h-5 w-5" /> Start Shift
+            </button>
+            <button onClick={() => setShowEmp(true)} className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#22D3EE] bg-[#22D3EE]/10 px-3 py-3 text-xs font-black uppercase tracking-widest text-[#22D3EE] hover:bg-[#22D3EE]/25">
+              <Users className="h-4 w-4" /> Choose Employee
+            </button>
+            <button onClick={onHelp} className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#EC4899] bg-[#EC4899]/10 px-3 py-3 text-xs font-black uppercase tracking-widest text-[#EC4899] hover:bg-[#EC4899]/25">
+              <HelpCircle className="h-4 w-4" /> How to Play
+            </button>
+          </div>
+          <div className="mt-4 text-[10px] uppercase tracking-widest text-white/50">
+            Now serving: <span className="text-[#FACC15]">{employee.name}</span> — {employee.desc}
+          </div>
+        </div>
+        <div className="relative mx-auto">
+          <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-72 w-72 rounded-full bg-[#7C3AED]/40 blur-3xl" />
+          <motion.img
+            src={mascotHero.url}
+            alt="Larry the Bird Burger mascot"
+            width={520}
+            height={520}
+            className="mx-auto h-auto w-[300px] md:w-[480px]"
+            animate={{ y: [0, -10, 0], rotate: [-1, 1, -1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
+      </div>
+      {showEmp && <EmployeePicker current={employee.id} onPick={(e) => { setEmployee(e); setShowEmp(false); }} onClose={() => setShowEmp(false)} />}
+    </div>
+  );
+}
+
+function EmployeePicker({ current, onPick, onClose }: { current: string; onPick: (e: typeof EMPLOYEES[number]) => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl rounded-xl border-2 border-[#7C3AED] bg-[#2E1065] p-6 shadow-[0_0_60px_rgba(124,58,237,0.6)]">
+        <h3 className="mb-4 [font-family:'Bungee','Impact',sans-serif] text-2xl text-[#FACC15]">CHOOSE YOUR EMPLOYEE</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {EMPLOYEES.map((e) => (
+            <button
+              key={e.id}
+              onClick={() => onPick(e)}
+              className={`flex flex-col items-center rounded-lg border-2 p-3 transition-all ${current === e.id ? "border-[#FACC15] bg-[#FACC15]/10 shadow-[0_0_20px_rgba(250,204,21,0.5)]" : "border-[#7C3AED]/40 bg-[#09090B]/40 hover:border-[#EC4899]"}`}
+            >
+              <div className="grid h-16 w-16 place-items-center rounded-full" style={{ background: `radial-gradient(${e.tint}, transparent 70%)` }}>
+                <img src={mascotHero.url} alt="" width={64} height={64} className="h-14 w-14 object-contain" style={{ filter: `hue-rotate(${hueFor(e.tint)}deg)` }} />
+              </div>
+              <div className="mt-2 text-xs font-black uppercase tracking-widest text-white">{e.name}</div>
+              <div className="mt-1 text-[9px] uppercase tracking-widest text-white/60">{e.desc}</div>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="mt-4 w-full rounded border-2 border-[#EC4899] bg-[#EC4899]/20 py-2 text-xs font-black uppercase tracking-widest text-[#EC4899] hover:bg-[#EC4899]/40">Close</button>
+      </div>
+    </div>
+  );
+}
+
+function hueFor(hex: string): number {
+  // rough hue rotation for varying mascot color
+  const map: Record<string, number> = { "#C4A9F5": 0, "#22D3EE": 130, "#FACC15": 60, "#EC4899": 300, "#00C805": 100 };
+  return map[hex] ?? 0;
+}
+
+function HowToPlay({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-xl border-2 border-[#EC4899] bg-[#2E1065] p-6">
+        <h3 className="mb-3 [font-family:'Bungee','Impact',sans-serif] text-2xl text-[#EC4899]">HOW TO PLAY</h3>
+        <ul className="space-y-2 text-sm text-white/85">
+          <li><b className="text-[#FACC15]">WASD / Arrows</b> — Move Larry around the kitchen</li>
+          <li><b className="text-[#FACC15]">SHIFT</b> — Dash (short burst of speed)</li>
+          <li><b className="text-[#FACC15]">SPACE / E</b> — Interact with the nearest station</li>
+          <li><b className="text-[#FACC15]">Q</b> — Drop what you're carrying</li>
+          <li className="pt-2 text-white/70">Pick up buns, cook patties on the grill, chop lettuce at the cutting board, fry fries at the fryer. Assemble the meal in your hands and drop it at <b className="text-[#EC4899]">PICK UP</b>.</li>
+          <li className="text-white/70">Fires break out at the fryer — grab the extinguisher and interact with the flames to put them out.</li>
+          <li className="text-white/70">Pigeons will steal food. Run into them to scare them off.</li>
+        </ul>
+        <button onClick={onClose} className="mt-4 w-full rounded border-2 border-[#FACC15] bg-[#FACC15]/20 py-2 text-xs font-black uppercase tracking-widest text-[#FACC15] hover:bg-[#FACC15]/40">Got it</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────  GAME SCREEN  ───────────────────────── */
+
+type GameStats = {
+  score: number;
+  best: number;
+  ordersCompleted: number;
+  ordersFailed: number;
+  foodBurned: number;
+  fires: number;
+  pigeonsChased: number;
+  dropped: number;
+  birdBucks: number;
+  grade: string;
+  gradeSub: string;
+};
+
+function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
+  employee: typeof EMPLOYEES[number];
+  muted: boolean;
+  onEnd: (s: GameStats) => void;
+  onQuit: () => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const bgImgRef = useRef<HTMLImageElement | null>(null);
+  const mascotImgRef = useRef<HTMLImageElement | null>(null);
+
+  // Persistent refs (game loop reads/writes)
+  const keysRef = useRef<Record<string, boolean>>({});
+  const playerRef = useRef({ x: 0.4, y: 0.55, vx: 0, vy: 0, dashCd: 0, slipT: 0 });
+  const carryRef = useRef<Ing[]>([]);
+  const ordersRef = useRef<Order[]>([]);
+  const orderIdRef = useRef(1);
+  const firesRef = useRef<Fire[]>([]);
+  const pigeonsRef = useRef<Pigeon[]>([]);
+  const floatsRef = useRef<FloatText[]>([]);
+  const hasExtinguisherRef = useRef(false);
+  const grillRef = useRef({ progress: 0, item: null as Ing | null });
+  const fryerRef = useRef({ progress: 0, item: null as Ing | null });
+
+  // React-visible stats
+  const [timeLeft, setTimeLeft] = useState(180);
+  const [score, setScore] = useState(0);
+  const [chaos, setChaos] = useState(0);
+  const [_tick, setTick] = useState(0); // force render for orders/carry
+  const statsRef = useRef({
+    ordersCompleted: 0,
+    ordersFailed: 0,
+    foodBurned: 0,
+    fires: 0,
+    pigeonsChased: 0,
+    dropped: 0,
+  });
+  const scoreRef = useRef(0);
+  const chaosRef = useRef(0);
+  const timeRef = useRef(180);
+
+  const best = useMemo(() => {
+    if (typeof window === "undefined") return 0;
+    return parseInt(window.localStorage.getItem("bb_kc_best") || "0", 10);
+  }, []);
+
+  // Load images
+  useEffect(() => {
+    const bg = new Image();
+    bg.src = kitchenBg;
+    bg.onload = () => { bgImgRef.current = bg; };
+    const m = new Image();
+    m.src = mascotHero.url;
+    m.onload = () => { mascotImgRef.current = m; };
+  }, []);
+
+  // Seed orders
+  useEffect(() => {
+    ordersRef.current = [];
+    for (let i = 0; i < 4; i++) spawnOrder();
+    setTick((t) => t + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function spawnOrder() {
+    const t = ORDER_POOL[Math.floor(Math.random() * ORDER_POOL.length)];
+    ordersRef.current.push({ id: orderIdRef.current++, template: t, remaining: t.time });
+  }
+
+  // Input
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      keysRef.current[k] = true;
+      if (["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase()) || k === " ") e.preventDefault();
+      if (k === " " || k === "e") interact();
+      if (k === "q") dropCarry();
+    };
+    const up = (e: KeyboardEvent) => { keysRef.current[e.key.toLowerCase()] = false; };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Touch controls (mobile)
+  const touchRef = useRef<{ dx: number; dy: number } | null>(null);
+  const [showTouch, setShowTouch] = useState(false);
+  useEffect(() => {
+    setShowTouch("ontouchstart" in window);
+  }, []);
+
+  function nearestStation(): Station | null {
+    const p = playerRef.current;
+    let best: { s: Station; d: number } | null = null;
+    for (const s of STATIONS) {
+      const cx = s.x + s.w / 2;
+      const cy = s.y + s.h / 2;
+      const d = Math.hypot(p.x - cx, p.y - cy);
+      const range = Math.max(s.w, s.h) * 0.9 + 0.04;
+      if (d < range && (!best || d < best.d)) best = { s, d };
+    }
+    return best?.s ?? null;
+  }
+
+  function pushFloat(text: string, color: string) {
+    floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.03, text, color, life: 1 });
+  }
+
+  function tryDeliverAtPickup() {
+    const carry = carryRef.current;
+    if (carry.length === 0) { pushFloat("EMPTY!", "#EF4444"); return; }
+    // find matching order (any order whose sorted items match sorted carry)
+    const key = [...carry].sort().join("|");
+    const idx = ordersRef.current.findIndex((o) => [...o.template.items].sort().join("|") === key);
+    if (idx === -1) {
+      pushFloat("WRONG ORDER", "#EF4444");
+      chaosRef.current = Math.min(6, chaosRef.current + 0.5);
+      setChaos(chaosRef.current);
+      statsRef.current.dropped++;
+      carryRef.current = [];
+      return;
+    }
+    const order = ordersRef.current[idx];
+    const timeBonus = Math.max(0, Math.floor(order.remaining * 2));
+    const gain = order.template.score + timeBonus;
+    scoreRef.current += gain;
+    setScore(scoreRef.current);
+    statsRef.current.ordersCompleted++;
+    pushFloat(`+${gain}`, "#00C805");
+    ordersRef.current.splice(idx, 1);
+    carryRef.current = [];
+    // spawn a new one
+    setTimeout(() => { spawnOrder(); setTick((t) => t + 1); }, 400);
+    setTick((t) => t + 1);
+  }
+
+  function interact() {
+    const s = nearestStation();
+    if (!s) return;
+    const carry = carryRef.current;
+    switch (s.kind) {
+      case "fridge": {
+        if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
+        carry.push("bun");
+        pushFloat("+ BUN", "#FACC15");
+        break;
+      }
+      case "raw_patty": {
+        if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
+        carry.push("patty_raw");
+        pushFloat("+ RAW PATTY", "#B24545");
+        break;
+      }
+      case "cheese": {
+        if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
+        carry.push("cheese");
+        pushFloat("+ CHEESE", "#F5C518");
+        break;
+      }
+      case "sauce": {
+        if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
+        carry.push("sauce");
+        pushFloat("+ SAUCE", "#EC4899");
+        break;
+      }
+      case "drink": {
+        if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
+        carry.push("shake");
+        pushFloat("+ SHAKE", "#F8B4D9");
+        break;
+      }
+      case "cutting": {
+        const i = carry.indexOf("lettuce_raw");
+        if (i !== -1) {
+          carry[i] = "lettuce_chopped";
+          pushFloat("CHOPPED!", "#65D65C");
+        } else {
+          if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
+          carry.push("lettuce_raw");
+          pushFloat("+ LETTUCE", "#3DA34D");
+        }
+        break;
+      }
+      case "grill": {
+        const g = grillRef.current;
+        if (g.item === null) {
+          const i = carry.indexOf("patty_raw");
+          if (i !== -1) {
+            carry.splice(i, 1);
+            g.item = "patty_raw";
+            g.progress = 0;
+            pushFloat("COOKING…", "#F97316");
+          } else {
+            pushFloat("NEED PATTY", "#EF4444");
+          }
+        } else if (g.item === "patty_cooked") {
+          if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
+          carry.push("patty_cooked");
+          g.item = null;
+          g.progress = 0;
+          pushFloat("+ COOKED", "#7C3A1F");
+        }
+        break;
+      }
+      case "fryer": {
+        const f = fryerRef.current;
+        // extinguish if fire here first
+        const fireHere = firesRef.current.find((fi) => fi.stationId === s.id);
+        if (fireHere) {
+          if (hasExtinguisherRef.current) {
+            firesRef.current = firesRef.current.filter((fi) => fi !== fireHere);
+            hasExtinguisherRef.current = false;
+            pushFloat("PUT OUT!", "#22D3EE");
+            scoreRef.current += 80;
+            setScore(scoreRef.current);
+            chaosRef.current = Math.max(0, chaosRef.current - 1);
+            setChaos(chaosRef.current);
+          } else {
+            pushFloat("GET EXTINGUISHER!", "#EF4444");
+          }
+          break;
+        }
+        if (f.item === null) {
+          f.item = "fries";
+          f.progress = 0;
+          pushFloat("FRYING…", "#FACC15");
+        } else if (f.progress >= 1) {
+          if (carry.length >= 4) return pushFloat("HANDS FULL", "#EF4444");
+          carry.push(f.item === "fries" ? "fries" : "nugget");
+          f.item = null;
+          f.progress = 0;
+          pushFloat("+ FRIES", "#FFD24A");
+        }
+        break;
+      }
+      case "assembly": {
+        pushFloat("ASSEMBLED", "#7C3AED");
+        break;
+      }
+      case "pickup": {
+        tryDeliverAtPickup();
+        break;
+      }
+      case "extinguisher": {
+        hasExtinguisherRef.current = true;
+        pushFloat("EXTINGUISHER!", "#EF4444");
+        break;
+      }
+    }
+    setTick((t) => t + 1);
+  }
+
+  function dropCarry() {
+    if (carryRef.current.length === 0) return;
+    carryRef.current = [];
+    statsRef.current.dropped++;
+    pushFloat("DROPPED", "#EF4444");
+    setTick((t) => t + 1);
+  }
+
+  // Main loop
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    let fireCd = 8;
+    let pigeonCd = 15;
+    let orderTickAcc = 0;
+    let uiTickAcc = 0;
+
+    const loop = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+
+      // Movement
+      const p = playerRef.current;
+      let dx = 0, dy = 0;
+      const k = keysRef.current;
+      if (k["w"] || k["arrowup"]) dy -= 1;
+      if (k["s"] || k["arrowdown"]) dy += 1;
+      if (k["a"] || k["arrowleft"]) dx -= 1;
+      if (k["d"] || k["arrowright"]) dx += 1;
+      if (touchRef.current) { dx += touchRef.current.dx; dy += touchRef.current.dy; }
+      const mag = Math.hypot(dx, dy);
+      if (mag > 0) { dx /= mag; dy /= mag; }
+      const dashing = (k["shift"] || false) && p.dashCd <= 0 && mag > 0;
+      const speed = dashing ? 0.55 : 0.28;
+      if (dashing) p.dashCd = 1.2;
+      p.dashCd = Math.max(0, p.dashCd - dt);
+      // slip if in grease
+      if (p.slipT > 0) { p.slipT -= dt; }
+      p.x = clamp(p.x + dx * speed * dt, 0.02, 0.98);
+      p.y = clamp(p.y + dy * speed * dt, 0.10, 0.96);
+
+      // Grill cooking
+      const g = grillRef.current;
+      if (g.item === "patty_raw") {
+        g.progress += dt / 5;
+        if (g.progress >= 1) { g.item = "patty_cooked"; }
+      } else if (g.item === "patty_cooked") {
+        g.progress += dt / 8;
+        if (g.progress >= 2) {
+          g.item = null; g.progress = 0;
+          statsRef.current.foodBurned++;
+          chaosRef.current = Math.min(6, chaosRef.current + 0.5);
+          chaosRef.current = chaosRef.current;
+        }
+      }
+      // Fryer cooking
+      const f = fryerRef.current;
+      if (f.item) {
+        f.progress += dt / 4;
+        if (f.progress > 2) {
+          f.item = null; f.progress = 0;
+          statsRef.current.foodBurned++;
+        }
+      }
+
+      // Fires
+      fireCd -= dt;
+      if (fireCd <= 0) {
+        // random chance of fire at grill or fryer
+        const target = Math.random() < 0.5 ? "grill" : "fryer";
+        const st = STATIONS.find((s) => s.id === target)!;
+        if (!firesRef.current.some((fi) => fi.stationId === target)) {
+          firesRef.current.push({ x: st.x + st.w/2, y: st.y + st.h/2, stationId: target, life: 12 });
+          statsRef.current.fires++;
+          chaosRef.current = Math.min(6, chaosRef.current + 1);
+        }
+        fireCd = 10 + Math.random() * 10;
+      }
+      // fire life
+      firesRef.current.forEach((fi) => { fi.life -= dt; });
+      // fires that expire cause chaos
+      firesRef.current = firesRef.current.filter((fi) => {
+        if (fi.life <= 0) {
+          chaosRef.current = Math.min(6, chaosRef.current + 1);
+          return false;
+        }
+        return true;
+      });
+
+      // Pigeons
+      pigeonCd -= dt;
+      if (pigeonCd <= 0) {
+        pigeonsRef.current.push({ x: -0.05, y: 0.5 + (Math.random() - 0.5) * 0.4, vx: 0.08 + Math.random()*0.05, vy: (Math.random() - 0.5) * 0.05, hp: 1 });
+        pigeonCd = 12 + Math.random() * 10;
+      }
+      pigeonsRef.current.forEach((pg) => {
+        pg.x += pg.vx * dt;
+        pg.y += pg.vy * dt;
+        // if player near, scare
+        const d = Math.hypot(p.x - pg.x, p.y - pg.y);
+        if (d < 0.05) {
+          pg.hp = 0;
+          statsRef.current.pigeonsChased++;
+          scoreRef.current += 30;
+          floatsRef.current.push({ x: pg.x, y: pg.y - 0.02, text: "SHOO!", color: "#22D3EE", life: 1 });
+        }
+      });
+      pigeonsRef.current = pigeonsRef.current.filter((pg) => pg.hp > 0 && pg.x < 1.1);
+
+      // Orders countdown
+      orderTickAcc += dt;
+      if (orderTickAcc > 1) {
+        orderTickAcc = 0;
+        ordersRef.current.forEach((o) => { o.remaining -= 1; });
+        const failed = ordersRef.current.filter((o) => o.remaining <= 0);
+        if (failed.length) {
+          statsRef.current.ordersFailed += failed.length;
+          chaosRef.current = Math.min(6, chaosRef.current + failed.length);
+          ordersRef.current = ordersRef.current.filter((o) => o.remaining > 0);
+          failed.forEach(() => spawnOrder());
+        }
+      }
+
+      // Floats
+      floatsRef.current.forEach((fl) => { fl.life -= dt; fl.y -= dt * 0.05; });
+      floatsRef.current = floatsRef.current.filter((fl) => fl.life > 0);
+
+      // Timer
+      timeRef.current -= dt;
+      if (timeRef.current <= 0) {
+        cancelAnimationFrame(raf);
+        finishGame();
+        return;
+      }
+
+      // React state sync every ~0.25s
+      uiTickAcc += dt;
+      if (uiTickAcc > 0.2) {
+        uiTickAcc = 0;
+        setTimeLeft(Math.max(0, Math.ceil(timeRef.current)));
+        setScore(scoreRef.current);
+        setChaos(chaosRef.current);
+        setTick((t) => t + 1);
+      }
+
+      draw();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function finishGame() {
+    const s = statsRef.current;
+    const total = scoreRef.current;
+    const newBest = Math.max(best, total);
+    if (typeof window !== "undefined") window.localStorage.setItem("bb_kc_best", String(newBest));
+    // Grade
+    const grade = gradeFor(total);
+    const bucks = Math.floor(total / 10) + s.ordersCompleted * 5;
+    // Award bird bucks in main site's ledger
+    if (typeof window !== "undefined") {
+      const prev = parseInt(window.localStorage.getItem("bb_bucks") || "0", 10);
+      window.localStorage.setItem("bb_bucks", String(prev + bucks));
+    }
+    onEnd({
+      score: total,
+      best: newBest,
+      ordersCompleted: s.ordersCompleted,
+      ordersFailed: s.ordersFailed,
+      foodBurned: s.foodBurned,
+      fires: s.fires,
+      pigeonsChased: s.pigeonsChased,
+      dropped: s.dropped,
+      birdBucks: bucks,
+      grade: grade.letter,
+      gradeSub: grade.sub,
+    });
+  }
+
+  const draw = useCallback(() => {
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Background
+    const bg = bgImgRef.current;
+    if (bg) {
+      ctx.drawImage(bg, 0, 0, W, H);
+    } else {
+      ctx.fillStyle = "#150724";
+      ctx.fillRect(0, 0, W, H);
+    }
+    // vignette
+    const grd = ctx.createRadialGradient(W/2, H/2, W*0.2, W/2, H/2, W*0.7);
+    grd.addColorStop(0, "rgba(0,0,0,0)");
+    grd.addColorStop(1, "rgba(0,0,0,0.55)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+
+    // Station highlight rings
+    const near = nearestStation();
+    for (const s of STATIONS) {
+      const cx = (s.x + s.w/2) * W;
+      const cy = (s.y + s.h/2) * H;
+      const r = Math.max(s.w, s.h) * W * 0.55;
+      const active = near?.id === s.id;
+      ctx.save();
+      ctx.strokeStyle = active ? "#FACC15" : s.color + "88";
+      ctx.lineWidth = active ? 4 : 2;
+      ctx.setLineDash(active ? [] : [6, 6]);
+      ctx.shadowColor = s.color;
+      ctx.shadowBlur = active ? 24 : 8;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Grill progress
+    const gs = STATIONS.find((s) => s.id === "grill")!;
+    const g = grillRef.current;
+    if (g.item) drawProgress(ctx, (gs.x + gs.w/2)*W, (gs.y - 0.02)*H, Math.min(1, g.progress), g.item === "patty_cooked" && g.progress > 1 ? "#EF4444" : "#F97316");
+    const fs = STATIONS.find((s) => s.id === "fryer")!;
+    const fr = fryerRef.current;
+    if (fr.item) drawProgress(ctx, (fs.x + fs.w/2)*W, (fs.y - 0.02)*H, Math.min(1, fr.progress), fr.progress > 1 ? "#EF4444" : "#FACC15");
+
+    // Fires
+    for (const fi of firesRef.current) {
+      const cx = fi.x * W, cy = fi.y * H;
+      for (let i = 0; i < 5; i++) {
+        const t = Math.sin(performance.now()/120 + i) * 6;
+        ctx.fillStyle = i % 2 ? "#FACC15" : "#EF4444";
+        ctx.beginPath();
+        ctx.arc(cx + (i-2)*10, cy + t - 10, 12 - i*1.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#FFF";
+      ctx.font = "bold 12px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("🔥 FIRE!", cx, cy + 30);
+    }
+
+    // Pigeons
+    for (const pg of pigeonsRef.current) {
+      const cx = pg.x * W, cy = pg.y * H;
+      ctx.fillStyle = "#6b6b6b";
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 14, 10, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = "#FACC15";
+      ctx.beginPath();
+      ctx.moveTo(cx+12, cy);
+      ctx.lineTo(cx+22, cy-2);
+      ctx.lineTo(cx+12, cy+3);
+      ctx.fill();
+      ctx.fillStyle = "#EF4444";
+      ctx.beginPath();
+      ctx.arc(cx+4, cy-4, 2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Player
+    const p = playerRef.current;
+    const px = p.x * W, py = p.y * H;
+    // shadow
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.beginPath();
+    ctx.ellipse(px, py + 28, 24, 8, 0, 0, Math.PI*2);
+    ctx.fill();
+    const m = mascotImgRef.current;
+    if (m) {
+      const size = 76;
+      const wobble = Math.sin(performance.now()/120) * 2;
+      ctx.save();
+      // hue rotation via a temp canvas isn't cheap; approximate with colored overlay
+      ctx.drawImage(m, px - size/2, py - size + 16 + wobble, size, size);
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = employee.tint + "40";
+      ctx.fillRect(px - size/2, py - size + 16 + wobble, size, size);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = employee.tint;
+      ctx.beginPath();
+      ctx.arc(px, py, 18, 0, Math.PI*2);
+      ctx.fill();
+    }
+    // Name tag
+    ctx.fillStyle = "#7C3AED";
+    ctx.fillRect(px - 42, py - 78, 84, 18);
+    ctx.strokeStyle = "#FACC15";
+    ctx.strokeRect(px - 42, py - 78, 84, 18);
+    ctx.fillStyle = "#FFF";
+    ctx.font = "bold 11px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(employee.name.toUpperCase(), px, py - 65);
+
+    // Carrying stack
+    const carry = carryRef.current;
+    if (carry.length) {
+      carry.forEach((it, i) => {
+        const info = ING_META[it];
+        ctx.fillStyle = info.color;
+        ctx.beginPath();
+        ctx.arc(px + 30 + i*10, py - 10 - i*10, 8, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+    }
+    if (hasExtinguisherRef.current) {
+      ctx.fillStyle = "#EF4444";
+      ctx.fillRect(px - 32, py - 20, 8, 22);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(px - 32, py - 24, 8, 4);
+    }
+
+    // Floats
+    for (const fl of floatsRef.current) {
+      ctx.globalAlpha = Math.max(0, fl.life);
+      ctx.fillStyle = fl.color;
+      ctx.font = "bold 16px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(fl.text, fl.x * W, fl.y * H);
+      ctx.globalAlpha = 1;
+    }
+
+    // Station labels
+    for (const s of STATIONS) {
+      const cx = (s.x + s.w/2) * W;
+      const cy = (s.y + s.h + 0.01) * H;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      const tw = ctx.measureText(s.label).width + 12;
+      ctx.fillRect(cx - tw/2, cy, tw, 16);
+      ctx.strokeStyle = s.color;
+      ctx.strokeRect(cx - tw/2, cy, tw, 16);
+      ctx.fillStyle = s.color;
+      ctx.font = "bold 10px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(s.label, cx, cy + 12);
+    }
+  }, [employee]);
+
+  // Resize canvas
+  useEffect(() => {
+    const onResize = () => {
+      const cv = canvasRef.current;
+      const wrap = wrapRef.current;
+      if (!cv || !wrap) return;
+      const r = wrap.getBoundingClientRect();
+      cv.width = Math.floor(r.width);
+      cv.height = Math.floor(r.height);
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  return (
+    <div className="relative mx-auto max-w-[1920px] p-2 md:p-4">
+      <div ref={wrapRef} className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border-2 border-[#7C3AED] shadow-[0_0_60px_rgba(124,58,237,0.4)]">
+        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+
+        {/* Top-left: logo + kitchen stats + disaster */}
+        <div className="absolute left-2 top-2 w-[220px] space-y-2 md:left-4 md:top-4">
+          <div className="rounded-lg border-2 border-[#7C3AED] bg-[#2E1065]/85 p-2 backdrop-blur">
+            <div className="[font-family:'Bungee','Impact',sans-serif] text-sm leading-none text-[#7C3AED]">BIRD BURGER</div>
+            <div className="[font-family:'Bungee','Impact',sans-serif] text-xs leading-none text-[#EC4899]">KITCHEN CHAOS</div>
+          </div>
+          <div className="rounded-lg border-2 border-[#7C3AED]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+            <div className="mb-1 font-black text-[#FACC15]">KITCHEN STATS</div>
+            <StatRow label="Completed" value={statsRef.current.ordersCompleted} />
+            <StatRow label="Failed" value={statsRef.current.ordersFailed} />
+            <StatRow label="Food Burned" value={statsRef.current.foodBurned} />
+            <StatRow label="Fires" value={statsRef.current.fires} />
+            <StatRow label="Pigeons Chased" value={statsRef.current.pigeonsChased} />
+            <StatRow label="Dropped" value={statsRef.current.dropped} />
+          </div>
+          {firesRef.current.length > 0 && (
+            <motion.div
+              animate={{ borderColor: ["#EF4444", "#FACC15", "#EF4444"] }}
+              transition={{ duration: 0.6, repeat: Infinity }}
+              className="rounded-lg border-2 bg-[#EF4444]/20 p-2 text-[10px] uppercase tracking-widest"
+            >
+              <div className="flex items-center gap-1.5 font-black text-[#EF4444]"><Flame className="h-3 w-3" /> KITCHEN DISASTER</div>
+              <div className="mt-0.5 font-black text-white">FRYER FIRE!</div>
+              <div className="text-white/70">PUT IT OUT!</div>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Top: order queue */}
+        <div className="pointer-events-none absolute inset-x-0 top-2 mx-auto flex max-w-[62%] justify-center gap-2 md:top-4">
+          {ordersRef.current.map((o) => <OrderCard key={o.id} order={o} />)}
+        </div>
+
+        {/* Top-right: time / score / bucks */}
+        <div className="absolute right-2 top-2 flex flex-col gap-2 md:right-4 md:top-4">
+          <div className="flex gap-2">
+            <InfoCard title="TIME" value={fmt(timeLeft)} sub="ROUND 1" tint="#FACC15" wide />
+            <InfoCard title="SCORE" value={score.toLocaleString()} sub={`BEST: ${Math.max(best, score).toLocaleString()}`} tint="#22D3EE" wide />
+            <InfoCard title="BIRD BUCKS" value={Math.floor(score/10).toLocaleString()} sub="COMPLETELY WORTHLESS" tint="#EC4899" wide />
+          </div>
+          <button onClick={onQuit} className="self-end rounded border border-[#EF4444] bg-[#EF4444]/20 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#EF4444] hover:bg-[#EF4444]/40">Clock Out</button>
+        </div>
+
+        {/* Bottom-left: minimap */}
+        <div className="absolute bottom-2 left-2 h-[110px] w-[160px] rounded-lg border-2 border-[#7C3AED] bg-[#09090B]/80 p-1 backdrop-blur md:bottom-4 md:left-4">
+          <div className="mb-0.5 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-[#EC4899]"><span>PIGEON MENACE</span><span className="text-[#FACC15]">MAP</span></div>
+          <Minimap
+            player={playerRef.current}
+            fires={firesRef.current}
+            pigeons={pigeonsRef.current}
+          />
+        </div>
+
+        {/* Bottom-right: controls + chaos */}
+        <div className="absolute bottom-2 right-2 flex flex-col items-end gap-2 md:bottom-4 md:right-4">
+          {!showTouch && (
+            <div className="hidden rounded-lg border-2 border-[#7C3AED]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur md:block">
+              <div className="mb-1 font-black text-[#FACC15]">CONTROLS</div>
+              <KeyRow keyLabel="WASD" action="Move" />
+              <KeyRow keyLabel="SPACE/E" action="Interact" />
+              <KeyRow keyLabel="SHIFT" action="Dash" />
+              <KeyRow keyLabel="Q" action="Drop" />
+            </div>
+          )}
+          <div className="rounded-lg border-2 border-[#EF4444]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+            <div className="mb-1 font-black text-[#EF4444]">CHAOS LEVEL</div>
+            <div className="flex gap-1">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <span key={i} className={`text-lg leading-none ${i < Math.floor(chaos) ? "" : "grayscale opacity-30"}`}>🔥</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile touch controls */}
+        {showTouch && <TouchControls touchRef={touchRef} onInteract={interact} onDrop={dropCarry} />}
+      </div>
+    </div>
+  );
+}
+
+function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
+function fmt(sec: number) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+function drawProgress(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, color: string) {
+  const w = 60, h = 8;
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillRect(x - w/2, y - h/2, w, h);
+  ctx.fillStyle = color;
+  ctx.fillRect(x - w/2 + 1, y - h/2 + 1, (w - 2) * clamp(t, 0, 1), h - 2);
+  ctx.strokeStyle = "#000";
+  ctx.strokeRect(x - w/2, y - h/2, w, h);
+}
+function gradeFor(score: number): { letter: string; sub: string } {
+  if (score >= 4000) return { letter: "S", sub: "MICHELIN INSPECTOR CONFUSED" };
+  if (score >= 2500) return { letter: "A", sub: "MILDLY EDIBLE" };
+  if (score >= 1500) return { letter: "B", sub: "TECHNICALLY LEGAL" };
+  if (score >= 700) return { letter: "C", sub: "HEALTH CODE VIOLATION" };
+  if (score >= 200) return { letter: "D", sub: "TOTAL RUG PULL" };
+  return { letter: "F", sub: "CLOSED BY AUTHORITIES" };
+}
+
+/* ─────────────────────────  UI SUBCOMPONENTS  ───────────────────────── */
+
+function StatRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex justify-between border-b border-white/10 py-0.5 last:border-0">
+      <span className="text-white/70">{label}</span>
+      <span className="font-black text-white">{value}</span>
+    </div>
+  );
+}
+
+function InfoCard({ title, value, sub, tint, wide }: { title: string; value: string; sub: string; tint: string; wide?: boolean }) {
+  return (
+    <div className={`rounded-lg border-2 bg-[#09090B]/85 p-2 backdrop-blur ${wide ? "min-w-[100px]" : ""}`} style={{ borderColor: tint }}>
+      <div className="text-[9px] font-black uppercase tracking-widest" style={{ color: tint }}>{title}</div>
+      <div className="[font-family:'Bungee','Impact',sans-serif] text-xl leading-none text-white" style={{ textShadow: `0 0 10px ${tint}80` }}>{value}</div>
+      <div className="text-[8px] uppercase tracking-widest text-white/50">{sub}</div>
+    </div>
+  );
+}
+
+function KeyRow({ keyLabel, action }: { keyLabel: string; action: string }) {
+  return (
+    <div className="flex items-center gap-2 py-0.5">
+      <span className="min-w-[54px] rounded border border-white/20 bg-[#2E1065]/60 px-1.5 py-0.5 text-center font-black text-[#FACC15]">{keyLabel}</span>
+      <span className="text-white/80">{action}</span>
+    </div>
+  );
+}
+
+function OrderCard({ order }: { order: Order }) {
+  const t = order.remaining;
+  const total = order.template.time;
+  const pct = clamp(t / total, 0, 1);
+  const urgent = t < 15;
+  return (
+    <motion.div
+      animate={urgent ? { x: [0, -2, 2, -2, 2, 0] } : {}}
+      transition={urgent ? { duration: 0.4, repeat: Infinity } : {}}
+      className={`pointer-events-auto w-[150px] shrink-0 overflow-hidden rounded-lg border-2 bg-[#FFF7DF] text-[#2E1065] shadow-lg ${urgent ? "border-[#EF4444]" : "border-[#2E1065]"}`}
+    >
+      <div className="border-b border-[#2E1065]/30 bg-[#2E1065] px-2 py-1 text-center text-[10px] font-black uppercase tracking-widest text-[#FACC15]">
+        {order.template.name}
+      </div>
+      <div className="flex items-center justify-center py-1 text-3xl">{order.template.emoji}</div>
+      <div className="flex justify-center gap-0.5 px-1 pb-1">
+        {order.template.items.slice(0, 5).map((it, i) => (
+          <span key={i} title={ING_META[it].label} className="grid h-5 w-5 place-items-center rounded-full text-[10px]" style={{ background: ING_META[it].color }}>
+            {ING_META[it].emoji}
+          </span>
+        ))}
+      </div>
+      <div className="px-1.5 pb-1">
+        <div className="mb-0.5 text-center text-[10px] font-black">{t}s</div>
+        <div className="h-1.5 w-full overflow-hidden rounded bg-[#2E1065]/20">
+          <div className="h-full transition-all" style={{ width: `${pct*100}%`, background: urgent ? "#EF4444" : pct > 0.5 ? "#00C805" : "#FACC15" }} />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function Minimap({ player, fires, pigeons }: { player: { x: number; y: number }; fires: Fire[]; pigeons: Pigeon[] }) {
+  return (
+    <div className="relative h-[86px] w-full overflow-hidden rounded border border-[#7C3AED]/50 bg-[#150724]">
+      {STATIONS.map((s) => (
+        <div key={s.id} className="absolute rounded-sm" style={{ left: `${s.x*100}%`, top: `${s.y*100}%`, width: `${s.w*100}%`, height: `${s.h*100}%`, background: s.color + "40", border: `1px solid ${s.color}` }} />
+      ))}
+      {fires.map((f, i) => (
+        <div key={i} className="absolute h-2 w-2 rounded-full bg-[#EF4444] shadow-[0_0_8px_#EF4444]" style={{ left: `${f.x*100}%`, top: `${f.y*100}%`, transform: "translate(-50%,-50%)" }} />
+      ))}
+      {pigeons.map((pg, i) => (
+        <div key={i} className="absolute h-1.5 w-1.5 rounded-full bg-white" style={{ left: `${pg.x*100}%`, top: `${pg.y*100}%`, transform: "translate(-50%,-50%)" }} />
+      ))}
+      <div className="absolute h-2.5 w-2.5 rounded-full bg-[#FACC15] shadow-[0_0_10px_#FACC15]" style={{ left: `${player.x*100}%`, top: `${player.y*100}%`, transform: "translate(-50%,-50%)" }} />
+    </div>
+  );
+}
+
+function TouchControls({ touchRef, onInteract, onDrop }: { touchRef: React.MutableRefObject<{ dx: number; dy: number } | null>; onInteract: () => void; onDrop: () => void }) {
+  const [nub, setNub] = useState({ x: 0, y: 0 });
+  const stickRef = useRef<HTMLDivElement>(null);
+  const activeIdRef = useRef<number | null>(null);
+  const onStart = (e: React.TouchEvent) => {
+    const t = e.changedTouches[0];
+    activeIdRef.current = t.identifier;
+  };
+  const onMove = (e: React.TouchEvent) => {
+    if (!stickRef.current) return;
+    const t = Array.from(e.touches).find((tt) => tt.identifier === activeIdRef.current);
+    if (!t) return;
+    const r = stickRef.current.getBoundingClientRect();
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    const dx = (t.clientX - cx) / (r.width/2);
+    const dy = (t.clientY - cy) / (r.height/2);
+    const mag = Math.hypot(dx, dy);
+    const nx = mag > 1 ? dx/mag : dx;
+    const ny = mag > 1 ? dy/mag : dy;
+    setNub({ x: nx * 24, y: ny * 24 });
+    touchRef.current = { dx: nx, dy: ny };
+  };
+  const onEnd = () => {
+    activeIdRef.current = null;
+    setNub({ x: 0, y: 0 });
+    touchRef.current = null;
+  };
+  return (
+    <>
+      <div
+        ref={stickRef}
+        onTouchStart={onStart}
+        onTouchMove={onMove}
+        onTouchEnd={onEnd}
+        onTouchCancel={onEnd}
+        className="absolute bottom-4 left-4 grid h-24 w-24 place-items-center rounded-full border-2 border-[#7C3AED]/60 bg-[#09090B]/60 md:hidden"
+      >
+        <div className="h-10 w-10 rounded-full bg-[#FACC15]/80" style={{ transform: `translate(${nub.x}px, ${nub.y}px)` }} />
+      </div>
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2 md:hidden">
+        <button onTouchStart={onInteract} className="h-16 w-16 rounded-full border-4 border-[#FACC15] bg-[#FACC15] text-xs font-black uppercase text-[#09090B]">USE</button>
+        <button onTouchStart={onDrop} className="h-12 w-12 rounded-full border-2 border-[#EF4444] bg-[#EF4444]/30 text-[10px] font-black uppercase text-[#EF4444]">DROP</button>
+      </div>
+    </>
+  );
+}
+
+/* ─────────────────────────  RESULTS SCREEN  ───────────────────────── */
+
+function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay: () => void; onQuit: () => void }) {
+  const share = () => {
+    const text = `I just clocked out of Bird Burger: Kitchen Chaos with ${stats.score} pts (grade ${stats.grade}). ${stats.foodBurned} foods burned. ${stats.fires} fires. ${stats.pigeonsChased} pigeons chased. The worst shift on the blockchain.`;
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+  };
+  return (
+    <div className="relative min-h-[calc(100vh-56px)] overflow-hidden">
+      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url(${kitchenBg})`, backgroundSize: "cover", filter: "blur(4px) hue-rotate(-20deg)" }} />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#09090B]/85 via-[#2E1065]/70 to-[#09090B]" />
+      <div className="relative mx-auto max-w-3xl px-6 py-12">
+        <div className="mb-6 text-center">
+          <div className="inline-block rounded-full border-2 border-[#EF4444] bg-[#EF4444]/20 px-4 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-[#EF4444] animate-pulse">
+            🚨 RESTAURANT CLOSED BY AUTHORITIES 🚨
+          </div>
+          <h1 className="mt-3 [font-family:'Bungee','Impact',sans-serif] text-4xl leading-none text-[#FACC15] drop-shadow-[0_0_20px_rgba(250,204,21,0.5)] md:text-6xl">
+            SHIFT OVER
+          </h1>
+          <p className="mt-2 text-sm uppercase tracking-widest text-white/70">The bird has stopped screaming. Briefly.</p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
+          <div className="rounded-xl border-2 border-[#7C3AED] bg-[#09090B]/70 p-5 backdrop-blur">
+            <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-[#EC4899]">SHIFT REPORT</div>
+            <ResultRow label="Orders Completed" value={stats.ordersCompleted} good />
+            <ResultRow label="Orders Failed" value={stats.ordersFailed} />
+            <ResultRow label="Food Burned" value={stats.foodBurned} />
+            <ResultRow label="Fires Endured" value={stats.fires} />
+            <ResultRow label="Pigeons Chased" value={stats.pigeonsChased} good />
+            <ResultRow label="Ingredients Dropped" value={stats.dropped} />
+            <div className="my-3 h-px bg-white/20" />
+            <ResultRow label="Bird Bucks Earned" value={`+${stats.birdBucks}`} good />
+            <ResultRow label="Final Score" value={stats.score.toLocaleString()} big />
+            <ResultRow label="Personal Best" value={stats.best.toLocaleString()} />
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-[#FACC15] bg-[#2E1065]/70 p-6 text-center backdrop-blur">
+            <div className="text-[10px] font-black uppercase tracking-widest text-[#FACC15]">RESTAURANT GRADE</div>
+            <div className="mt-2 [font-family:'Bungee','Impact',sans-serif] text-[140px] leading-none text-[#EF4444] drop-shadow-[0_0_30px_rgba(239,68,68,0.6)]">
+              {stats.grade}
+            </div>
+            <div className="mt-2 text-xs font-black uppercase tracking-widest text-white">{stats.gradeSub}</div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <button onClick={onReplay} className="inline-flex items-center gap-2 rounded-lg border-4 border-[#FACC15] bg-[#FACC15] px-5 py-3 text-sm font-black uppercase tracking-widest text-[#09090B] shadow-[0_6px_0_#B08807] hover:-translate-y-0.5 active:translate-y-0.5">
+            <Zap className="h-4 w-4" /> Clock In Again
+          </button>
+          <button onClick={share} className="inline-flex items-center gap-2 rounded-lg border-2 border-[#22D3EE] bg-[#22D3EE]/10 px-5 py-3 text-sm font-black uppercase tracking-widest text-[#22D3EE] hover:bg-[#22D3EE]/25">
+            <Trophy className="h-4 w-4" /> Share Disaster
+          </button>
+          <button onClick={onQuit} className="inline-flex items-center gap-2 rounded-lg border-2 border-[#EC4899] bg-[#EC4899]/10 px-5 py-3 text-sm font-black uppercase tracking-widest text-[#EC4899] hover:bg-[#EC4899]/25">
+            <ArrowLeft className="h-4 w-4" /> Return to Restaurant
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResultRow({ label, value, good, big }: { label: string; value: string | number; good?: boolean; big?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between border-b border-white/10 py-1.5 last:border-0">
+      <span className="text-[11px] uppercase tracking-widest text-white/70">{label}</span>
+      <span className={`font-black ${big ? "[font-family:'Bungee','Impact',sans-serif] text-2xl text-[#FACC15]" : good ? "text-[#00C805]" : "text-white"}`}>{value}</span>
+    </div>
+  );
+}
