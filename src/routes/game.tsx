@@ -586,7 +586,48 @@ function useGameSfx(muted: boolean) {
 
 }
 
-function GameScreen({ employee, muted, onEnd, onQuit }: {
+/* ─────────────────────────  HAPTICS  ───────────────────────── */
+function useHaptics() {
+  const [enabled, setEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const saved = window.localStorage.getItem("bb_haptics");
+    if (saved != null) return saved === "1";
+    return "ontouchstart" in window;
+  });
+  const canVibrate = useMemo(() => typeof navigator !== "undefined" && "vibrate" in navigator, []);
+  const rateRef = useRef<Record<string, number>>({});
+
+  const setAndSave = useCallback((v: boolean) => {
+    setEnabled(v);
+    if (typeof window !== "undefined") window.localStorage.setItem("bb_haptics", v ? "1" : "0");
+  }, []);
+
+  const pulse = useCallback((pattern: number | number[], key: string, minGap = 30) => {
+    if (!enabled || !canVibrate) return;
+    const now = performance.now();
+    if (now - (rateRef.current[key] || 0) < minGap) return;
+    rateRef.current[key] = now;
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      // ignore unsupported patterns
+    }
+  }, [enabled, canVibrate]);
+
+  return {
+    enabled,
+    setEnabled: setAndSave,
+    canVibrate,
+    hop: useCallback(() => pulse([10], "hop", 55), [pulse]),
+    land: useCallback(() => pulse([14], "land", 45), [pulse]),
+    dashLand: useCallback(() => pulse([8, 6, 18], "dashLand", 90), [pulse]),
+    boom: useCallback(() => pulse([16, 22, 48], "boom", 120), [pulse]),
+  };
+}
+
+type Haptics = ReturnType<typeof useHaptics>;
+
+function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   employee: typeof EMPLOYEES[number];
   muted: boolean;
   onEnd: (s: GameStats) => void;
