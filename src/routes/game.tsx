@@ -2441,6 +2441,7 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
             );
           })()}
 
+          {hudOpen && (<>
           {/* Perf mode toggle */}
           <div className="rounded-lg border-2 border-[#22D3EE]/50 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
             <div className="mb-1 flex items-center justify-between font-black text-[#22D3EE]">
