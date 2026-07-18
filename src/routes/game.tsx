@@ -1062,6 +1062,8 @@ function GameScreen({ employee, muted, onEnd, onQuit }: {
       // Takeoff detection: sin crossed from ~0 upward while moving
       if (mag > 0 && prevSin <= 0.05 && curSin > 0.05) {
         sfxRef.current.hop(dashing ? 1.15 : 0.9);
+        // Mid-dash whoosh on each hop takeoff while dashing (rate-limited inside the hook)
+        if (p.dashCd > 0.6) sfxRef.current.whoosh("mid", 0.9);
       }
       // Landing detection: sin crossed from positive to non-positive while moving
       if (mag > 0 && prevSin > 0.05 && curSin <= 0) {
