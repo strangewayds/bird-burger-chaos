@@ -354,6 +354,16 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
   type Trail = { x: number; y: number; face: number; hopY: number; t: number };
   const trailRef = useRef<Trail[]>([]);
   const lastDrawTimeRef = useRef<number>(0);
+  // Perf mode — caps particles + throttles flashes when the kitchen gets busy
+  const perfRef = useRef({
+    mode: (typeof localStorage !== "undefined" && (localStorage.getItem("bb_perf") as any)) || "auto", // "auto" | "low" | "high"
+    fps: 60,
+    scale: 1, // 0..1 — effective particle budget
+    active: false, // true when auto-reducer engaged
+  });
+  const [perfMode, setPerfMode] = useState<"auto" | "low" | "high">(perfRef.current.mode);
+  const [perfActive, setPerfActive] = useState(false);
+  const [perfFps, setPerfFps] = useState(60);
 
   // React-visible stats
   const [timeLeft, setTimeLeft] = useState(180);
