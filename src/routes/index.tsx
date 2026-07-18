@@ -998,33 +998,37 @@ function MemeGenerator({ onDownload }: { onDownload: () => void }) {
     const text = `${top} ${bot} — from Bird Burger 🐦🍔`;
     try { if (navigator.share) await navigator.share({ text }); else await navigator.clipboard.writeText(text); } catch {}
   };
+  const body = (
+    <div className="grid gap-4 md:grid-cols-[1fr_1fr] items-start">
+      <div className="rounded-lg border-2 border-grape/50 bg-black/40 p-3">
+        <canvas ref={canvasRef} className="aspect-square w-full rounded"/>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="mb-1 block font-mono text-xs uppercase tracking-widest text-mustard">Top Text</label>
+          <input value={top} onChange={(e)=>setTop(e.target.value.slice(0,40).toUpperCase())} className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"/>
+        </div>
+        <div>
+          <label className="mb-1 block font-mono text-xs uppercase tracking-widest text-mustard">Bottom Text</label>
+          <input value={bot} onChange={(e)=>setBot(e.target.value.slice(0,40).toUpperCase())} className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"/>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {MEME_CAPTIONS.map((c) => (
+            <button key={c} onClick={() => { const [a,...b] = c.split(" "); setTop(a!); setBot(b.join(" ")); }} className="rounded border border-grape/50 bg-grape/10 px-2 py-1 text-[10px] uppercase tracking-widest text-ink/80 hover:bg-grape/20">{c}</button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={download} className="flex-1 rounded-md border-2 border-mustard bg-mustard px-4 py-3 font-display text-sm tracking-widest text-bg">DOWNLOAD MEME</button>
+          <button onClick={share} className="rounded-md border-2 border-cyan bg-cyan/10 px-4 py-3 font-display text-sm tracking-widest text-cyan"><Share2 className="h-4 w-4"/></button>
+        </div>
+      </div>
+    </div>
+  );
+  if (embedded) return body;
   return (
     <section className="mx-auto max-w-7xl px-4 py-16">
       <SectionTitle kicker="Make. Share. Confuse." title="BURGER PROPAGANDA MACHINE" />
-      <div className="grid gap-6 md:grid-cols-[1fr_1fr] items-start">
-        <div className="rounded-lg border-2 border-grape/50 bg-black/40 p-3">
-          <canvas ref={canvasRef} className="aspect-square w-full rounded"/>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block font-mono text-xs uppercase tracking-widest text-mustard">Top Text</label>
-            <input value={top} onChange={(e)=>setTop(e.target.value.slice(0,40).toUpperCase())} className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"/>
-          </div>
-          <div>
-            <label className="mb-1 block font-mono text-xs uppercase tracking-widest text-mustard">Bottom Text</label>
-            <input value={bot} onChange={(e)=>setBot(e.target.value.slice(0,40).toUpperCase())} className="w-full rounded-md border-2 border-cyan/40 bg-black/60 px-3 py-2 font-mono text-sm text-ink outline-none focus:border-cyan"/>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {MEME_CAPTIONS.map((c) => (
-              <button key={c} onClick={() => { const [a,...b] = c.split(" "); setTop(a!); setBot(b.join(" ")); }} className="rounded border border-grape/50 bg-grape/10 px-2 py-1 text-[10px] uppercase tracking-widest text-ink/80 hover:bg-grape/20">{c}</button>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <button onClick={download} className="flex-1 rounded-md border-2 border-mustard bg-mustard px-4 py-3 font-display text-sm tracking-widest text-bg">DOWNLOAD MEME</button>
-            <button onClick={share} className="rounded-md border-2 border-cyan bg-cyan/10 px-4 py-3 font-display text-sm tracking-widest text-cyan"><Share2 className="h-4 w-4"/></button>
-          </div>
-        </div>
-      </div>
+      {body}
     </section>
   );
 }
