@@ -81,7 +81,7 @@ const STATUS_ROWS = [
   ["Token Contract", ["Coming Soon", "Still Coming Soon", "Being Renounced", "Vibing"]],
 ] as const;
 
-const CREW = [
+const EMPLOYEES = [
   { name: "Larry", role: "Fry Cook / Technical Analyst", reason: "Bought the top", perf: "-97.4%", skill: "Posting 'bullish' under bad news" },
   { name: "Chad", role: "Line Cook / Ponzi Enthusiast", reason: "Started a pyramid inside the walk-in freezer", perf: "-99.9%", skill: "Referring his mother" },
   { name: "Tiffany", role: "Cashier / DAO Delegate", reason: "Voted herself a raise", perf: "-42.0%", skill: "Losing quorum" },
@@ -393,7 +393,7 @@ function RecentActivityCard({ wallet }: { wallet: string | null }) {
 
 /* ─────────  PFP CREATOR  ───────── */
 
-const CREW = [
+const PFP_CREW = [
   { id: "larry", name: "Larry", role: "Fry Cook", tint: "#f59e0b", hat: "🍟", quote: "Grease is a lifestyle." },
   { id: "chad",  name: "Chad",  role: "Missing Manager", tint: "#7c3aed", hat: "👔", quote: "Out to lunch. Since 2021." },
   { id: "cindy", name: "Cindy", role: "Cashier", tint: "#06b6d4", hat: "💅", quote: "Cash, card, or copium?" },
@@ -416,7 +416,7 @@ const PFP_BGS = [
 type Platform = "x" | "discord";
 
 function PfpCreator({ onDownload }: { onDownload: () => void }) {
-  const [empId, setEmpId] = useState(CREW[0]!.id);
+  const [empId, setEmpId] = useState(PFP_CREW[0]!.id);
   const [bgId, setBgId] = useState(PFP_BGS[0]!.id);
   const [platform, setPlatform] = useState<Platform>("x");
   const [handle, setHandle] = useState("@bird_burger");
@@ -424,7 +424,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  const employee = CREW.find((e) => e.id === empId)!;
+  const employee = PFP_CREW.find((e) => e.id === empId)!;
   const bg = PFP_BGS.find((b) => b.id === bgId)!;
 
   // Preload mascot image once
@@ -576,7 +576,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
           <div>
             <div className="mb-2 font-mono text-xs uppercase tracking-widest text-mustard">1 · Pick your employee</div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {CREW.map((e) => {
+              {PFP_CREW.map((e) => {
                 const active = e.id === empId;
                 return (
                   <button
