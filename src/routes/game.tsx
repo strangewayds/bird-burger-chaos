@@ -980,6 +980,12 @@ function GameScreen({ employee, muted: _muted, onEnd, onQuit }: {
       ctx.textAlign = "center";
       ctx.fillText(s.label, cx, cy + 12);
     }
+    ctx.restore();
+    // Explosion flash overlay (drawn without transform)
+    if (explosionRef.current > 0) {
+      ctx.fillStyle = `rgba(255,220,120,${0.55 * explosionRef.current})`;
+      ctx.fillRect(0, 0, W, H);
+    }
   }, [employee]);
 
   // Resize canvas
