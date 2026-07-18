@@ -1400,40 +1400,338 @@ function Menu({ onOrder }: { onOrder: (name: string) => void }) {
 
 /* ─────────────────────────  ORDER MODAL  ───────────────────────── */
 
-function OrderModal({ item, onClose }: { item: string; onClose: () => void }) {
-  const share = async () => {
-    const text = `Just ordered ${item} at Bird Burger. Estimated delivery: never. 🐦🍔 ${BB_CONFIG.brand.tagline}`;
+const BUN_OPTIONS = [
+  { id: "sesame",  label: "Sesame (Rugged)",     emoji: "🍞", surcharge: 0.42 },
+  { id: "brioche", label: "Brioche (Overfluffed)", emoji: "🥐", surcharge: 1.11 },
+  { id: "nobun",   label: "No Bun (Nothing Burger)", emoji: "🫥", surcharge: -0.69 },
+];
+const SIDE_OPTIONS = [
+  { id: "fries",  label: "Liquidity Fries",     emoji: "🍟", price: 2.10 },
+  { id: "nugs",   label: "Nugget Airdrop (x6)", emoji: "🐔", price: 4.20 },
+  { id: "silence",label: "Side of Silence",     emoji: "🤫", price: 1.69 },
+  { id: "coin",   label: "Chocolate Rug Coin",  emoji: "🍫", price: 0.99 },
+];
+const TOPPING_OPTIONS = [
+  { id: "copium",  label: "Copium",       emoji: "💊", price: 0.42 },
+  { id: "hopium",  label: "Hopium",       emoji: "🌈", price: 0.42 },
+  { id: "regret",  label: "Extra Regret", emoji: "😔", price: 0.01 },
+  { id: "diamond", label: "Diamond Sauce",emoji: "💎", price: 6.90 },
+];
+const DELUSION_TIERS = [
+  { id: "paper",   label: "Paper Hands",   emoji: "🧻", mult: 0.8 },
+  { id: "diamond", label: "Diamond Hands", emoji: "💎", mult: 1.4 },
+  { id: "ape",     label: "Full Ape",      emoji: "🦍", mult: 2.5 },
+];
+const COOK_STAGES = [
+  { pct: 12,  txt: "Waking up the chef…" },
+  { pct: 28,  txt: "Chef fainted. Trying again…" },
+  { pct: 46,  txt: "Burning the bun (on purpose)…" },
+  { pct: 62,  txt: "Reversing the transaction…" },
+  { pct: 78,  txt: "Dropping fries into the void…" },
+  { pct: 92,  txt: "Yelling at the manager…" },
+  { pct: 100, txt: "Sealing your regret." },
+];
+
+function OrderModal({ item, onClose, onSent }: { item: string; onClose: () => void; onSent?: () => void }) {
+  const [step, setStep] = useState<"customize" | "cooking" | "receipt">("customize");
+  const [qty, setQty] = useState(1);
+  const [bun, setBun] = useState(BUN_OPTIONS[0]!.id);
+  const [chaos, setChaos] = useState(6);
+  const [sides, setSides] = useState<string[]>(["fries"]);
+  const [toppings, setToppings] = useState<string[]>(["regret"]);
+  const [delusion, setDelusion] = useState(DELUSION_TIERS[1]!.id);
+  const [cookPct, setCookPct] = useState(0);
+  const [cookMsg, setCookMsg] = useState(COOK_STAGES[0]!.txt);
+  const orderId = useMemo(() => Math.floor(Math.random() * 900000 + 100000), []);
+
+  const bunObj = BUN_OPTIONS.find((b) => b.id === bun)!;
+  const delusionObj = DELUSION_TIERS.find((d) => d.id === delusion)!;
+  const chosenSides = SIDE_OPTIONS.filter((s) => sides.includes(s.id));
+  const chosenToppings = TOPPING_OPTIONS.filter((t) => toppings.includes(t.id));
+
+  const basePrice = 4.20;
+  const itemSubtotal = (basePrice + bunObj.surcharge) * qty;
+  const sidesTotal = chosenSides.reduce((a, s) => a + s.price, 0);
+  const toppingsTotal = chosenToppings.reduce((a, t) => a + t.price, 0) * qty;
+  const chaosFee = (chaos * 0.13);
+  const preTotal = (itemSubtotal + sidesTotal + toppingsTotal + chaosFee) * delusionObj.mult;
+  const gasFee = 4.20;
+  const total = preTotal + gasFee;
+
+  const toggle = (arr: string[], setArr: (v: string[]) => void, id: string) =>
+    setArr(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
+
+  const sendToKitchen = () => {
+    setStep("cooking");
+    onSent?.();
+    let i = 0;
+    const tick = () => {
+      const stage = COOK_STAGES[i]!;
+      setCookPct(stage.pct);
+      setCookMsg(stage.txt);
+      i++;
+      if (i < COOK_STAGES.length) {
+        setTimeout(tick, 480 + Math.random() * 220);
+      } else {
+        setTimeout(() => setStep("receipt"), 420);
+      }
+    };
+    tick();
+  };
+
+  const shareReceipt = async () => {
+    const text = `Just ordered ${qty}× ${item} at Bird Burger. Total: $${total.toFixed(2)} of pure regret. 🐦🍔 ETA: never.`;
     try {
       if (navigator.share) await navigator.share({ title: "Bird Burger", text });
       else await navigator.clipboard.writeText(text);
     } catch {}
   };
+
+  const receiptLines = useMemo(() => {
+    const lines: { label: string; price: string; tone?: "neg" | "big" }[] = [];
+    lines.push({ label: `${qty} × ${item.slice(0, 22)}`, price: `$${itemSubtotal.toFixed(2)}` });
+    lines.push({ label: `  bun: ${bunObj.label}`, price: bunObj.surcharge >= 0 ? `+$${bunObj.surcharge.toFixed(2)}` : `-$${Math.abs(bunObj.surcharge).toFixed(2)}`, tone: bunObj.surcharge < 0 ? "neg" : undefined });
+    if (chosenToppings.length) {
+      chosenToppings.forEach((t) => lines.push({ label: `  + ${t.label}`, price: `$${(t.price * qty).toFixed(2)}` }));
+    }
+    chosenSides.forEach((s) => lines.push({ label: `1 × ${s.label}`, price: `$${s.price.toFixed(2)}` }));
+    lines.push({ label: `Chaos Level ${chaos}/10`, price: `$${chaosFee.toFixed(2)}` });
+    lines.push({ label: `${delusionObj.label} multiplier`, price: `×${delusionObj.mult.toFixed(1)}` });
+    lines.push({ label: "Gas (paid to nobody)", price: `$${gasFee.toFixed(2)}` });
+    lines.push({ label: "TOTAL", price: `$${total.toFixed(2)}`, tone: "big" });
+    return lines;
+  }, [qty, item, itemSubtotal, bunObj, chosenToppings, chosenSides, chaos, chaosFee, delusionObj, gasFee, total]);
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4" onClick={onClose}>
-      <motion.div initial={{ y: -400, rotate: -3 }} animate={{ y: 0, rotate: -1 }} exit={{ y: 600 }} transition={{ type: "spring", damping: 18 }} onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-receipt p-6 font-mono text-bg shadow-2xl" style={{ clipPath: "polygon(0 0, 100% 0, 100% 96%, 92% 100%, 80% 96%, 68% 100%, 56% 96%, 44% 100%, 32% 96%, 20% 100%, 8% 96%, 0 100%)" }}>
-        <div className="text-center">
-          <div className="font-display text-xl tracking-wider">BIRD BURGER</div>
-          <div className="text-[10px] uppercase tracking-widest">Order Confirmed</div>
-          <div className="my-2 border-y-2 border-dashed border-bg/40 py-1 text-[10px]">RECEIPT #{Math.floor(Math.random()*90000+10000)}</div>
-        </div>
-        <ul className="mt-2 space-y-1 text-sm">
-          <li className="flex justify-between"><span>1 × {item}</span><span>$0.00</span></li>
-          <li className="flex justify-between"><span>2 Liquidity Fries</span><span>$0.00</span></li>
-          <li className="flex justify-between"><span>1 Permanent Financial Decision</span><span>$0.00</span></li>
-          <li className="flex justify-between"><span>Extra Regret</span><span>$0.00</span></li>
-        </ul>
-        <div className="mt-3 border-t-2 border-dashed border-bg/40 pt-2 text-sm font-bold">
-          <div className="flex justify-between"><span>TOTAL</span><span>Too Much</span></div>
-          <div className="flex justify-between text-xs"><span>Estimated Delivery</span><span>Never</span></div>
-        </div>
-        <div className="mt-4 grid gap-2">
-          <button onClick={() => window.print()} className="flex items-center justify-center gap-2 rounded border-2 border-bg py-2 text-xs font-bold uppercase tracking-widest"><Printer className="h-3.5 w-3.5"/>Print My Regret</button>
-          <button onClick={share} className="flex items-center justify-center gap-2 rounded border-2 border-grape bg-grape py-2 text-xs font-bold uppercase tracking-widest text-white"><Share2 className="h-3.5 w-3.5"/>Share Receipt</button>
-          <button onClick={onClose} className="flex items-center justify-center gap-2 rounded border-2 border-grease bg-grease py-2 text-xs font-bold uppercase tracking-widest text-white"><Trash2 className="h-3.5 w-3.5"/>Order Another Mistake</button>
-        </div>
-        <div className="mt-3 text-center text-[10px] opacity-60">*Not a real food purchase. No burger will arrive.</div>
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] grid place-items-center bg-black/85 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        key={step}
+        initial={{ y: 40, opacity: 0, scale: 0.96 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: -20, opacity: 0 }}
+        transition={{ type: "spring", damping: 22, stiffness: 260 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg"
+      >
+        {step === "customize" && (
+          <div className="rounded-2xl border-2 border-mustard/70 bg-[#120826] p-5 shadow-[0_0_40px_-6px_rgba(250,204,21,0.5)]">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-mustard/80">Build your regret</div>
+                <div className="font-display text-2xl uppercase tracking-wider text-mustard [text-shadow:0_0_10px_rgba(250,204,21,0.6)]">{item}</div>
+              </div>
+              <button onClick={onClose} aria-label="Close" className="rounded-full border border-ink/20 p-1.5 text-ink/60 hover:text-ink"><X className="h-4 w-4"/></button>
+            </div>
+
+            <div className="max-h-[62vh] space-y-4 overflow-y-auto pr-1">
+              <Field label="Bun Situation">
+                <div className="grid grid-cols-3 gap-2">
+                  {BUN_OPTIONS.map((b) => (
+                    <button key={b.id} onClick={() => setBun(b.id)}
+                      className={`rounded-lg border-2 px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider transition ${bun === b.id ? "border-pink-400 bg-pink-400/10 text-pink-200" : "border-purple-500/40 bg-black/40 text-ink/80 hover:border-purple-400"}`}>
+                      <div className="text-lg leading-none">{b.emoji}</div>
+                      <div className="mt-1 leading-tight">{b.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+
+              <Field label={`Chaos Level: ${chaos}/10`}>
+                <input type="range" min={0} max={10} value={chaos} onChange={(e) => setChaos(parseInt(e.target.value, 10))}
+                  className="w-full accent-pink-400"/>
+                <div className="mt-1 flex justify-between font-mono text-[9px] uppercase tracking-widest text-ink/50">
+                  <span>Mild disappointment</span><span>Full rug</span>
+                </div>
+              </Field>
+
+              <Field label="Sides (pick your poisons)">
+                <div className="grid grid-cols-2 gap-2">
+                  {SIDE_OPTIONS.map((s) => {
+                    const on = sides.includes(s.id);
+                    return (
+                      <button key={s.id} onClick={() => toggle(sides, setSides, s.id)}
+                        className={`flex items-center justify-between gap-2 rounded-lg border-2 px-3 py-2 text-left font-mono text-[11px] transition ${on ? "border-cyan-400 bg-cyan-400/10 text-cyan-200" : "border-purple-500/40 bg-black/40 text-ink/80"}`}>
+                        <span className="flex items-center gap-2"><span className="text-base">{s.emoji}</span>{s.label}</span>
+                        <span className="text-mustard">${s.price.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+
+              <Field label="Toppings">
+                <div className="flex flex-wrap gap-2">
+                  {TOPPING_OPTIONS.map((t) => {
+                    const on = toppings.includes(t.id);
+                    return (
+                      <button key={t.id} onClick={() => toggle(toppings, setToppings, t.id)}
+                        className={`rounded-full border px-3 py-1.5 font-mono text-[11px] transition ${on ? "border-green-400 bg-green-400/15 text-green-200" : "border-purple-500/40 bg-black/40 text-ink/80"}`}>
+                        {t.emoji} {t.label} <span className="opacity-60">${t.price.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+
+              <Field label="Delusion Tier">
+                <div className="grid grid-cols-3 gap-2">
+                  {DELUSION_TIERS.map((d) => (
+                    <button key={d.id} onClick={() => setDelusion(d.id)}
+                      className={`rounded-lg border-2 px-2 py-2 text-center font-mono text-[10px] uppercase tracking-wider transition ${delusion === d.id ? "border-mustard bg-mustard/10 text-mustard" : "border-purple-500/40 bg-black/40 text-ink/80"}`}>
+                      <div className="text-lg leading-none">{d.emoji}</div>
+                      <div className="mt-1 leading-tight">{d.label}</div>
+                      <div className="text-[9px] opacity-70">×{d.mult.toFixed(1)}</div>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+
+              <Field label="Quantity">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setQty(Math.max(1, qty - 1))} className="h-9 w-9 rounded-lg border-2 border-purple-500/50 bg-black/40 font-display text-lg text-ink">−</button>
+                  <div className="min-w-[3ch] text-center font-display text-2xl text-mustard">{qty}</div>
+                  <button onClick={() => setQty(Math.min(99, qty + 1))} className="h-9 w-9 rounded-lg border-2 border-purple-500/50 bg-black/40 font-display text-lg text-ink">+</button>
+                  <div className="ml-auto font-mono text-xs text-ink/70">Est. regret: <span className="text-mustard">${total.toFixed(2)}</span></div>
+                </div>
+              </Field>
+            </div>
+
+            <button
+              onClick={sendToKitchen}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-yellow-300 bg-gradient-to-b from-yellow-300 to-yellow-500 px-4 py-3 font-display text-sm tracking-[0.2em] text-[#2a1500] shadow-[0_6px_0_0_#a16207,0_0_30px_-4px_rgba(250,204,21,0.7)] transition active:translate-y-[3px] active:shadow-[0_3px_0_0_#a16207]"
+            >
+              <Flame className="h-4 w-4" /> SEND TO KITCHEN
+            </button>
+            <div className="mt-2 text-center font-mono text-[10px] uppercase tracking-widest text-ink/50">
+              No food. No refunds. No comment.
+            </div>
+          </div>
+        )}
+
+        {step === "cooking" && (
+          <div className="relative overflow-hidden rounded-2xl border-2 border-pink-400/70 bg-[#120826] p-8 text-center shadow-[0_0_40px_-6px_rgba(236,72,153,0.6)]">
+            <div className="pointer-events-none absolute inset-0 opacity-25" style={{ background: "repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 4px)" }} />
+            <motion.div animate={{ rotate: [0, -8, 8, -6, 6, 0] }} transition={{ duration: 1.4, repeat: Infinity }} className="mx-auto mb-4 text-6xl">🍳</motion.div>
+            <div className="font-display text-2xl uppercase tracking-wider text-pink-300 [text-shadow:0_0_10px_rgba(236,72,153,0.7)]">Sending to Kitchen…</div>
+            <div className="mt-1 font-mono text-[11px] uppercase tracking-[0.25em] text-ink/60">Order #{orderId}</div>
+
+            <div className="mx-auto mt-6 h-4 w-full max-w-sm overflow-hidden rounded-full border-2 border-purple-500/50 bg-black/60">
+              <motion.div
+                animate={{ width: `${cookPct}%` }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="h-full bg-gradient-to-r from-pink-500 via-mustard to-green-400"
+                style={{ boxShadow: "0 0 20px rgba(236,72,153,0.7)" }}
+              />
+            </div>
+            <div className="mt-3 font-mono text-xs text-mustard">{cookPct}%</div>
+
+            <motion.div
+              key={cookMsg}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              className="mt-4 font-mono text-sm text-ink/90"
+            >
+              {cookMsg}
+              <span className="ml-1 inline-block animate-pulse">…</span>
+            </motion.div>
+
+            <div className="mt-6 flex justify-center gap-1">
+              {[0,1,2,3,4].map((i) => (
+                <motion.span key={i}
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.12 }}
+                  className="h-2 w-2 rounded-full bg-pink-400"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === "receipt" && (
+          <motion.div
+            initial={{ y: -400, rotate: -3 }}
+            animate={{ y: 0, rotate: -1 }}
+            transition={{ type: "spring", damping: 18 }}
+            className="relative mx-auto max-w-sm bg-[#f4ecd8] px-6 pt-6 pb-8 font-mono text-[12px] text-[#1a1a1a] shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+            style={{
+              clipPath:
+                "polygon(0 8px,4% 0,8% 8px,12% 0,16% 8px,20% 0,24% 8px,28% 0,32% 8px,36% 0,40% 8px,44% 0,48% 8px,52% 0,56% 8px,60% 0,64% 8px,68% 0,72% 8px,76% 0,80% 8px,84% 0,88% 8px,92% 0,96% 8px,100% 0,100% calc(100% - 8px),96% 100%,92% calc(100% - 8px),88% 100%,84% calc(100% - 8px),80% 100%,76% calc(100% - 8px),72% 100%,68% calc(100% - 8px),64% 100%,60% calc(100% - 8px),56% 100%,52% calc(100% - 8px),48% 100%,44% calc(100% - 8px),40% 100%,36% calc(100% - 8px),32% 100%,28% calc(100% - 8px),24% 100%,20% calc(100% - 8px),16% 100%,12% calc(100% - 8px),8% 100%,4% calc(100% - 8px),0 100%)",
+            }}
+          >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="text-center">
+              <div className="font-display text-2xl tracking-wider">BIRD BURGER</div>
+              <div className="text-[9px] uppercase tracking-[0.25em] text-[#333]">Order Confirmed · Regret Pending</div>
+              <div className="mt-2 border-y-2 border-dashed border-[#1a1a1a]/50 py-1 text-[10px]">
+                RECEIPT #{orderId} · {new Date().toLocaleTimeString()}
+              </div>
+            </motion.div>
+
+            <ul className="mt-3 space-y-1">
+              {receiptLines.map((l, i) => (
+                <motion.li
+                  key={i}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.35 + i * 0.15, duration: 0.25 }}
+                  className={`flex justify-between ${l.tone === "big" ? "mt-2 border-t-2 border-dashed border-[#1a1a1a]/50 pt-2 font-display text-sm" : ""} ${l.tone === "neg" ? "text-[#a04040]" : ""}`}
+                >
+                  <span>{l.label}</span>
+                  <span className={l.tone === "big" ? "font-bold" : ""}>{l.price}</span>
+                </motion.li>
+              ))}
+            </ul>
+
+            <motion.div
+              initial={{ scale: 0, rotate: -30, opacity: 0 }}
+              animate={{ scale: 1, rotate: -14, opacity: 1 }}
+              transition={{ delay: 0.35 + receiptLines.length * 0.15 + 0.1, type: "spring", damping: 10, stiffness: 200 }}
+              className="mx-auto mt-4 w-fit rounded-md border-4 border-[#a01818] px-4 py-1 font-display text-lg uppercase tracking-widest text-[#a01818]"
+              style={{ textShadow: "0 0 1px rgba(160,24,24,0.3)" }}
+            >
+              PAID IN REGRET
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.35 + receiptLines.length * 0.15 + 0.35 }}
+              className="mt-3 text-center text-[9px] uppercase tracking-[0.25em] text-[#555]"
+            >
+              *** please regret your decisions ***
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 + receiptLines.length * 0.15 + 0.5 }}
+              className="mt-4 grid gap-2"
+            >
+              <button onClick={() => window.print()} className="flex items-center justify-center gap-2 rounded border-2 border-[#1a1a1a] py-2 text-[10px] font-bold uppercase tracking-widest">
+                <Printer className="h-3.5 w-3.5"/>Print My Regret
+              </button>
+              <button onClick={shareReceipt} className="flex items-center justify-center gap-2 rounded border-2 border-grape bg-grape py-2 text-[10px] font-bold uppercase tracking-widest text-white">
+                <Share2 className="h-3.5 w-3.5"/>Share Receipt
+              </button>
+              <button onClick={onClose} className="flex items-center justify-center gap-2 rounded border-2 border-[#5a2a2a] bg-[#7a3535] py-2 text-[10px] font-bold uppercase tracking-widest text-white">
+                <Trash2 className="h-3.5 w-3.5"/>Order Another Mistake
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
       </motion.div>
     </motion.div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.25em] text-ink/60">{label}</div>
+      {children}
+    </div>
   );
 }
 
