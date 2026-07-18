@@ -1128,9 +1128,17 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
   const [overlay, setOverlay] = useState<string>("MOTION DETECTED");
   const [incident, setIncident] = useState<string | null>(null);
   const [time, setTime] = useState("");
+  const [clipping, setClipping] = useState(false);
+  const [clipPct, setClipPct] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
+  const camImgRef = useRef<HTMLImageElement | null>(null);
   useEffect(() => {
     const t = setInterval(() => setOverlay(rand(CAM_OVERLAYS)), 5000);
     const t2 = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = kitchenCamImg.url;
+    img.onload = () => { camImgRef.current = img; };
     return () => { clearInterval(t); clearInterval(t2); };
   }, []);
   const trigger = () => {
@@ -1139,6 +1147,177 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
     setIncident(inc);
     setTimeout(() => setIncident(null), 1800);
   };
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2600);
+  };
+
+  const buildClip = async (): Promise<Blob | null> => {
+    try {
+      const [{ default: GIF }, workerUrlMod] = await Promise.all([
+        import("gif.js"),
+        import("gif.js/dist/gif.worker.js?url"),
+      ]);
+      // wait for cam image
+      if (!camImgRef.current) {
+        await new Promise<void>((res) => {
+          const check = () => camImgRef.current ? res() : setTimeout(check, 50);
+          check();
+        });
+      }
+      const W = 480, H = 270;
+      const off = document.createElement("canvas");
+      off.width = W; off.height = H;
+      const ctx = off.getContext("2d")!;
+      const gif = new GIF({
+        workers: 2,
+        quality: 8,
+        width: W,
+        height: H,
+        workerScript: (workerUrlMod as { default: string }).default,
+      });
+      const FRAMES = 36;
+      const DELAY = 80; // ~2.9s loop
+      const baseTime = new Date();
+      const pickedOverlay = overlay || rand(CAM_OVERLAYS);
+      for (let i = 0; i < FRAMES; i++) {
+        // background image with slight jitter/zoom for CCTV feel
+        const jx = ((i * 53) % 5) - 2;
+        const jy = ((i * 97) % 5) - 2;
+        ctx.save();
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, H);
+        const img = camImgRef.current!;
+        // cover
+        const ir = img.width / img.height;
+        const cr = W / H;
+        let dw = W, dh = H, dx = 0, dy = 0;
+        if (ir > cr) { dh = H; dw = H * ir; dx = (W - dw) / 2; }
+        else { dw = W; dh = W / ir; dy = (H - dh) / 2; }
+        ctx.drawImage(img, dx + jx, dy + jy, dw, dh);
+        ctx.restore();
+
+        // purple radial vignette
+        const rad = ctx.createRadialGradient(W/2, H*0.6, 20, W/2, H*0.6, W*0.7);
+        rad.addColorStop(0, "rgba(124,58,237,0.10)");
+        rad.addColorStop(1, "rgba(0,0,0,0.65)");
+        ctx.fillStyle = rad; ctx.fillRect(0, 0, W, H);
+
+        // scanlines (drift)
+        ctx.globalAlpha = 0.22;
+        const shift = i % 3;
+        ctx.fillStyle = "#000";
+        for (let y = shift; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+        ctx.globalAlpha = 1;
+
+        // flicker
+        if (i % 7 === 0) {
+          ctx.fillStyle = "rgba(255,255,255,0.08)";
+          ctx.fillRect(0, 0, W, H);
+        }
+
+        // top-left CAM label
+        ctx.fillStyle = "#c9c1a5";
+        ctx.font = "bold 12px monospace";
+        ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.fillText("CAM 04 — FRY STATION", 8, 8);
+
+        // top-right timestamp (ticks per frame)
+        const t = new Date(baseTime.getTime() + i * 80);
+        const hh = String(t.getHours()).padStart(2, "0");
+        const mm = String(t.getMinutes()).padStart(2, "0");
+        const ss = String(t.getSeconds()).padStart(2, "0");
+        const ms = String(t.getMilliseconds()).padStart(3, "0").slice(0, 2);
+        ctx.fillStyle = "#22d3ee";
+        ctx.font = "bold 12px monospace";
+        ctx.textAlign = "right";
+        ctx.fillText(`${hh}:${mm}:${ss}.${ms}`, W - 8, 8);
+
+        // REC blinking dot
+        if (i % 8 < 5) {
+          ctx.fillStyle = "#ef4444";
+          ctx.beginPath(); ctx.arc(W - 14, 28, 4, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 10px monospace";
+          ctx.textAlign = "right";
+          ctx.fillText("REC", W - 22, 24);
+        }
+
+        // bottom-left overlay pill
+        ctx.font = "bold 11px monospace";
+        ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+        const label = `⚠ ${pickedOverlay}`;
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = "rgba(124,58,237,0.35)";
+        ctx.fillRect(8, H - 24, tw + 14, 18);
+        ctx.fillStyle = "#c9c1a5";
+        ctx.fillText(label, 15, H - 11);
+
+        // bottom-right watermark
+        ctx.font = "bold 11px monospace";
+        ctx.textAlign = "right";
+        ctx.fillStyle = "rgba(250,204,21,0.85)";
+        ctx.fillText("BIRDBURGER.CAM", W - 8, H - 8);
+
+        gif.addFrame(ctx, { copy: true, delay: DELAY });
+      }
+
+      return await new Promise<Blob>((resolve, reject) => {
+        gif.on("progress", (p: number) => setClipPct(Math.round(p * 100)));
+        gif.on("finished", (blob: Blob) => resolve(blob));
+        try { gif.render(); } catch (e) { reject(e); }
+      });
+    } catch (err) {
+      console.error("Clip build failed", err);
+      return null;
+    }
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
+  const shareTo = async (target: "x" | "discord") => {
+    if (clipping) return;
+    setClipping(true); setClipPct(0);
+    const caption =
+      target === "x"
+        ? `LEAKED FOOTAGE from the Bird Burger kitchen 🐦🍔🔥\nThey're melting the fryer AGAIN. $BRGR to the moon (or the morgue).\n#BirdBurger #BRGR`
+        : `📼 leaked kitchen cam clip from Bird Burger — attach the GIF below 👇\n$BRGR // birdburger.cam`;
+    const blob = await buildClip();
+    setClipping(false); setClipPct(0);
+    if (!blob) { showToast("Clip render failed. Try again."); return; }
+
+    // Try native share with the file first (mobile)
+    const file = new File([blob], `bird-burger-cam-${Date.now()}.gif`, { type: "image/gif" });
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    if (nav.canShare && nav.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text: caption, title: "Bird Burger Kitchen Cam" });
+        onIncident();
+        showToast("Clip shared.");
+        return;
+      } catch { /* fall through to desktop flow */ }
+    }
+
+    // Desktop: download the GIF, copy caption, open target compose window
+    downloadBlob(blob, `bird-burger-cam.gif`);
+    try { await navigator.clipboard.writeText(caption); } catch {}
+    if (target === "x") {
+      const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+      showToast("GIF downloaded · caption copied · X opened. Attach the GIF!");
+    } else {
+      window.open("https://discord.com/channels/@me", "_blank", "noopener,noreferrer");
+      showToast("GIF downloaded · caption copied · Discord opened. Drop the GIF in chat!");
+    }
+    onIncident();
+  };
+
   return (
     <div id="kitchen-cam" className="relative overflow-hidden rounded-lg border-2 border-cyan/50 bg-black">
       <div className="flex items-center justify-between border-b border-cyan/30 bg-black/80 px-3 py-2 font-mono text-xs">
@@ -1176,10 +1355,51 @@ function KitchenCam({ onIncident }: { onIncident: () => void }) {
           {incident === "explosion" && <motion.div initial={{scale:0}} animate={{scale:5}} exit={{opacity:0}} className="absolute inset-0 grid place-items-center text-9xl">💥</motion.div>}
           {incident === "rug" && <motion.div initial={{y:200}} animate={{y:0}} className="absolute inset-0 grid place-items-center bg-black/80 font-display text-xl neon-pink">RESTAURANT TEMPORARILY RUGGED</motion.div>}
         </AnimatePresence>
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute inset-x-2 top-8 mx-auto max-w-[90%] rounded border-2 border-mustard bg-black/90 px-3 py-2 text-center font-mono text-[11px] text-mustard shadow-lg"
+            >
+              {toast}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {clipping && (
+          <div className="absolute inset-0 grid place-items-center bg-black/70 backdrop-blur-[1px]">
+            <div className="rounded border-2 border-cyan bg-black/80 px-4 py-3 text-center">
+              <div className="font-display text-sm text-cyan">RENDERING LEAKED CLIP</div>
+              <div className="mt-1 font-mono text-xs text-grease">{clipPct}% · scanlines applied</div>
+            </div>
+          </div>
+        )}
       </div>
-      <button onClick={trigger} className="w-full border-t-2 border-grape bg-grape py-2.5 font-display text-xs tracking-widest text-white hover:bg-grape/80">
-        CAUSE A KITCHEN INCIDENT ✨
-      </button>
+      <div className="grid grid-cols-3 border-t-2 border-grape">
+        <button
+          onClick={trigger}
+          className="border-r border-grape/60 bg-grape py-2.5 font-display text-[11px] tracking-widest text-white hover:bg-grape/80"
+        >
+          INCIDENT ✨
+        </button>
+        <button
+          onClick={() => shareTo("x")}
+          disabled={clipping}
+          className="border-r border-grape/60 bg-black py-2.5 font-display text-[11px] tracking-widest text-cyan hover:bg-cyan/10 disabled:opacity-60"
+          title="Share leaked clip to X"
+        >
+          {clipping ? `… ${clipPct}%` : "LEAK TO 𝕏"}
+        </button>
+        <button
+          onClick={() => shareTo("discord")}
+          disabled={clipping}
+          className="bg-black py-2.5 font-display text-[11px] tracking-widest text-mustard hover:bg-mustard/10 disabled:opacity-60"
+          title="Share leaked clip to Discord"
+        >
+          {clipping ? `… ${clipPct}%` : "LEAK TO DISCORD"}
+        </button>
+      </div>
     </div>
   );
 }
