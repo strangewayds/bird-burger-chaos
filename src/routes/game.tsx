@@ -440,7 +440,89 @@ function useGameSfx(muted: boolean) {
     sub.start(t); sub.stop(t + 0.5);
   }, [muted, ensure]);
 
-  return { hop, land, boom, ensure };
+  // Filtered-noise whoosh, used for dash start / mid-air pass. Volume-capped for comfort.
+  const whoosh = useCallback((variant: "start" | "mid", intensity = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk(`whoosh_${variant}`, variant === "start" ? 220 : 120)) return;
+    const t = ctx.currentTime;
+    const dur = variant === "start" ? 0.22 : 0.16;
+    const bufLen = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    // shaped noise: quick attack, soft tail
+    for (let i = 0; i < bufLen; i++) {
+      const k = i / bufLen;
+      const env = variant === "start"
+        ? Math.pow(Math.sin(Math.PI * k), 0.9)               // swell + fall
+        : Math.pow(1 - k, 1.4) * Math.min(1, k * 8);          // fast in, gentle out
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    // bandpass sweep: high → low sells a directional whoosh
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass";
+    const f0 = variant === "start" ? 2200 : 1600;
+    const f1 = variant === "start" ? 500 : 700;
+    bp.frequency.setValueAtTime(f0, t);
+    bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    bp.Q.value = 0.9;
+    const g = ctx.createGain();
+    // hard-cap peak so dashes never spike above comfortable level
+    const peak = Math.min(variant === "start" ? 0.24 : 0.18, (variant === "start" ? 0.20 : 0.14) * intensity);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + dur);
+    src.connect(bp).connect(g).connect(masterRef.current);
+    src.start(t); src.stop(t + dur + 0.02);
+    // subtle pitch-drop tonal ghost on start — adds "snap"
+    if (variant === "start") {
+      const osc = ctx.createOscillator(); osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.exponentialRampToValueAtTime(180, t + 0.14);
+      const og = ctx.createGain();
+      const opeak = Math.min(0.10, 0.07 * intensity);
+      og.gain.setValueAtTime(0, t);
+      og.gain.linearRampToValueAtTime(opeak, t + 0.006);
+      og.gain.exponentialRampToValueAtTime(0.0006, t + 0.16);
+      osc.connect(og).connect(masterRef.current);
+      osc.start(t); osc.stop(t + 0.18);
+    }
+  }, [muted, ensure]);
+
+  // Punchier impact for dash landing — sub thump + filtered crack, still capped.
+  const dashLand = useCallback((intensity = 1) => {
+    if (muted) return;
+    const ctx = ensure(); if (!ctx || !masterRef.current) return;
+    if (!rateOk("dashLand", 90)) return;
+    const t = ctx.currentTime;
+    // sub thump
+    const sub = ctx.createOscillator(); sub.type = "sine";
+    sub.frequency.setValueAtTime(160, t);
+    sub.frequency.exponentialRampToValueAtTime(45, t + 0.14);
+    const sg = ctx.createGain();
+    const speak = Math.min(0.36, 0.26 * intensity);
+    sg.gain.setValueAtTime(0, t);
+    sg.gain.linearRampToValueAtTime(speak, t + 0.005);
+    sg.gain.exponentialRampToValueAtTime(0.0008, t + 0.22);
+    sub.connect(sg).connect(masterRef.current);
+    // noise crack
+    const bufLen = Math.floor(ctx.sampleRate * 0.12);
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 1.8);
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 700;
+    const ng = ctx.createGain();
+    const npeak = Math.min(0.22, 0.16 * intensity);
+    ng.gain.setValueAtTime(0, t);
+    ng.gain.linearRampToValueAtTime(npeak, t + 0.004);
+    ng.gain.exponentialRampToValueAtTime(0.0008, t + 0.14);
+    noise.connect(hp).connect(ng).connect(masterRef.current);
+    sub.start(t); sub.stop(t + 0.24);
+    noise.start(t); noise.stop(t + 0.14);
+  }, [muted, ensure]);
+
+  return { hop, land, boom, whoosh, dashLand, ensure };
 }
 
 function GameScreen({ employee, muted, onEnd, onQuit }: {
