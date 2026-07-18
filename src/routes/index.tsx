@@ -698,7 +698,8 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
     img.onload = () => { imgRef.current = img; imgReady.current = true; };
   }, []);
 
-  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number, loopLen: number = LOOP_LEN) => {
+  const drawFrame = (ctx: CanvasRenderingContext2D, size: number, frame: number, anim: boolean = animated, intensityOverride?: number, loopLen: number = LOOP_LEN, platformOverride?: Platform) => {
+    const plat: Platform = platformOverride ?? platform;
     const iv = (intensityOverride ?? intensity) / 100; // 0..1
     // Normalize into a single loop so first and last frame align exactly.
     const fMod = ((frame % loopLen) + loopLen) % loopLen;
