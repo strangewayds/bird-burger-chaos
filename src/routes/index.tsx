@@ -2247,12 +2247,12 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
           <img src="/favicon.png" alt="Bird Burger" width={40} height={40} className="h-10 w-10 shrink-0 rounded-md bg-bg object-cover shadow-[0_0_20px_rgba(124,58,237,0.6)]" />
           <div className="min-w-0 leading-none">
             <div className="whitespace-nowrap font-display text-lg tracking-wider text-mustard">BIRD BURGER</div>
-            <div className="hidden truncate text-[10px] uppercase tracking-widest text-ink/60 sm:block xl:hidden">The Worst Restaurant on the Blockchain</div>
+            <div className="hidden truncate text-[10px] uppercase tracking-widest text-ink/60 sm:block lg:hidden">The Worst Restaurant on the Blockchain</div>
           </div>
         </a>
-        <nav className="hidden min-w-0 justify-center gap-0.5 xl:flex">
+        <nav className="hidden min-w-0 justify-center gap-1 lg:flex">
           {NAV_LINKS.map((l) => (
-            <a key={l.href} href={l.href} className="whitespace-nowrap rounded px-2 py-2 text-[11px] font-bold uppercase tracking-wide transition-colors text-ink/80 hover:bg-grape/20 hover:text-mustard xl:text-xs">{l.label}</a>
+            <a key={l.href} href={l.href} className="whitespace-nowrap rounded px-2.5 py-2 text-[13px] font-bold uppercase tracking-wide transition-colors text-ink/80 hover:bg-grape/20 hover:text-mustard">{l.label}</a>
           ))}
         </nav>
         <div className="flex items-center gap-2">
@@ -2261,7 +2261,7 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border-2 border-mustard bg-mustard px-2.5 py-2 text-xs font-black uppercase tracking-widest text-bg shadow-[0_0_20px_rgba(250,204,21,0.45)] hover:brightness-110 sm:bg-mustard/15 sm:px-3 sm:text-mustard sm:hover:bg-mustard sm:hover:text-bg"
             title="Play Bird Burger: Kitchen Chaos"
           >
-            <Flame className="h-4 w-4" /> <span>Play</span><span className="hidden sm:inline">&nbsp;Game</span>
+            <Flame className="h-4 w-4" /> <span>Play</span><span className="hidden sm:inline lg:hidden xl:inline">&nbsp;Game</span>
           </a>
           <button
             onClick={onRandomizeTrack}
@@ -2272,60 +2272,23 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
             <Shuffle className="h-4 w-4" />
           </button>
 
-          <div className="flex items-center gap-2 rounded-md border border-ink/20 bg-bg/60 px-2 py-1.5">
-            <button
-              onClick={() => setMuted(!muted)}
-              aria-label={muted ? "Unmute sounds" : "Mute sounds"}
-              className="grid h-7 w-7 place-items-center rounded text-ink/80 hover:bg-ink/10"
-            >
-              {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={muted ? 0 : volPct}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10) / 100;
-                setVolume(v);
-                if (muted && v > 0) setMuted(false);
-                if (!muted && v === 0) setMuted(true);
-              }}
-              aria-label="Volume"
-              title={`Volume ${muted ? 0 : volPct}%`}
-              className="hidden h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-ink/20 accent-mustard sm:w-24 xl:block"
-              style={{
-                backgroundImage: `linear-gradient(to right, var(--color-mustard, #f4b400) 0%, var(--color-mustard, #f4b400) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) 100%)`,
-              }}
-            />
-          </div>
-          <div
-            className="hidden items-center gap-2 rounded-md border border-cyan/30 bg-bg/60 px-2 py-1.5 xl:flex"
-            title="Kitchen ambience — fryer, soda, doorbell, complaints"
+          {/* Compact audio toggles — icon-only so the nav has room to breathe */}
+          <button
+            onClick={() => setMuted(!muted)}
+            aria-label={muted ? "Unmute sounds" : "Mute sounds"}
+            title={muted ? "Unmute" : "Mute"}
+            className="grid h-10 w-10 place-items-center rounded-md border border-ink/20 bg-bg/60 text-ink/80 hover:bg-ink/10"
           >
-            <button
-              onClick={() => setAmbVolume(ambVolume > 0 ? 0 : 0.55)}
-              aria-label={ambVolume === 0 ? "Enable kitchen ambience" : "Mute kitchen ambience"}
-              className="grid h-7 w-7 place-items-center rounded text-cyan/90 hover:bg-cyan/10"
-            >
-              <UtensilsCrossed className="h-4 w-4" style={{ opacity: ambVolume === 0 ? 0.4 : 1 }} />
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={muted ? 0 : ambPct}
-              onChange={(e) => setAmbVolume(parseInt(e.target.value, 10) / 100)}
-              aria-label="Kitchen ambience volume"
-              title={`Ambience ${muted ? 0 : ambPct}%`}
-              className="hidden h-1.5 w-16 cursor-pointer appearance-none rounded-full bg-ink/20 accent-cyan sm:w-20 xl:block"
-              style={{
-                backgroundImage: `linear-gradient(to right, var(--color-cyan, #22d3ee) 0%, var(--color-cyan, #22d3ee) ${muted ? 0 : ambPct}%, rgba(255,255,255,0.15) ${muted ? 0 : ambPct}%, rgba(255,255,255,0.15) 100%)`,
-              }}
-            />
-          </div>
+            {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={() => setAmbVolume(ambVolume > 0 ? 0 : 0.55)}
+            aria-label={ambVolume === 0 ? "Enable kitchen ambience" : "Mute kitchen ambience"}
+            title="Kitchen ambience — fryer, soda, doorbell, complaints"
+            className="hidden h-10 w-10 place-items-center rounded-md border border-cyan/30 bg-bg/60 text-cyan/90 hover:bg-cyan/10 xl:grid"
+          >
+            <UtensilsCrossed className="h-4 w-4" style={{ opacity: ambVolume === 0 ? 0.4 : 1 }} />
+          </button>
 
           <button
             onClick={onConnect}
@@ -2338,9 +2301,10 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
             }`}
           >
             <Wallet className="h-4 w-4" />
-            {wallet ? (wrongNet ? "Wrong Restaurant" : `${wallet.slice(0, 6)}…${wallet.slice(-4)}`) : "Connect Wallet"}
+            <span>{wallet ? (wrongNet ? "Wrong Restaurant" : `${wallet.slice(0, 6)}…${wallet.slice(-4)}`) : "Connect"}</span>
+            {!wallet && <span className="hidden xl:inline">&nbsp;Wallet</span>}
           </button>
-          <button onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-md border border-ink/20 text-ink xl:hidden" aria-label="Toggle menu">
+          <button onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-md border border-ink/20 text-ink lg:hidden" aria-label="Toggle menu">
             {open ? <X className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
           </button>
         </div>
