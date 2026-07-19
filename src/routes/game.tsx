@@ -496,14 +496,19 @@ function useGameSfx(muted: boolean) {
       if (!AC) return null;
       const ctx: AudioContext = new AC();
       const master = ctx.createGain();
-      master.gain.value = 0.55;
+      master.gain.value = 0.4;
       const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -14;
-      comp.knee.value = 22;
-      comp.ratio.value = 6;
-      comp.attack.value = 0.003;
-      comp.release.value = 0.15;
-      master.connect(comp).connect(ctx.destination);
+      comp.threshold.value = -16;
+      comp.knee.value = 26;
+      comp.ratio.value = 5;
+      comp.attack.value = 0.004;
+      comp.release.value = 0.2;
+      // gentle high shelf cut so nothing gets harsh/piercing
+      const tone = ctx.createBiquadFilter();
+      tone.type = "highshelf";
+      tone.frequency.value = 3800;
+      tone.gain.value = -6;
+      master.connect(comp).connect(tone).connect(ctx.destination);
       ctxRef.current = ctx;
       masterRef.current = master;
       compRef.current = comp;
@@ -513,7 +518,7 @@ function useGameSfx(muted: boolean) {
   }, []);
 
   useEffect(() => {
-    if (masterRef.current) masterRef.current.gain.value = muted ? 0 : 0.55;
+    if (masterRef.current) masterRef.current.gain.value = muted ? 0 : 0.4;
   }, [muted]);
 
   useEffect(() => () => { try { ctxRef.current?.close(); } catch {} }, []);
@@ -526,50 +531,47 @@ function useGameSfx(muted: boolean) {
     return true;
   };
 
+  // Footstep — a soft, dull "tap" (filtered noise), NOT a tonal blip. This plays
+  // on every step so it has to be gentle and non-repetitive or it grates fast.
   const hop = useCallback((intensity = 1) => {
     if (muted) return;
     const ctx = ensure(); if (!ctx || !masterRef.current) return;
-    if (!rateOk("hop", 55)) return;
+    if (!rateOk("hop", 105)) return; // fewer steps make sound
     const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    osc.type = "square";
-    const base = 320 + Math.random() * 60;
-    osc.frequency.setValueAtTime(base, t);
-    osc.frequency.exponentialRampToValueAtTime(base * 1.9, t + 0.06);
+    const bufLen = Math.floor(ctx.sampleRate * 0.045);
+    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 2.2);
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 380 + Math.random() * 130; // varied so repeats don't fatigue
+    bp.Q.value = 0.6;
     const g = ctx.createGain();
-    const peak = Math.min(0.28, 0.18 * intensity);
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(peak, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.11);
-    osc.connect(g).connect(masterRef.current);
-    osc.start(t); osc.stop(t + 0.13);
+    const peak = Math.min(0.07, 0.05 * intensity);
+    g.gain.setValueAtTime(peak, t);
+    g.gain.exponentialRampToValueAtTime(0.0005, t + 0.05);
+    noise.connect(bp).connect(g).connect(masterRef.current);
+    noise.start(t); noise.stop(t + 0.05);
   }, [muted, ensure]);
 
+  // Landing — just a soft low cushion under the footstep. Quiet; no noise burst.
   const land = useCallback((intensity = 1) => {
     if (muted) return;
     const ctx = ensure(); if (!ctx || !masterRef.current) return;
-    if (!rateOk("land", 45)) return;
+    if (!rateOk("land", 95)) return;
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     osc.type = "sine";
-    osc.frequency.setValueAtTime(180, t);
-    osc.frequency.exponentialRampToValueAtTime(60, t + 0.09);
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(70, t + 0.08);
     const g = ctx.createGain();
-    const peak = Math.min(0.34, 0.22 * intensity);
+    const peak = Math.min(0.11, 0.07 * intensity);
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(peak, t + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.14);
+    g.gain.linearRampToValueAtTime(peak, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.11);
     osc.connect(g).connect(masterRef.current);
-    const bufLen = Math.floor(ctx.sampleRate * 0.09);
-    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
-    const noise = ctx.createBufferSource(); noise.buffer = buf;
-    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 900;
-    const ng = ctx.createGain(); ng.gain.value = Math.min(0.18, 0.12 * intensity);
-    noise.connect(hp).connect(ng).connect(masterRef.current);
-    osc.start(t); osc.stop(t + 0.16);
-    noise.start(t); noise.stop(t + 0.1);
+    osc.start(t); osc.stop(t + 0.13);
   }, [muted, ensure]);
 
   const boom = useCallback((intensity = 1) => {
@@ -756,17 +758,17 @@ function useGameSfx(muted: boolean) {
     if (!ctx || !masterRef.current) return;
     ambStartedRef.current = true;
     const g = ctx.createGain();
-    g.gain.value = 0.22;
+    g.gain.value = 0.16;
     g.connect(masterRef.current);
     // shared noise buffer
     const len = ctx.sampleRate * 2;
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-    // fryer sizzle (bandpassed noise, gently wobbling)
+    // fryer sizzle (bandpassed noise, gently wobbling) — lower & warmer, less hiss
     const sizzle = ctx.createBufferSource(); sizzle.buffer = buf; sizzle.loop = true;
-    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 5200; bp.Q.value = 0.8;
-    const sg = ctx.createGain(); sg.gain.value = 0.05;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3200; bp.Q.value = 0.7;
+    const sg = ctx.createGain(); sg.gain.value = 0.035;
     sizzle.connect(bp); bp.connect(sg); sg.connect(g); sizzle.start();
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.23;
     const lfoG = ctx.createGain(); lfoG.gain.value = 0.02;
