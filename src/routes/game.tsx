@@ -19,9 +19,9 @@ export const Route = createFileRoute("/game")({
   head: () => ({
     meta: [
       { title: "Bird Burger: Kitchen Chaos — Play the Game" },
-      { name: "description", content: "Cook the shift, make $2,000 rent, and the top 3 birds each week earn $BRGR. Play Bird Burger: Kitchen Chaos free in your browser — no wallet needed." },
+      { name: "description", content: "Survive as many days as you can — the rent climbs, the kitchen gets deadlier, and the top 3 birds each week earn $BRGR. Play Bird Burger: Kitchen Chaos free in your browser — no wallet needed." },
       { property: "og:title", content: "Bird Burger: Kitchen Chaos — Play free, earn $BRGR" },
-      { property: "og:description", content: "Cook the shift, make $2,000 rent. Top 3 birds each week earn $BRGR back-pay. Free to play, no wallet needed." },
+      { property: "og:description", content: "Survive as many days as you can. The top 3 birds each week earn $BRGR back-pay. Free to play, no wallet needed." },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Bird Burger" },
       { property: "og:url", content: "https://birdburger.meme/game" },
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/game")({
       { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Bird Burger: Kitchen Chaos — Play free, earn $BRGR" },
-      { name: "twitter:description", content: "Cook the shift, make $2,000 rent. Top 3 birds a week earn $BRGR. Free to play." },
+      { name: "twitter:description", content: "Survive as many days as you can. Top 3 birds a week earn $BRGR. Free to play." },
       { name: "twitter:image", content: "https://birdburger.meme/game-og.png" },
     ],
   }),
@@ -229,11 +229,30 @@ const EMPLOYEES = [
   { id: "gary", name: "Manager Gary", tint: "#00C805", desc: "Reluctantly here.", perk: "Chaos cools down 2× faster", speed: 1, cook: 1, tips: 1, calm: 2.2 },
 ];
 
-// THE GOAL: earn this much before the shift ends or Bird Burger is finished.
-const RENT_QUOTA = 2000;
-const SHIFT_SECONDS = 180;
+// THE GAME: survive as many DAYS as you can. Each day you must earn that day's
+// rent before the clock runs out. Every day the rent climbs, orders get bigger,
+// and more of the kitchen tries to kill you. Score is cumulative across days.
+type RoundCfg = {
+  day: number; quota: number; time: number; maxItems: number; spawnMul: number;
+  grease: boolean; pigeons: boolean; fires: boolean; bananas: boolean; disasters: boolean;
+};
+function roundConfig(r: number): RoundCfg {
+  return {
+    day: r,
+    quota: 550 + (r - 1) * 450,                          // 550, 1000, 1450, 1900…
+    time: r <= 1 ? 105 : Math.max(70, 100 - (r - 2) * 6), // day 1 generous, then tighter
+    maxItems: r <= 1 ? 2 : r <= 3 ? 3 : r <= 5 ? 4 : 5,   // orders get more complex
+    spawnMul: 1 + (r - 1) * 0.13,                         // hazards come faster
+    grease: r >= 2,
+    pigeons: r >= 2,
+    fires: r >= 3,
+    bananas: r >= 3,
+    disasters: r >= 4,
+  };
+}
+const RENT_QUOTA = roundConfig(1).quota; // day-1 rent, referenced on the start screen
 
-type Outcome = "win" | "evicted" | "shutdown";
+type Outcome = "cleared" | "evicted" | "shutdown";
 
 /* ─────────────────────────  COMPONENT  ───────────────────────── */
 
@@ -362,10 +381,10 @@ function StartScreen({ employee, setEmployee, onStart, onHelp }: {
           <div className="mt-3 max-w-md rounded-lg border-2 border-[#FACC15]/60 bg-[#09090B]/60 p-3">
             <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FACC15]">📋 Your Mission</div>
             <p className="mt-1 text-sm text-white/85">
-              The landlord wants <b className="text-[#00C805]">${RENT_QUOTA.toLocaleString()} RENT</b> by the end of your <b className="text-[#FACC15]">3-minute shift</b>. Cook and deliver orders to earn it — <b className="text-[#22D3EE]">pay it off early to win big</b>.
+              Survive as many <b className="text-[#7C3AED]">DAYS</b> as you can. Each day, make that day's <b className="text-[#00C805]">rent</b> before the clock runs out to reach the next day.
             </p>
             <p className="mt-1.5 text-xs text-white/60">
-              Fail and you're <b className="text-[#EF4444]">EVICTED</b>. Let the CHAOS meter max out and the <b className="text-[#EF4444]">health inspector shuts you down</b>. Fires, grease and pigeons are not your friends.
+              Every day the <b className="text-[#FACC15]">rent climbs</b>, orders get <b className="text-[#FACC15]">bigger</b>, and more of the kitchen turns on you — <b className="text-[#EF4444]">grease, then fires, then pigeons and bananas</b>. Miss rent or let the CHAOS meter max out and you're done. How long can you last?
             </p>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-3 sm:max-w-md">
@@ -441,7 +460,7 @@ function HowToPlay({ onClose }: { onClose: () => void }) {
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-xl border-2 border-[#EC4899] bg-[#2E1065] p-6">
         <h3 className="mb-3 [font-family:'Bungee','Impact',sans-serif] text-2xl text-[#EC4899]">HOW TO PLAY</h3>
         <div className="mb-3 rounded-lg border border-[#FACC15]/50 bg-[#FACC15]/10 p-2.5 text-sm">
-          <b className="text-[#FACC15]">🏆 GOAL:</b> <span className="text-white/85">Earn <b className="text-[#00C805]">$2,000 rent</b> before the 3-minute shift ends. Hit it early for a better grade.</span>
+          <b className="text-[#FACC15]">🏆 GOAL:</b> <span className="text-white/85">Survive as many <b className="text-[#7C3AED]">days</b> as you can. Make each day's <b className="text-[#00C805]">rent</b> before the clock runs out to reach the next — it gets harder every day.</span>
           <div className="mt-1 text-xs text-white/70"><b className="text-[#EF4444]">YOU LOSE IF:</b> time runs out short (EVICTED), or the CHAOS meter maxes out and the health inspector's 5-second countdown hits zero (SHUT DOWN). Failed orders, burned food and wrong deliveries raise chaos — mopping, extinguishing and serving keep it down. Chaos also cools on its own; don't panic, just clean.</div>
         </div>
         <ul className="space-y-2 text-sm text-white/85">
@@ -478,6 +497,7 @@ type GameStats = {
   gradeSub: string;
   outcome: Outcome;
   timeLeft: number;
+  daysSurvived: number;
 };
 
 /* ─────────────────────────  GAME SFX (synth)  ─────────────────────────
@@ -1057,9 +1077,17 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   });
   const scoreRef = useRef(0);
   const chaosRef = useRef(0);
-  const timeRef = useRef(SHIFT_SECONDS);
+  const timeRef = useRef(roundConfig(1).time);
   const inspectorRef = useRef(-1); // >=0 while the shutdown countdown is running
   const [inspectorT, setInspectorT] = useState(-1);
+  // Day/round progression
+  const roundRef = useRef(1);
+  const cfgRef = useRef<RoundCfg>(roundConfig(1));
+  const roundStartScoreRef = useRef(0);          // score at the start of this day
+  const [round, setRound] = useState(1);
+  const [dayEarned, setDayEarned] = useState(0); // $ earned toward this day's rent (for HUD)
+  const dayBannerRef = useRef<{ text: string; sub: string; until: number } | null>(null);
+  const [dayBannerTick, setDayBannerTick] = useState(0);
   // Phones: the shift STARTS in takeover mode — no button hunting, the game just fills the screen.
   // Set after mount (not in the initializer) so SSR and first client render match — no hydration mismatch.
   const [isFs, setIsFs] = useState(false);
@@ -1189,13 +1217,51 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   }, []);
 
   function spawnOrder(silent = false) {
-    // Ease-in difficulty: simple orders first, the monsters only show up late-shift
-    const elapsed = SHIFT_SECONDS - timeRef.current;
-    const maxItems = elapsed < 45 ? 2 : elapsed < 105 ? 3 : 5;
-    const pool = ORDER_POOL.filter((t) => t.items.length <= maxItems);
+    // Order complexity is set by the current day (Day 1 = 1-2 items, later days build up)
+    const pool = ORDER_POOL.filter((t) => t.items.length <= cfgRef.current.maxItems);
     const t = pool[Math.floor(Math.random() * pool.length)];
     ordersRef.current.push({ id: orderIdRef.current++, template: t, remaining: t.time });
     if (!silent) sfxRef.current.doorBell(); // a customer just walked in
+  }
+
+  // Advance to the next Day — bigger rent, harder kitchen. Celebrate + reset the clock.
+  function advanceRound() {
+    const completedDay = roundRef.current;
+    const bonus = 100 + completedDay * 40; // completion tip
+    scoreRef.current += bonus;
+    const next = completedDay + 1;
+    roundRef.current = next;
+    cfgRef.current = roundConfig(next);
+    roundStartScoreRef.current = scoreRef.current;
+    timeRef.current = cfgRef.current.time;
+    inspectorRef.current = -1;
+    chaosRef.current = Math.max(0, chaosRef.current - 1.5); // breather into the new day
+    setRound(next);
+    setDayEarned(0);
+    setScore(scoreRef.current);
+    dayBannerRef.current = {
+      text: `DAY ${completedDay} DONE!`,
+      sub: `Rent paid. Day ${next}: make $${cfgRef.current.quota.toLocaleString()}.`,
+      until: performance.now() + 3000,
+    };
+    setDayBannerTick((n) => n + 1);
+    sfxRef.current.kaching();
+    // quick coin burst at the pickup window
+    const pu = STATIONS.find((s) => s.id === "pickup")!;
+    for (let ci = 0; ci < 10; ci++) {
+      const a = Math.PI * (0.85 + Math.random() * 1.3);
+      const sp = 0.09 + Math.random() * 0.16;
+      debrisRef.current.push({
+        x: pu.x + pu.w / 2, y: pu.y + pu.h / 2,
+        vx: Math.cos(a) * sp, vy: -Math.abs(Math.sin(a)) * sp - 0.08,
+        glyph: "$", rot: 0, vr: (Math.random() - 0.5) * 6,
+        start: performance.now(), color: "#00C805",
+      });
+    }
+    // fresh orders sized to the new day
+    ordersRef.current = [];
+    for (let i = 0; i < 3; i++) spawnOrder(true);
+    setTick((t) => t + 1);
   }
 
   // Explosion cinematics: shockwave ring + food shrapnel raining across the kitchen
@@ -1907,8 +1973,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
 
       // Bananas: they spawn, you slip, everyone laughs
       bananaCd -= dt;
-      if (bananaCd <= 0 && bananasRef.current.length < 2 && !inTutorial) {
-        bananaCd = 14 + Math.random() * 12;
+      if (bananaCd <= 0 && bananasRef.current.length < 2 && !inTutorial && cfgRef.current.bananas) {
+        bananaCd = (14 + Math.random() * 12) / cfgRef.current.spawnMul;
         bananasRef.current.push({ x: 0.25 + Math.random() * 0.55, y: 0.55 + Math.random() * 0.35, wob: Math.random() * Math.PI * 2 });
       }
       for (let bi = bananasRef.current.length - 1; bi >= 0; bi--) {
@@ -1928,7 +1994,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       }
 
       fireCd -= dt;
-      if (fireCd <= 0 && !inTutorial) {
+      if (fireCd <= 0 && !inTutorial && cfgRef.current.fires) {
         // random chance of fire at grill or fryer; small chance of GRILL EXPLOSION
         const explode = Math.random() < 0.28;
         const target = explode ? "grill" : (Math.random() < 0.5 ? "grill" : "fryer");
@@ -1956,7 +2022,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
             floatsRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 0.04, text: "OSHA WHO?", color: "#EF4444", life: 1.2 });
           }
         }
-        fireCd = (explode ? 26 : 20) + Math.random() * 14;
+        fireCd = ((explode ? 26 : 20) + Math.random() * 14) / cfgRef.current.spawnMul;
         // Explosions also splatter grease
         if (explode) {
           for (let i = 0; i < 3; i++) {
@@ -1980,7 +2046,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       const comboN = cleanComboRef.current.count;
       const chaosMul = 1 + Math.min(comboN, 8) * 0.35; // up to ~3.8x at combo 8
       const spillCap = Math.min(14, 6 + Math.floor(comboN * 0.9));
-      if (spillCd <= 0 && spillsRef.current.length < spillCap && !inTutorial) {
+      if (spillCd <= 0 && spillsRef.current.length < spillCap && !inTutorial && cfgRef.current.grease) {
         const spawnCount = 1 + (comboN >= 3 ? 1 : 0) + (comboN >= 6 ? 1 : 0);
         for (let i = 0; i < spawnCount; i++) {
           // Roll the target ONCE — rolling inside the callback made find() miss
@@ -2020,7 +2086,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
 
       // ─── KITCHEN DISASTERS ───
       disasterCd -= dt;
-      if (disasterCd <= 0 && !inTutorial) {
+      if (disasterCd <= 0 && !inTutorial && cfgRef.current.disasters) {
         const roll = Math.random();
         if (roll < 0.4) {
           // SMOKE ALARM
@@ -2073,7 +2139,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           });
           floatsRef.current.push({ x: sx, y: sy - 0.08, text: "⚠ LOOK OUT!", color: "#FACC15", life: 1 });
         }
-        disasterCd = 14 + Math.random() * 12;
+        disasterCd = (14 + Math.random() * 12) / cfgRef.current.spawnMul;
       }
 
       // Smoke alarm tick
@@ -2239,9 +2305,9 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
 
       // Pigeons
       pigeonCd -= dt;
-      if (pigeonCd <= 0 && !inTutorial) {
+      if (pigeonCd <= 0 && !inTutorial && cfgRef.current.pigeons) {
         pigeonsRef.current.push({ x: -0.05, y: 0.5 + (Math.random() - 0.5) * 0.4, vx: 0.08 + Math.random()*0.05, vy: (Math.random() - 0.5) * 0.05, hp: 1 });
-        pigeonCd = 12 + Math.random() * 10;
+        pigeonCd = (12 + Math.random() * 10) / cfgRef.current.spawnMul;
       }
       pigeonsRef.current.forEach((pg) => {
         pg.x += pg.vx * dt;
@@ -2296,18 +2362,17 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         inspectorRef.current = -1; // crisis averted
       }
 
-      // WIN: rent quota reached — shift ends immediately, time left = bragging rights
-      if (scoreRef.current >= RENT_QUOTA) {
-        cancelAnimationFrame(raf);
-        finishGame("win");
-        return;
+      // DAY COMPLETE: made this day's rent → advance to the next, harder day
+      const earnedThisDay = scoreRef.current - roundStartScoreRef.current;
+      if (earnedThisDay >= cfgRef.current.quota) {
+        advanceRound();
       }
 
-      // Timer
+      // Timer — run out before making the day's rent = game over (evicted)
       timeRef.current -= dt;
       if (timeRef.current <= 0) {
         cancelAnimationFrame(raf);
-        finishGame(scoreRef.current >= RENT_QUOTA ? "win" : "evicted");
+        finishGame("evicted");
         return;
       }
 
@@ -2319,6 +2384,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         setScore(scoreRef.current);
         setChaos(chaosRef.current);
         setInspectorT(inspectorRef.current);
+        setDayEarned(Math.max(0, scoreRef.current - roundStartScoreRef.current));
         setTick((t) => t + 1);
         setPerfFps(Math.round(perfRef.current.fps));
       }
@@ -2334,11 +2400,12 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   function finishGame(outcome: Outcome) {
     const s = statsRef.current;
     const total = scoreRef.current;
+    const daysSurvived = roundRef.current - 1; // fully completed days
     const newBest = Math.max(best, total);
     if (typeof window !== "undefined") window.localStorage.setItem("bb_kc_best", String(newBest));
     const secLeft = Math.max(0, Math.ceil(timeRef.current));
-    const grade = gradeForOutcome(outcome, total, secLeft);
-    const bucks = Math.floor(total / 10) + s.ordersCompleted * 5 + (outcome === "win" ? 150 : 0);
+    const grade = gradeForDays(daysSurvived, total);
+    const bucks = Math.floor(total / 10) + s.ordersCompleted * 5 + daysSurvived * 60;
     // Award bird bucks in main site's ledger
     if (typeof window !== "undefined") {
       const prev = parseInt(window.localStorage.getItem("bb_bucks") || "0", 10);
@@ -2358,6 +2425,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       gradeSub: grade.sub,
       outcome,
       timeLeft: secLeft,
+      daysSurvived,
     });
   }
 
@@ -3326,11 +3394,12 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           {isFs ? "✕ EXIT" : "⛶ FULL SCREEN"}
         </button>
 
-        {/* Compact time/rent chip (fullscreen + phones) */}
+        {/* Compact day/time/rent chip (fullscreen + phones) */}
         <div className={`pointer-events-none absolute left-2 top-2 z-20 flex-col gap-1 ${isFs ? "flex" : "flex lg:hidden"}`}>
           <div className="flex items-center gap-2 rounded-md border border-[#FACC15]/50 bg-[#09090B]/85 px-2 py-1 backdrop-blur">
+            <span className="rounded bg-[#7C3AED] px-1.5 py-0.5 text-[9px] font-black uppercase text-white">DAY {round}</span>
             <span className="font-mono text-sm font-black text-[#FACC15]">{fmt(timeLeft)}</span>
-            <span className="text-[10px] font-black text-[#22D3EE]">${score.toLocaleString()}<span className="text-white/40">/${RENT_QUOTA.toLocaleString()}</span></span>
+            <span className="text-[10px] font-black text-[#22D3EE]">${dayEarned.toLocaleString()}<span className="text-white/40">/${roundConfig(round).quota.toLocaleString()}</span></span>
           </div>
         </div>
 
@@ -3449,6 +3518,21 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           ) : null;
         })()}
 
+        {/* DAY COMPLETE flash */}
+        {(() => {
+          void dayBannerTick;
+          const b = dayBannerRef.current;
+          if (!b || performance.now() > b.until) return null;
+          return (
+            <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center">
+              <div className="animate-[pulse_0.7s_ease-out] rounded-2xl border-4 border-[#00C805] bg-[#09090B]/85 px-8 py-4 text-center shadow-[0_0_60px_rgba(0,200,5,0.7)]">
+                <div className="[font-family:'Bungee','Impact',sans-serif] text-3xl text-[#00C805] md:text-5xl">💸 {b.text}</div>
+                <div className="mt-1 text-xs font-black uppercase tracking-widest text-[#FACC15] md:text-sm">{b.sub}</div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* HEALTH INSPECTOR shutdown countdown */}
         {inspectorT >= 0 && (
           <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex justify-center md:top-16">
@@ -3482,24 +3566,31 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         {showTouch && <TouchControls onInteract={interact} onDrop={dropCarry} />}
       </div>
       <aside className="flex w-full flex-col gap-2 lg:w-[300px] lg:shrink-0 max-lg:landscape:max-h-[calc(100dvh-16px)] max-lg:landscape:w-[205px] max-lg:landscape:shrink-0 max-lg:landscape:overflow-y-auto">
-        {/* Time + rent */}
+        {/* Day + time + rent */}
         <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            <InfoCard title="TIME" value={fmt(timeLeft)} sub="LANDLORD INBOUND" tint="#FACC15" wide />
-            <InfoCard title="RENT EARNED" value={`$${score.toLocaleString()}`} sub={`GOAL: $${RENT_QUOTA.toLocaleString()}`} tint="#22D3EE" wide />
+          <div className="grid grid-cols-3 gap-2">
+            <InfoCard title="DAY" value={`${round}`} sub={`TOTAL $${score.toLocaleString()}`} tint="#7C3AED" wide />
+            <InfoCard title="TIME" value={fmt(timeLeft)} sub="TILL CLOSE" tint="#FACC15" wide />
+            <InfoCard title="TODAY'S RENT" value={`$${dayEarned.toLocaleString()}`} sub={`NEED $${roundConfig(round).quota.toLocaleString()}`} tint="#22D3EE" wide />
           </div>
-          {/* Rent progress bar */}
-          <div className="self-stretch rounded-lg border-2 border-[#22D3EE]/60 bg-[#09090B]/85 p-1.5 backdrop-blur">
-            <div className="h-3 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[#22D3EE] to-[#00C805] transition-[width] duration-300"
-                style={{ width: `${Math.min(100, (score / RENT_QUOTA) * 100)}%` }}
-              />
-            </div>
-            <div className="mt-0.5 text-center text-[8px] font-black uppercase tracking-widest text-white/60">
-              {score >= RENT_QUOTA ? "RENT PAID!!!" : `$${(RENT_QUOTA - score).toLocaleString()} TO MAKE RENT`}
-            </div>
-          </div>
+          {/* Day rent progress bar */}
+          {(() => {
+            const q = roundConfig(round).quota;
+            const paid = dayEarned >= q;
+            return (
+              <div className="self-stretch rounded-lg border-2 border-[#22D3EE]/60 bg-[#09090B]/85 p-1.5 backdrop-blur">
+                <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#22D3EE] to-[#00C805] transition-[width] duration-300"
+                    style={{ width: `${Math.min(100, (dayEarned / q) * 100)}%` }}
+                  />
+                </div>
+                <div className="mt-0.5 text-center text-[8px] font-black uppercase tracking-widest text-white/60">
+                  {paid ? "RENT PAID — NEXT DAY!" : `$${(q - dayEarned).toLocaleString()} TO SURVIVE DAY ${round}`}
+                </div>
+              </div>
+            );
+          })()}
           {cleanCombo >= 2 && (
             <div
               key={cleanCombo}
@@ -3756,18 +3847,14 @@ function drawProgress(ctx: CanvasRenderingContext2D, x: number, y: number, t: nu
   ctx.strokeStyle = "#000";
   ctx.strokeRect(x - w/2, y - h/2, w, h);
 }
-function gradeForOutcome(outcome: Outcome, score: number, secLeft: number): { letter: string; sub: string } {
-  if (outcome === "win") {
-    // Graded on how fast you paid the landlord
-    if (secLeft >= 75) return { letter: "S", sub: "SPEEDRAN CAPITALISM" };
-    if (secLeft >= 45) return { letter: "A", sub: "LANDLORD MILDLY IMPRESSED" };
-    if (secLeft >= 20) return { letter: "B", sub: "RENT PAID IN CRUMPLED ONES" };
-    return { letter: "C", sub: "PAID AT 11:59 PM" };
-  }
-  if (outcome === "shutdown") return { letter: "F", sub: "THE INSPECTOR SAW EVERYTHING" };
-  // evicted — at least you tried
-  if (score >= 1400) return { letter: "D", sub: "SO CLOSE, YET SO BROKE" };
-  return { letter: "F", sub: "CLOSED BY AUTHORITIES" };
+// Graded on how many days you survived (with score as a tiebreaker flavor).
+function gradeForDays(days: number, score: number): { letter: string; sub: string } {
+  if (days >= 8) return { letter: "S", sub: "FRANCHISE MOGUL" };
+  if (days >= 6) return { letter: "A", sub: "SEASONED LINE COOK" };
+  if (days >= 4) return { letter: "B", sub: "SURVIVING, BARELY" };
+  if (days >= 2) return { letter: "C", sub: "STILL EMPLOYED" };
+  if (days >= 1) return { letter: "D", sub: "MADE IT ONE DAY" };
+  return { letter: "F", sub: score >= 300 ? "SO CLOSE TO DAY ONE" : "FIRED ON THE SPOT" };
 }
 
 /* ─────────────────────────  UI SUBCOMPONENTS  ───────────────────────── */
@@ -3895,25 +3982,21 @@ function TouchControls({ onInteract, onDrop }: { onInteract: () => void; onDrop:
 /* ─────────────────────────  RESULTS SCREEN  ───────────────────────── */
 
 function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay: () => void; onQuit: () => void }) {
-  const won = stats.outcome === "win";
+  const days = stats.daysSurvived;
+  const won = days >= 1; // survived at least one full day = a good run, celebrate it
+  const dayWord = days === 1 ? "DAY" : "DAYS";
   const share = () => {
-    const outcomeTxt = won
-      ? `I PAID THE $2,000 RENT with ${stats.timeLeft}s to spare (grade ${stats.grade})`
-      : stats.outcome === "shutdown"
-        ? `the health inspector SHUT ME DOWN (grade ${stats.grade})`
-        : `I got EVICTED — only made $${stats.score} of the $2,000 rent (grade ${stats.grade})`;
-    const text = `Bird Burger: Kitchen Chaos — ${outcomeTxt}. ${stats.foodBurned} foods burned. ${stats.fires} fires. ${stats.pigeonsChased} pigeons chased. The worst shift on the blockchain. birdburger.meme/game`;
+    const text = `Bird Burger: Kitchen Chaos — I survived ${days} ${dayWord.toLowerCase()} and banked $${stats.score.toLocaleString()} (grade ${stats.grade}) before ${stats.outcome === "shutdown" ? "the health inspector shut me down" : "getting evicted"}. How many days can you last? birdburger.meme/game`;
     if (navigator.share) navigator.share({ text }).catch(() => {});
     else if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
     }
   };
   const banner = won
-    ? { pill: "💸 RENT PAID — LANDLORD APPEASED 💸", pillCls: "border-[#00C805] bg-[#00C805]/20 text-[#00C805]", h1: "YOU WIN", sub: `Paid with ${stats.timeLeft} seconds to spare. The Worst Restaurant survives another day.` }
+    ? { pill: `💸 SURVIVED ${days} ${dayWord} 💸`, pillCls: "border-[#00C805] bg-[#00C805]/20 text-[#00C805]", h1: `${days} ${dayWord}`, sub: stats.outcome === "shutdown" ? "The health inspector finally caught up with you." : `Day ${days + 1}'s rent was too steep. You had a good run.` }
     : stats.outcome === "shutdown"
-      ? { pill: "🚨 SHUT DOWN BY THE HEALTH INSPECTOR 🚨", pillCls: "border-[#EF4444] bg-[#EF4444]/20 text-[#EF4444]", h1: "SHUT DOWN", sub: "He walked in. He saw everything. He left crying." }
-      : { pill: "🚨 EVICTION NOTICE 🚨", pillCls: "border-[#EF4444] bg-[#EF4444]/20 text-[#EF4444]", h1: "EVICTED", sub: `Rent was $2,000. You made $${stats.score.toLocaleString()}. The landlord has changed the locks.` };
-  const rentPct = Math.min(100, (stats.score / RENT_QUOTA) * 100);
+      ? { pill: "🚨 SHUT DOWN BY THE HEALTH INSPECTOR 🚨", pillCls: "border-[#EF4444] bg-[#EF4444]/20 text-[#EF4444]", h1: "SHUT DOWN", sub: "He walked in on Day 1. He saw everything. He left crying." }
+      : { pill: "🚨 EVICTION NOTICE 🚨", pillCls: "border-[#EF4444] bg-[#EF4444]/20 text-[#EF4444]", h1: "EVICTED", sub: `Couldn't make Day 1 rent. The landlord has changed the locks.` };
   return (
     <div className="relative min-h-[calc(100vh-56px)] overflow-hidden">
       <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url(${kitchenBg})`, backgroundSize: "cover", filter: won ? "blur(4px)" : "blur(4px) hue-rotate(-20deg)" }} />
@@ -3939,27 +4022,18 @@ function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay
             {won && <span className="mr-2">🏆</span>}{banner.h1}
           </motion.h1>
           <p className="mt-2 text-sm uppercase tracking-widest text-white/70">{banner.sub}</p>
-          {/* Rent cleared bar */}
-          <div className="mx-auto mt-4 max-w-md">
-            <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-widest">
-              <span className="text-white/60">Rent Earned</span>
-              <span className={won ? "text-[#00C805]" : "text-[#FACC15]"}>${stats.score.toLocaleString()} / ${RENT_QUOTA.toLocaleString()}</span>
-            </div>
-            <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-white/10">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${rentPct}%` }}
-                transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-                className={`h-full rounded-full ${won ? "bg-gradient-to-r from-[#22D3EE] to-[#00C805]" : "bg-gradient-to-r from-[#F97316] to-[#EF4444]"}`}
-              />
-            </div>
+          {/* Total banked */}
+          <div className="mx-auto mt-4 max-w-md rounded-lg border-2 border-[#22D3EE]/50 bg-[#09090B]/60 px-4 py-2 text-center">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Total banked · </span>
+            <span className="font-display text-lg text-[#FACC15]">${stats.score.toLocaleString()}</span>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
           <div className="rounded-xl border-2 border-[#7C3AED] bg-[#09090B]/70 p-5 backdrop-blur">
             <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-[#EC4899]">SHIFT REPORT</div>
-            <ResultRow label="Rent Earned" value={`$${stats.score.toLocaleString()} / $2,000`} good={won} big />
+            <ResultRow label="Days Survived" value={days} good={won} big />
+            <ResultRow label="Total Banked" value={`$${stats.score.toLocaleString()}`} good />
             <ResultRow label="Orders Completed" value={stats.ordersCompleted} good />
             <ResultRow label="Orders Failed" value={stats.ordersFailed} />
             <ResultRow label="Food Burned" value={stats.foodBurned} />
@@ -4050,7 +4124,7 @@ function PayrollSubmit({ stats }: { stats: GameStats }) {
     try {
       window.localStorage.setItem("bb_lb_name", name.trim());
       window.localStorage.setItem("bb_lb_wallet", wallet.trim());
-      const r = await submitScore({ data: { name: name.trim(), wallet: wallet.trim(), score: stats.score, won: stats.outcome === "win" } });
+      const r = await submitScore({ data: { name: name.trim(), wallet: wallet.trim(), score: stats.score, won: stats.daysSurvived >= 1 } });
       setResult(r);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Payroll machine is jammed. Try again.");

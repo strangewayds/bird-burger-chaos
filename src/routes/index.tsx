@@ -3551,7 +3551,7 @@ function PayrollSection() {
       <SectionTitle
         kicker="Employee of the Week Program"
         title="PLAY THE GAME. EARN YOUR BACK-PAY."
-        sub={`Every week, the top 3 Kitchen Chaos shifts earn a $BRGR allocation when the token launches. Pay the $2,000 rent in any shift to qualify for the Worker's Airdrop. ${PAYROLL.disclaimers[0]}`}
+        sub={`Every week, the top 3 Kitchen Chaos runs earn a $BRGR allocation when the token launches. Survive at least one full day to qualify for the Worker's Airdrop. ${PAYROLL.disclaimers[0]}`}
       />
       <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
         <div className="rounded-lg border-2 border-robin/50 bg-card p-6">

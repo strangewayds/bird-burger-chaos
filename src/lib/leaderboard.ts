@@ -13,7 +13,7 @@ export const PAYROLL = {
     { place: "2nd", amount: "500,000 $BRGR", title: "SHIFT SUPERVISOR" },
     { place: "3rd", amount: "250,000 $BRGR", title: "LEAST FIRED" },
   ],
-  workerAirdrop: "Pay the $2,000 rent in any shift this week to qualify for the Worker's Airdrop.",
+  workerAirdrop: "Survive at least one full day in Kitchen Chaos this week to qualify for the Worker's Airdrop.",
   disclaimers: [
     "Payroll is paid in $BRGR when the token launches. $BRGR has no promised value and this is not financial advice. This is a joke restaurant.",
     "Add your wallet so payroll knows where to send your back-pay. HR does not exist.",
@@ -86,12 +86,13 @@ export const submitScore = createServerFn({ method: "POST" })
     const score = Math.floor(Number(data.score));
     const won = Boolean(data.won);
     if (name.length < 2) throw new Error("Name too short");
-    // Hard plausibility ceiling — a win ends the game shortly after $2,000,
-    // so anything wildly above that is a doctored shift.
-    if (!Number.isFinite(score) || score < 50 || score > 3500) throw new Error("The manager reviewed the tape. Denied.");
-    // Logical consistency: winning ends the shift AT $2,000+ — you can't have one without the other.
-    if (won && score < 2000) throw new Error("The manager reviewed the tape. Denied.");
-    if (!won && score >= 2000) throw new Error("The manager reviewed the tape. Denied.");
+    // Plausibility bounds. Score is cumulative across DAYS now, so it can climb —
+    // but a truly absurd number is a doctored run. Manual review catches the rest.
+    if (!Number.isFinite(score) || score < 20 || score > 40000) throw new Error("The manager reviewed the tape. Denied.");
+    // Logical consistency: "won" = survived ≥1 full day (Day-1 rent is $550), so a
+    // won run has banked ~$550+, and a 0-day run couldn't have banked that much.
+    if (won && score < 450) throw new Error("The manager reviewed the tape. Denied.");
+    if (!won && score >= 800) throw new Error("The manager reviewed the tape. Denied.");
     return { name, wallet: cleanWallet(data.wallet), score, won };
   })
   .handler(async ({ data }) => {
