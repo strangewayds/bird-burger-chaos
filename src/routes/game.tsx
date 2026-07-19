@@ -3794,19 +3794,47 @@ function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay
     : stats.outcome === "shutdown"
       ? { pill: "🚨 SHUT DOWN BY THE HEALTH INSPECTOR 🚨", pillCls: "border-[#EF4444] bg-[#EF4444]/20 text-[#EF4444]", h1: "SHUT DOWN", sub: "He walked in. He saw everything. He left crying." }
       : { pill: "🚨 EVICTION NOTICE 🚨", pillCls: "border-[#EF4444] bg-[#EF4444]/20 text-[#EF4444]", h1: "EVICTED", sub: `Rent was $2,000. You made $${stats.score.toLocaleString()}. The landlord has changed the locks.` };
+  const rentPct = Math.min(100, (stats.score / RENT_QUOTA) * 100);
   return (
     <div className="relative min-h-[calc(100vh-56px)] overflow-hidden">
       <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url(${kitchenBg})`, backgroundSize: "cover", filter: won ? "blur(4px)" : "blur(4px) hue-rotate(-20deg)" }} />
       <div className="absolute inset-0 bg-gradient-to-b from-[#09090B]/85 via-[#2E1065]/70 to-[#09090B]" />
+      {won && <CoinRain />}
+      {won && <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-[radial-gradient(ellipse_at_50%_0%,rgba(0,200,5,0.22),transparent_70%)]" />}
       <div className="relative mx-auto max-w-3xl px-6 py-12">
         <div className="mb-6 text-center">
-          <div className={`inline-block rounded-full border-2 px-4 py-1 text-[10px] font-black uppercase tracking-[0.3em] animate-pulse ${banner.pillCls}`}>
+          <motion.div
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 16 }}
+            className={`inline-block rounded-full border-2 px-4 py-1 text-[10px] font-black uppercase tracking-[0.3em] ${won ? "" : "animate-pulse"} ${banner.pillCls}`}
+          >
             {banner.pill}
-          </div>
-          <h1 className={`mt-3 [font-family:'Bungee','Impact',sans-serif] text-4xl leading-none drop-shadow-[0_0_20px_rgba(250,204,21,0.5)] md:text-6xl ${won ? "text-[#00C805]" : "text-[#FACC15]"}`}>
-            {banner.h1}
-          </h1>
+          </motion.div>
+          <motion.h1
+            initial={{ scale: won ? 0.3 : 0.8, opacity: 0, rotate: won ? -6 : 0 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 12, delay: 0.1 }}
+            className={`mt-3 [font-family:'Bungee','Impact',sans-serif] text-5xl leading-none drop-shadow-[0_0_20px_rgba(250,204,21,0.5)] md:text-7xl ${won ? "text-[#00C805] drop-shadow-[0_0_35px_rgba(0,200,5,0.7)]" : "text-[#FACC15]"}`}
+          >
+            {won && <span className="mr-2">🏆</span>}{banner.h1}
+          </motion.h1>
           <p className="mt-2 text-sm uppercase tracking-widest text-white/70">{banner.sub}</p>
+          {/* Rent cleared bar */}
+          <div className="mx-auto mt-4 max-w-md">
+            <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-widest">
+              <span className="text-white/60">Rent Earned</span>
+              <span className={won ? "text-[#00C805]" : "text-[#FACC15]"}>${stats.score.toLocaleString()} / ${RENT_QUOTA.toLocaleString()}</span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-white/10">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${rentPct}%` }}
+                transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+                className={`h-full rounded-full ${won ? "bg-gradient-to-r from-[#22D3EE] to-[#00C805]" : "bg-gradient-to-r from-[#F97316] to-[#EF4444]"}`}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
@@ -3823,11 +3851,16 @@ function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay
             <ResultRow label="Bird Bucks Earned" value={`+${stats.birdBucks}${won ? " (WIN BONUS +150)" : ""}`} good />
             <ResultRow label="Personal Best" value={stats.best.toLocaleString()} />
           </div>
-          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-[#FACC15] bg-[#2E1065]/70 p-6 text-center backdrop-blur">
+          <div className={`flex flex-col items-center justify-center rounded-xl border-2 bg-[#2E1065]/70 p-6 text-center backdrop-blur ${won ? "border-[#00C805]" : "border-[#FACC15]"}`}>
             <div className="text-[10px] font-black uppercase tracking-widest text-[#FACC15]">RESTAURANT GRADE</div>
-            <div className={`mt-2 [font-family:'Bungee','Impact',sans-serif] text-[140px] leading-none ${won ? "text-[#00C805] drop-shadow-[0_0_30px_rgba(0,200,5,0.6)]" : "text-[#EF4444] drop-shadow-[0_0_30px_rgba(239,68,68,0.6)]"}`}>
+            <motion.div
+              initial={{ scale: 0, rotate: -25 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 180, damping: 11, delay: 0.45 }}
+              className={`mt-2 [font-family:'Bungee','Impact',sans-serif] text-[140px] leading-none ${won ? "text-[#00C805] drop-shadow-[0_0_30px_rgba(0,200,5,0.6)]" : "text-[#EF4444] drop-shadow-[0_0_30px_rgba(239,68,68,0.6)]"}`}
+            >
               {stats.grade}
-            </div>
+            </motion.div>
             <div className="mt-2 text-xs font-black uppercase tracking-widest text-white">{stats.gradeSub}</div>
           </div>
         </div>
@@ -3839,13 +3872,45 @@ function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay
             <Zap className="h-4 w-4" /> Clock In Again
           </button>
           <button onClick={share} className="inline-flex items-center gap-2 rounded-lg border-2 border-[#22D3EE] bg-[#22D3EE]/10 px-5 py-3 text-sm font-black uppercase tracking-widest text-[#22D3EE] hover:bg-[#22D3EE]/25">
-            <Trophy className="h-4 w-4" /> Share Disaster
+            <Trophy className="h-4 w-4" /> {won ? "Share the Win" : "Share the Disaster"}
           </button>
           <button onClick={onQuit} className="inline-flex items-center gap-2 rounded-lg border-2 border-[#EC4899] bg-[#EC4899]/10 px-5 py-3 text-sm font-black uppercase tracking-widest text-[#EC4899] hover:bg-[#EC4899]/25">
             <ArrowLeft className="h-4 w-4" /> Return to Restaurant
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Celebratory coin + confetti rain for a winning shift
+function CoinRain() {
+  const bits = useMemo(
+    () =>
+      Array.from({ length: 34 }, (_, i) => ({
+        left: (i * 37) % 100,
+        delay: (i % 10) * 0.22,
+        dur: 2.6 + (i % 5) * 0.5,
+        glyph: i % 3 === 0 ? "💵" : i % 3 === 1 ? "🪙" : "💰",
+        rot: (i % 2 ? 1 : -1) * (180 + (i % 4) * 90),
+        size: 18 + (i % 4) * 6,
+      })),
+    [],
+  );
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+      {bits.map((b, i) => (
+        <motion.span
+          key={i}
+          className="absolute top-[-8%] select-none"
+          style={{ left: `${b.left}%`, fontSize: b.size }}
+          initial={{ y: "-10vh", rotate: 0, opacity: 0 }}
+          animate={{ y: "115vh", rotate: b.rot, opacity: [0, 1, 1, 0.9] }}
+          transition={{ duration: b.dur, delay: b.delay, repeat: Infinity, ease: "linear" }}
+        >
+          {b.glyph}
+        </motion.span>
+      ))}
     </div>
   );
 }
