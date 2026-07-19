@@ -3049,26 +3049,40 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       if (st) {
         const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 220);
         const gx = st.x * W, gy = st.y * H, gw = st.w * W, gh = st.h * H;
+        const ccx = gx + gw / 2, ccy = gy + gh / 2;
         ctx.save();
-        ctx.strokeStyle = `rgba(250,204,21,${0.55 + 0.45 * pulse})`;
-        ctx.lineWidth = 3 + pulse * 2;
+        // Radial glow — the station literally lights up
+        const rad = Math.max(gw, gh) * (0.95 + pulse * 0.25);
+        const glow = ctx.createRadialGradient(ccx, ccy, rad * 0.25, ccx, ccy, rad);
+        glow.addColorStop(0, `rgba(250,204,21,${0.35 + pulse * 0.22})`);
+        glow.addColorStop(0.6, `rgba(250,204,21,${0.12 + pulse * 0.1})`);
+        glow.addColorStop(1, "rgba(250,204,21,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(ccx - rad, ccy - rad, rad * 2, rad * 2);
+        // Pulsing dashed frame
+        ctx.strokeStyle = `rgba(250,204,21,${0.6 + 0.4 * pulse})`;
+        ctx.lineWidth = 3.5 + pulse * 2.5;
         ctx.setLineDash([10, 7]);
-        ctx.strokeRect(gx - 6, gy - 6, gw + 12, gh + 12);
+        ctx.strokeRect(gx - 7, gy - 7, gw + 14, gh + 14);
         ctx.setLineDash([]);
-        const bob = Math.sin(performance.now() / 200) * 7;
+        // Bigger bouncing arrow with glow
+        const bob = Math.sin(performance.now() / 200) * 8;
         const acx = gx + gw / 2;
-        const acy = gy - 26 + bob;
+        const acy = gy - 30 + bob;
+        const s2 = 1.25; // arrow scale
+        ctx.shadowColor = "rgba(250,204,21,0.9)";
+        ctx.shadowBlur = 14 + pulse * 10;
         ctx.fillStyle = "#FACC15";
         ctx.strokeStyle = "#09090B";
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(acx, acy + 16);
-        ctx.lineTo(acx - 13, acy);
-        ctx.lineTo(acx - 5, acy);
-        ctx.lineTo(acx - 5, acy - 12);
-        ctx.lineTo(acx + 5, acy - 12);
-        ctx.lineTo(acx + 5, acy);
-        ctx.lineTo(acx + 13, acy);
+        ctx.moveTo(acx, acy + 16 * s2);
+        ctx.lineTo(acx - 13 * s2, acy);
+        ctx.lineTo(acx - 5 * s2, acy);
+        ctx.lineTo(acx - 5 * s2, acy - 12 * s2);
+        ctx.lineTo(acx + 5 * s2, acy - 12 * s2);
+        ctx.lineTo(acx + 5 * s2, acy);
+        ctx.lineTo(acx + 13 * s2, acy);
         ctx.closePath();
         ctx.stroke();
         ctx.fill();
@@ -3216,32 +3230,58 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           {isFs ? "✕ EXIT" : "⛶ FULL SCREEN"}
         </button>
 
-        {/* Compact HUD for fullscreen + phones (the sidebar isn't visible there) */}
+        {/* Compact time/rent chip (fullscreen + phones) */}
         <div className={`pointer-events-none absolute left-2 top-2 z-20 flex-col gap-1 ${isFs ? "flex" : "flex lg:hidden"}`}>
           <div className="flex items-center gap-2 rounded-md border border-[#FACC15]/50 bg-[#09090B]/85 px-2 py-1 backdrop-blur">
             <span className="font-mono text-sm font-black text-[#FACC15]">{fmt(timeLeft)}</span>
             <span className="text-[10px] font-black text-[#22D3EE]">${score.toLocaleString()}<span className="text-white/40">/${RENT_QUOTA.toLocaleString()}</span></span>
           </div>
-          {ordersRef.current[0] && (
-            <div className="flex items-center gap-1 rounded-md border border-[#FACC15]/50 bg-[#FFF7DF]/95 px-2 py-1">
-              <span className="max-w-[90px] truncate text-[9px] font-black uppercase text-[#2E1065]">{ordersRef.current[0].template.name}</span>
-              {(() => {
-                const o = ordersRef.current[0];
-                const pool = [...carryRef.current];
-                return o.template.items.slice(0, 5).map((it, i) => {
-                  const idx = pool.indexOf(it);
-                  const have = idx >= 0;
-                  if (have) pool.splice(idx, 1);
-                  return (
-                    <span key={i} className={`grid h-5 w-5 place-items-center rounded-full ${have ? "ring-2 ring-[#00C805]" : "opacity-50 grayscale-[40%]"}`} style={{ background: ING_META[it].color + "55" }}>
-                      <IngIcon kind={it} className="h-4 w-4" />
-                    </span>
-                  );
-                });
-              })()}
-            </div>
-          )}
         </div>
+
+        {/* Live order ticket — side panel that lights up your next step (fullscreen + phones) */}
+        {ordersRef.current[0] && (() => {
+          const o = ordersRef.current[0];
+          const pool = [...carryRef.current];
+          const rows = o.template.items.slice(0, 5).map((it) => {
+            const idx = pool.indexOf(it);
+            const have = idx >= 0;
+            if (have) pool.splice(idx, 1);
+            return { it, have };
+          });
+          const nextIdx = rows.findIndex((r) => !r.have);
+          const gd = guidance();
+          return (
+            <div className={`pointer-events-none absolute right-2 top-14 z-20 w-[150px] md:w-[172px] ${isFs ? "block" : "block lg:hidden"}`}>
+              <div className="overflow-hidden rounded-lg border-2 border-[#FACC15] bg-[#09090B]/90 shadow-[0_0_24px_rgba(250,204,21,0.4)] backdrop-blur">
+                <div className="bg-[#FACC15] px-2 py-0.5 text-center text-[9px] font-black uppercase tracking-[0.18em] text-[#09090B]">★ MAKE THIS ★</div>
+                <div className="px-2 py-1 text-center text-[10px] font-black uppercase leading-tight text-white">{o.template.name}</div>
+                <div className="space-y-1 px-1.5 pb-1.5">
+                  {rows.map((r, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center gap-1.5 rounded px-1.5 py-1 transition-colors ${
+                        r.have ? "bg-[#00C805]/15" : i === nextIdx ? "animate-pulse bg-[#FACC15]/25 ring-2 ring-[#FACC15]" : "bg-white/5"
+                      }`}
+                    >
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full" style={{ background: ING_META[r.it].color + "55" }}>
+                        <IngIcon kind={r.it} className="h-4 w-4" />
+                      </span>
+                      <span className={`flex-1 truncate text-[10px] font-black uppercase leading-tight ${r.have ? "text-[#4ade80] line-through" : i === nextIdx ? "text-[#FACC15]" : "text-white/60"}`}>
+                        {ING_META[r.it].label}
+                      </span>
+                      {r.have ? <span className="text-xs font-black text-[#00C805]">✓</span> : i === nextIdx ? <span className="text-xs">👈</span> : null}
+                    </div>
+                  ))}
+                </div>
+                {gd && (
+                  <div className="border-t border-[#FACC15]/30 bg-[#FACC15]/10 px-2 py-1.5 text-center text-[9px] font-black uppercase leading-tight tracking-wider text-[#FACC15]">
+                    👉 {gd.text}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
         {/* Portrait phones: the kitchen needs the wide way round */}
         <div className="pointer-events-none absolute inset-0 z-40 hidden place-items-center bg-black/75 backdrop-blur-[2px] max-lg:portrait:grid">
           <div className="px-6 text-center">
