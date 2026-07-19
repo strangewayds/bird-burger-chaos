@@ -1626,7 +1626,7 @@ function PfpCreator({ onDownload }: { onDownload: () => void }) {
   };
 
   return (
-    <section id="pfp" className="mx-auto max-w-7xl px-4 py-16">
+    <section id="pfp" className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle
         kicker="Employee of the Millisecond"
         title="HIRE YOURSELF: PFP GENERATOR"
@@ -2175,7 +2175,7 @@ function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: stri
   return (
     <section
       id="community-band"
-      className="relative overflow-hidden border-y-2 border-purple-500/30 py-16"
+      className="relative overflow-hidden border-y-2 border-purple-500/30 py-10 md:py-16"
       style={{
         background:
           "radial-gradient(1200px 500px at 50% -10%, rgba(124,58,237,0.35), transparent 60%), linear-gradient(180deg, #0d0620 0%, #14082e 50%, #0d0620 100%)",
@@ -2205,7 +2205,7 @@ function PurpleBand({ bucks, wallet, onDownload }: { bucks: number; wallet: stri
       <SparklesDeco />
 
       <div className="relative mx-auto max-w-7xl px-4">
-        <div className="mb-10 flex flex-col items-center text-center">
+        <div className="mb-6 flex flex-col items-center text-center md:mb-10">
           <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.4em] text-green-400 [text-shadow:0_0_10px_rgba(34,197,94,0.6)]">
             Holder Perks (Not Really)
           </div>
@@ -2501,7 +2501,7 @@ function Ticker() {
 
 function Menu({ onOrder }: { onOrder: (name: string) => void }) {
   return (
-    <section id="menu" className="mx-auto max-w-7xl px-4 py-16">
+    <section id="menu" className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle kicker="Today's Menu" title="ORDER A MISTAKE" sub="Every item is prepared with zero care and unlimited grease. Prices in USD (or Regret)." />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {MENU_ITEMS.map((m, i) => (
@@ -3329,7 +3329,7 @@ function CallTheKitchen({ onStart, onEnd }: { onStart: () => void; onEnd: () => 
   const mm = String(Math.floor(timer/60)).padStart(2,"0");
   const ss = String(timer%60).padStart(2,"0");
   return (
-    <section className="mx-auto max-w-7xl px-4 py-16">
+    <section className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle kicker="Phone Simulator" title="CALL THE KITCHEN" sub="Speak directly with someone who should not be employed. Not a real phone line — no real numbers involved." />
       <div className="mx-auto max-w-2xl overflow-hidden rounded-xl border-2 border-cyan/50 bg-black/70 shadow-[0_0_40px_rgba(34,211,238,0.2)]">
         <div className="flex items-center justify-between border-b border-cyan/30 bg-black/60 px-4 py-2 font-mono text-xs">
@@ -3395,7 +3395,7 @@ function Reviews() {
     return () => clearInterval(t);
   }, []);
   return (
-    <section className="border-y-2 border-grape/30 bg-black/40 py-12">
+    <section className="border-y-2 border-grape/30 bg-black/40 py-8 md:py-12">
       <div className="mx-auto max-w-3xl px-4 text-center">
         <div className="font-mono text-xs uppercase tracking-widest text-mustard">Restaurant Reviews</div>
         <div className="mb-6 font-display text-2xl md:text-3xl">WHAT THE VICTIMS ARE SAYING</div>
@@ -3476,7 +3476,7 @@ function MemeGenerator({ onDownload, embedded = false }: { onDownload: () => voi
   );
   if (embedded) return body;
   return (
-    <section className="mx-auto max-w-7xl px-4 py-16">
+    <section className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle kicker="Make. Share. Confuse." title="BURGER PROPAGANDA MACHINE" />
       {body}
     </section>
@@ -3533,7 +3533,7 @@ function CommunitySection({ wallet }: { wallet: string | null }) {
     setNewName("");
   };
   return (
-    <section id="community" className="mx-auto max-w-7xl px-4 py-16">
+    <section id="community" className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle kicker="Community-Controlled Restaurant" title="JOIN THE CHAOS" sub="Change harmless parts of the restaurant. Text is filtered. Links, phone numbers, and slurs are stripped." />
       <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
         <div className="rounded-lg border-2 border-grape/50 bg-card p-5">
@@ -3583,7 +3583,7 @@ function PayrollSection() {
   }, []);
   const medals = ["🥇", "🥈", "🥉"];
   return (
-    <section id="payroll" className="mx-auto max-w-7xl px-4 py-16">
+    <section id="payroll" className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle
         kicker="Employee of the Week Program"
         title="PLAY THE GAME. EARN YOUR BACK-PAY."
@@ -3643,7 +3643,7 @@ function TokenSection({ wallet }: { wallet: string | null }) {
     setCopied(true); setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <section id="token" className="mx-auto max-w-7xl px-4 py-16">
+    <section id="token" className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle kicker="The Burger Economy" title={`WHAT IS ${BB_CONFIG.token.symbol}?`} sub="$BRGR is a meme token powering absolutely essential restaurant operations such as firing employees, renaming sandwiches, releasing pigeons, and making the website temporarily worse." />
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="rounded-lg border-2 border-grape/50 bg-card p-6">
@@ -3700,7 +3700,7 @@ function HowToBuy() {
     { t: `Swap for ${BB_CONFIG.token.symbol}`, d: "Visit the official trading link and swap. Only trust the contract listed on this page." },
   ];
   return (
-    <section id="how-to-buy" className="mx-auto max-w-7xl px-4 py-16">
+    <section id="how-to-buy" className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle kicker="Instructions Nobody Reads" title="HOW TO BUY $BRGR"/>
       <div className="grid gap-4 md:grid-cols-4">
         {steps.map((s, i) => (
@@ -3727,7 +3727,7 @@ function HowToBuy() {
 
 function Roadmap() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-16">
+    <section className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle kicker="Improvement Plan" title="THE (NOT A) ROADMAP" sub="This is comedic content. Not a promise of development, returns, or future value." />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {ROADMAP.map((p, i) => (
@@ -3749,7 +3749,7 @@ function Roadmap() {
 function FAQSection() {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <section className="mx-auto max-w-3xl px-4 py-16">
+    <section className="mx-auto max-w-3xl px-4 py-9 md:py-16">
       <SectionTitle kicker="Frequently Regretted Questions" title="FAQ"/>
       <div className="space-y-2">
         {FAQ.map((f, i) => (
@@ -3912,7 +3912,7 @@ function WalletModal({ wallet, wrongNet, onClose, onConnect, onSwitch, onDisconn
 
 function SectionTitle({ kicker, title, sub }: { kicker?: string; title: string; sub?: string }) {
   return (
-    <div className="mb-8 text-center">
+    <div className="mb-6 text-center md:mb-8">
       {kicker && <div className="mb-1 font-mono text-xs uppercase tracking-[0.3em] text-mustard">{kicker}</div>}
       <h2 className="font-display text-3xl md:text-4xl">{title}</h2>
       {sub && <p className="mx-auto mt-2 max-w-2xl text-sm text-ink/65">{sub}</p>}
