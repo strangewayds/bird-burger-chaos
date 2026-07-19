@@ -2258,16 +2258,16 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
         <div className="flex items-center gap-2">
           <a
             href="/game"
-            className="hidden items-center gap-1.5 whitespace-nowrap rounded-md border-2 border-mustard bg-mustard/15 px-3 py-2 text-xs font-black uppercase tracking-widest text-mustard shadow-[0_0_20px_rgba(250,204,21,0.35)] hover:bg-mustard hover:text-bg sm:inline-flex"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border-2 border-mustard bg-mustard px-2.5 py-2 text-xs font-black uppercase tracking-widest text-bg shadow-[0_0_20px_rgba(250,204,21,0.45)] hover:brightness-110 sm:bg-mustard/15 sm:px-3 sm:text-mustard sm:hover:bg-mustard sm:hover:text-bg"
             title="Play Bird Burger: Kitchen Chaos"
           >
-            <Flame className="h-4 w-4" /> Play Game
+            <Flame className="h-4 w-4" /> <span>Play</span><span className="hidden sm:inline">&nbsp;Game</span>
           </a>
           <button
             onClick={onRandomizeTrack}
             title={`Shuffle track${trackName ? ` — now: ${trackName}` : ""}`}
             aria-label="Shuffle meme track"
-            className="grid h-10 w-10 place-items-center rounded-md border border-grape/40 bg-grape/10 text-grape hover:bg-grape/25 hover:text-mustard"
+            className="hidden h-10 w-10 place-items-center rounded-md border border-grape/40 bg-grape/10 text-grape hover:bg-grape/25 hover:text-mustard sm:grid"
           >
             <Shuffle className="h-4 w-4" />
           </button>
@@ -2349,9 +2349,18 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t border-grape/30 bg-card xl:hidden">
             <div className="flex flex-col p-3">
+              {/* Play Game — the headline action, front and center on mobile */}
+              <a
+                href="/game"
+                onClick={() => setOpen(false)}
+                className="mb-2 inline-flex items-center justify-center gap-2 rounded-md border-4 border-mustard bg-mustard px-3 py-4 font-display text-base uppercase tracking-widest text-bg shadow-[0_4px_0_#B08807,0_0_24px_rgba(250,204,21,0.45)]"
+              >
+                <Flame className="h-5 w-5" /> Play the Game
+              </a>
               {NAV_LINKS.map((l) => (
                 <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded px-3 py-3 text-sm font-bold uppercase tracking-widest text-ink/85 hover:bg-grape/20">{l.label}</a>
               ))}
+              <a href="#payroll" onClick={() => setOpen(false)} className="rounded px-3 py-3 text-sm font-bold uppercase tracking-widest text-robin hover:bg-robin/10">💸 $BRGR Payroll</a>
               <button onClick={() => { setOpen(false); onConnect(); }} className="mt-2 inline-flex items-center justify-center gap-2 rounded-md border-2 border-grape bg-grape px-3 py-3 text-sm font-bold uppercase text-white">
                 <Wallet className="h-4 w-4" /> {wallet ? `${wallet.slice(0,6)}…${wallet.slice(-4)}` : "Connect Wallet"}
               </button>
@@ -2388,23 +2397,26 @@ function Hero({ onOrder, onBuy }: { onOrder: () => void; onBuy: () => void }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="font-display text-4xl leading-[0.95] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+            className="font-display text-[2rem] leading-[0.95] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
           >
             <span className="block">THE WORST</span>
             <span className="block neon-purple">RESTAURANT</span>
             <span className="block">ON THE BLOCKCHAIN</span>
           </motion.h1>
-          <div className="mt-5 inline-block rotate-[-1deg] rounded-sm bg-mustard px-3 py-1.5 font-mono text-sm font-bold text-bg shadow-[3px_3px_0_#000]">
+          <div className="mt-5 inline-block max-w-full rotate-[-1deg] rounded-sm bg-mustard px-3 py-1.5 font-mono text-xs font-bold leading-snug text-bg shadow-[3px_3px_0_#000] sm:text-sm">
             NO ROADMAP. NO NUTRITION. ABSOLUTELY NO REFUNDS.
           </div>
           <p className="mt-4 max-w-md text-sm text-ink/70">
             Bird Burger is a completely unnecessary meme restaurant powered by <span className="font-bold text-cyan">{BB_CONFIG.token.symbol}</span> on Robinhood Chain. Order a burger you will never receive.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button onClick={onBuy} className="group inline-flex items-center gap-2 rounded-md border-2 border-grape bg-grape px-5 py-3 font-display text-sm tracking-wider text-white shadow-[0_0_25px_rgba(124,58,237,0.6)] transition hover:translate-y-[-2px]">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <a href="/game" className="inline-flex items-center justify-center gap-2 rounded-md border-2 border-mustard bg-mustard px-5 py-3.5 font-display text-sm tracking-wider text-bg shadow-[0_0_25px_rgba(250,204,21,0.5)] transition hover:translate-y-[-2px]">
+              <Flame className="h-4 w-4" /> PLAY THE GAME
+            </a>
+            <button onClick={onBuy} className="group inline-flex items-center justify-center gap-2 rounded-md border-2 border-grape bg-grape px-5 py-3.5 font-display text-sm tracking-wider text-white shadow-[0_0_25px_rgba(124,58,237,0.6)] transition hover:translate-y-[-2px]">
               <ShoppingBag className="h-4 w-4" /> BUY THE BURGER
             </button>
-            <button onClick={onOrder} className="inline-flex items-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-5 py-3 font-display text-sm tracking-wider text-cyan hover:bg-cyan/20">
+            <button onClick={onOrder} className="inline-flex items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-5 py-3.5 font-display text-sm tracking-wider text-cyan hover:bg-cyan/20">
               🍟 VIEW THE MENU
             </button>
           </div>
