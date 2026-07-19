@@ -2267,7 +2267,7 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
             onClick={onRandomizeTrack}
             title={`Shuffle track${trackName ? ` — now: ${trackName}` : ""}`}
             aria-label="Shuffle meme track"
-            className="hidden h-10 w-10 place-items-center rounded-md border border-grape/40 bg-grape/10 text-grape hover:bg-grape/25 hover:text-mustard sm:grid"
+            className="hidden h-10 w-10 place-items-center rounded-md border border-grape/40 bg-grape/10 text-grape hover:bg-grape/25 hover:text-mustard xl:grid"
           >
             <Shuffle className="h-4 w-4" />
           </button>
@@ -2294,14 +2294,14 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
               }}
               aria-label="Volume"
               title={`Volume ${muted ? 0 : volPct}%`}
-              className="hidden h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-ink/20 accent-mustard sm:max-lg:block sm:w-24"
+              className="hidden h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-ink/20 accent-mustard sm:w-24 xl:block"
               style={{
                 backgroundImage: `linear-gradient(to right, var(--color-mustard, #f4b400) 0%, var(--color-mustard, #f4b400) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) ${muted ? 0 : volPct}%, rgba(255,255,255,0.15) 100%)`,
               }}
             />
           </div>
           <div
-            className="hidden items-center gap-2 rounded-md border border-cyan/30 bg-bg/60 px-2 py-1.5 md:flex"
+            className="hidden items-center gap-2 rounded-md border border-cyan/30 bg-bg/60 px-2 py-1.5 xl:flex"
             title="Kitchen ambience — fryer, soda, doorbell, complaints"
           >
             <button
@@ -2320,7 +2320,7 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
               onChange={(e) => setAmbVolume(parseInt(e.target.value, 10) / 100)}
               aria-label="Kitchen ambience volume"
               title={`Ambience ${muted ? 0 : ambPct}%`}
-              className="hidden h-1.5 w-16 cursor-pointer appearance-none rounded-full bg-ink/20 accent-cyan sm:max-lg:block sm:w-20"
+              className="hidden h-1.5 w-16 cursor-pointer appearance-none rounded-full bg-ink/20 accent-cyan sm:w-20 xl:block"
               style={{
                 backgroundImage: `linear-gradient(to right, var(--color-cyan, #22d3ee) 0%, var(--color-cyan, #22d3ee) ${muted ? 0 : ambPct}%, rgba(255,255,255,0.15) ${muted ? 0 : ambPct}%, rgba(255,255,255,0.15) 100%)`,
               }}
