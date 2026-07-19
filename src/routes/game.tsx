@@ -126,6 +126,21 @@ function IngIcon({ kind, className }: { kind: Ing; className?: string }) {
   );
 }
 
+// Same icon art as raw SVG markup, so the game canvas can draw the REAL item the
+// bird is carrying (a bun, a shake, fries…) instead of an anonymous colored blob.
+const ING_SVG: Record<Ing, string> = {
+  bun: '<path d="M3 11a9 5.5 0 0 1 18 0v1H3z" fill="#E8A33D" stroke="#7C4A12" stroke-width="1.4"/><rect x="3" y="14" width="18" height="5" rx="2" fill="#D98F2B" stroke="#7C4A12" stroke-width="1.4"/><circle cx="9" cy="8.5" r="0.9" fill="#FDE9C8"/><circle cx="13.5" cy="7.5" r="0.9" fill="#FDE9C8"/><circle cx="16.5" cy="9.5" r="0.9" fill="#FDE9C8"/>',
+  patty_raw: '<ellipse cx="12" cy="12" rx="9" ry="6" fill="#E76A6A" stroke="#8F2F2F" stroke-width="1.4"/><circle cx="9" cy="11" r="1.1" fill="#C94F4F"/><circle cx="14.5" cy="13.5" r="1.3" fill="#C94F4F"/><circle cx="15.5" cy="10" r="0.9" fill="#F2A0A0"/>',
+  patty_cooked: '<ellipse cx="12" cy="12" rx="9" ry="6" fill="#8A5A2B" stroke="#4A2E12" stroke-width="1.4"/><path d="M5.5 11h13M6.5 13.5h11" stroke="#5E3A17" stroke-width="1.3" stroke-linecap="round"/>',
+  lettuce_raw: '<circle cx="12" cy="12" r="8" fill="#5BBE58" stroke="#2C6E2A" stroke-width="1.4"/><path d="M12 4.5c-2 2.5-2 12.5 0 15M7 6.5c1.5 3.5 1.5 8.5 0 11M17 6.5c-1.5 3.5-1.5 8.5 0 11" stroke="#2C6E2A" stroke-width="1.1" fill="none"/>',
+  lettuce_chopped: '<path d="M4 15c2-3 5-3 7-1s5 2 9-1c-1 4-4 6-8 6s-7-2-8-4z" fill="#6FD26C" stroke="#2C6E2A" stroke-width="1.4"/><path d="M7 9l2 3M12 7l1 4M16 9l-1 3" stroke="#3E9A3B" stroke-width="1.6" stroke-linecap="round"/>',
+  cheese: '<path d="M3 16l18-7v9H3z" fill="#F5C518" stroke="#9C7508" stroke-width="1.4"/><circle cx="9" cy="14.5" r="1.2" fill="#D9A90D"/><circle cx="14" cy="15.5" r="0.9" fill="#D9A90D"/><circle cx="17.5" cy="13" r="1" fill="#D9A90D"/>',
+  sauce: '<rect x="9" y="3" width="6" height="3" rx="1" fill="#9C1C1C"/><path d="M8 8c0-1.2 1-2 2-2h4c1 0 2 .8 2 2v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z" fill="#E23A3A" stroke="#8F1F1F" stroke-width="1.4"/><rect x="9.5" y="10" width="5" height="5" rx="1" fill="#FFF" opacity="0.85"/>',
+  fries: '<path d="M8 4l1 6M12 3v7M16 4l-1 6" stroke="#F5C842" stroke-width="2.4" stroke-linecap="round"/><path d="M6 9h12l-1.5 11h-9z" fill="#E23A3A" stroke="#8F1F1F" stroke-width="1.4"/><path d="M6.8 12.5h10.4" stroke="#FFF" stroke-width="1.2" opacity="0.6"/>',
+  shake: '<path d="M7 8h10l-1.5 12h-7z" fill="#F8B4D9" stroke="#9C4A75" stroke-width="1.4"/><path d="M6 8a6 3.5 0 0 1 12 0z" fill="#FDE9F3" stroke="#9C4A75" stroke-width="1.4"/><path d="M13 6l2-4" stroke="#E23A3A" stroke-width="2" stroke-linecap="round"/>',
+  nugget: '<path d="M6 13c-1-3 1-6 4-6 1-2 5-2 6 0 3 0 5 3 3 6 1 3-2 5-5 4-2 2-6 1-6-1-2 0-3-2-2-3z" fill="#E8B04B" stroke="#8A6016" stroke-width="1.4"/><circle cx="10" cy="11" r="0.8" fill="#C58F2E"/><circle cx="14" cy="13" r="0.9" fill="#C58F2E"/>',
+};
+
 // What each station hands you — floated above it in-game so you never guess
 const STATION_YIELDS: { id: string; items: Ing[] }[] = [
   { id: "fridge", items: ["bun"] },
@@ -436,6 +451,7 @@ function HowToPlay({ onClose }: { onClose: () => void }) {
           <li className="pt-2 text-white/70"><b className="text-[#FACC15]">Just follow the yellow arrow.</b> It always points at the station you need next for the ★ MAKE THIS ★ order, and the banner under the orders tells you exactly what to do there.</li>
           <li className="text-white/70">Pick up buns, cook patties on the grill, chop lettuce at the cutting board, fry fries at the fryer. Carry the full order in your hands and deliver it at <b className="text-[#EC4899]">PICK UP</b>.</li>
           <li className="text-white/70">Fires break out at the fryer — grab the extinguisher and interact with the flames to put them out.</li>
+          <li className="text-white/70">Grease puddles make you slip — tap one (or walk over it) with empty hands to mop it clean.</li>
           <li className="text-white/70">Pigeons wander in from the alley. Run into them to scare them off for bonus tips.</li>
           <li className="text-white/70">Each employee has a different perk — pick one that fits how you play.</li>
         </ul>
@@ -937,6 +953,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   const bgImgRef = useRef<HTMLImageElement | null>(null);
   const mascotImgRef = useRef<HTMLImageElement | HTMLCanvasElement | null>(null);
   const spriteAspectRef = useRef(1); // sprite height / width after perch crop
+  // Rasterized ingredient icons so the bird carries the ACTUAL item, drawn on canvas
+  const ingImgRef = useRef<Partial<Record<Ing, HTMLImageElement>>>({});
   const sfx = useGameSfx(muted);
   const sfxRef = useRef(sfx);
   useEffect(() => { sfxRef.current = sfx; }, [sfx]);
@@ -1093,6 +1111,12 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       spriteAspectRef.current = H2 / W2;
       mascotImgRef.current = c;
     };
+    // Rasterize each ingredient icon from its SVG for canvas drawing
+    (Object.keys(ING_SVG) as Ing[]).forEach((k) => {
+      const img = new Image();
+      img.src = `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${ING_SVG[k]}</svg>`)}`;
+      img.onload = () => { ingImgRef.current[k] = img; };
+    });
   }, []);
 
   // Seed orders
@@ -1285,17 +1309,15 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   function interact() {
     // Clean grease spill if standing on one with empty hands
     const p = playerRef.current;
-    const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.01);
+    const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.03);
     if (spillHit && carryRef.current.length === 0) {
       const mop = mopRef.current;
       const now = performance.now();
-      if (!mop.has) { pushFloat("GRAB MOP BUCKET!", "#22D3EE"); return; }
-      if (mop.charges <= 0) { pushFloat("BUCKET EMPTY — REFILL!", "#EF4444"); return; }
+      // No bucket needed — the bird just mops. Fun & easy: two quick swings clean it.
       if (now < mop.nextSwing) return; // brief per-swing cooldown
-      mop.nextSwing = now + 320;
-      mop.charges -= 1;
+      mop.nextSwing = now + 260;
       setMopTick((t) => t + 1);
-      spillHit.cleanT += 0.34;
+      spillHit.cleanT += 0.55;
       const cap = perfRef.current.scale;
       // per-tick tiny puff so mopping feels physical
       for (let i = 0; i < Math.round(3 * cap); i++) {
@@ -1608,6 +1630,10 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           p.y = clamp(p.y + (dx) * nudge, 0.10, 0.96);
           break;
         }
+      }
+      // Auto-mop: standing on grease with empty hands cleans it (no bucket, no fuss)
+      if (carryRef.current.length === 0 && spillsRef.current.some((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.02)) {
+        interact();
       }
       // Facing: weighted-average of recent horizontal input, driven by a critically-damped spring
       // to eliminate jitter on rapid direction changes (angular-velocity smoothing).
@@ -2873,18 +2899,35 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     ctx.textAlign = "center";
     ctx.fillText(employee.name.toUpperCase(), pxs, tagY + 13);
 
-    // Carrying stack
+    // Carried items — real icons floating in a clear row above the bird's head,
+    // each on a dark gold-ringed plate so you always see exactly what he holds
+    // (kept off the body so the sprite's own art never hides them).
     const carry = carryRef.current;
     if (carry.length) {
+      const sz = 22;
+      const gap = 3;
+      const rowY = tagY - 15;
       carry.forEach((it, i) => {
-        const info = ING_META[it];
-        ctx.fillStyle = info.color;
+        const cxi = pxs + (i - (carry.length - 1) / 2) * (sz + gap);
+        const cyi = rowY;
+        ctx.save();
+        ctx.fillStyle = "rgba(9,9,11,0.82)";
         ctx.beginPath();
-        ctx.arc(px + 30 * p.face + i*10*p.face, py - 10 - i*10 + hopY, 8, 0, Math.PI*2);
+        ctx.arc(cxi, cyi, sz / 2 + 1.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(250,204,21,0.7)";
+        ctx.lineWidth = 1.5;
         ctx.stroke();
+        ctx.restore();
+        const img = ingImgRef.current[it];
+        if (img) {
+          ctx.drawImage(img, cxi - sz / 2, cyi - sz / 2, sz, sz);
+        } else {
+          ctx.fillStyle = ING_META[it].color;
+          ctx.beginPath();
+          ctx.arc(cxi, cyi, sz / 2 - 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
       });
     }
     if (hasExtinguisherRef.current) {
@@ -2921,14 +2964,6 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
       ctx.textAlign = "center";
       const bob2 = Math.sin(performance.now() / 500) * 2;
       ctx.fillText("🧯", (es.x + es.w / 2) * W, (es.y + es.h / 2) * H + 8 + bob2);
-      ctx.restore();
-    }
-    if (!mopRef.current.has) {
-      const ms = STATIONS.find((s) => s.id === "mop")!;
-      ctx.save();
-      ctx.font = "26px system-ui";
-      ctx.textAlign = "center";
-      ctx.fillText("🪣", (ms.x + ms.w / 2) * W, (ms.y + ms.h / 2) * H + 8);
       ctx.restore();
     }
 
@@ -3298,6 +3333,12 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
             const r = e.currentTarget.getBoundingClientRect();
             const nx = (e.clientX - r.left) / r.width;
             const ny = (e.clientY - r.top) / r.height;
+            // Clicked a grease spill? Run onto it and mop it (empty hands only).
+            const sp = spillsRef.current.find((s) => Math.hypot(nx - s.x, ny - s.y) < s.r + 0.03);
+            if (sp && carryRef.current.length === 0) {
+              targetRef.current = { x: clamp(sp.x, 0.02, 0.98), y: clamp(sp.y, 0.1, 0.96), interact: true };
+              return;
+            }
             // Clicked a station (generous hitbox)? Run there and use it on arrival.
             const st = STATIONS.find((s) => nx >= s.x - 0.025 && nx <= s.x + s.w + 0.025 && ny >= s.y - 0.035 && ny <= s.y + s.h + 0.035);
             if (st) {
@@ -3462,33 +3503,10 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           </div>
           )}
           {(() => {
-            const mop = mopRef.current;
-            const chargePct = mop.has ? mop.charges / mop.max : 0;
-            const empty = mop.has && mop.charges === 0;
-            const borderColor = !mop.has ? "border-white/20" : empty ? "border-[#EF4444]" : "border-[#22D3EE]/60";
             return (
-              <div className={`rounded-lg border-2 ${borderColor} bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur`}>
-                <div className="mb-1 flex items-center justify-between font-black text-[#22D3EE]">
-                  <span>🪣 MOP BUCKET</span>
-                  <span className={empty ? "text-[#EF4444]" : "text-white/70"}>
-                    {mop.has ? `${mop.charges}/${mop.max}` : "MISSING"}
-                  </span>
-                </div>
-                {mop.has ? (
-                  <>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full transition-[width] duration-150"
-                        style={{ width: `${chargePct * 100}%`, background: empty ? "#EF4444" : chargePct > 0.4 ? "#22D3EE" : "#FACC15" }}
-                      />
-                    </div>
-                    <div className="mt-1 text-white/60">
-                      {empty ? "Return to 🪣 to refill." : "E / SPACE to mop spills."}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-white/60">Grab the 🪣 bucket to mop grease spills.</div>
-                )}
+              <div className="rounded-lg border-2 border-[#22D3EE]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
+                <div className="mb-1 font-black text-[#22D3EE]">🧽 GREASE</div>
+                <div className="text-white/60">Tap a grease puddle (or just walk over it) with empty hands to mop it clean. Uncleaned grease makes you slip.</div>
               </div>
             );
           })()}
