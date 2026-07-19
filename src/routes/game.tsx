@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, VolumeX, Vibrate, VibrateOff } from "lucide-react";
 import kitchenBg from "@/assets/game-kitchen.jpg";
 import mascotHero from "@/assets/bird-mascot.png";
+import birdGame from "@/assets/bird-game.png";
 import { submitScore, getLeaderboard, PAYROLL, type LbEntry } from "@/lib/leaderboard";
 import imgMcrug from "@/assets/menu-mcrug.png";
 import imgFries from "@/assets/menu-liquidity-fries.png";
@@ -1089,27 +1090,85 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     bg.src = kitchenBg;
     bg.onload = () => { bgImgRef.current = bg; };
     const m = new Image();
-    m.src = mascotHero;
+    m.src = birdGame;
     m.onload = () => {
-      // The hero art has him PERCHED ON A BRANCH — crop the perch off so the
-      // game sprite is just the bird (he was running around with a stick
-      // glued to his feet). Also pre-tint here so the employee color only
-      // touches the bird's pixels — tinting on the main canvas painted a box.
-      const CROP = 0.74; // keep the top 74%: bird + burger + talons, no perch
-      const sw = m.naturalWidth || 1024;
-      const sh = Math.round((m.naturalHeight || 1024) * CROP);
-      const W2 = 256;
-      const H2 = Math.round((sh / sw) * W2);
-      const c = document.createElement("canvas");
-      c.width = W2; c.height = H2;
-      const cc = c.getContext("2d");
-      if (!cc) { mascotImgRef.current = m; return; }
-      cc.drawImage(m, 0, 0, sw, sh, 0, 0, W2, H2);
-      cc.globalCompositeOperation = "source-atop";
-      cc.fillStyle = employee.tint + "40";
-      cc.fillRect(0, 0, W2, H2);
-      spriteAspectRef.current = H2 / W2;
-      mascotImgRef.current = c;
+      // The new game bird (no burger, no perch) comes on a solid cream background.
+      // Knock the background out with a flood-fill from the edges (so the cream
+      // BIRD BURGER hat is preserved), trim to the bird, then pre-tint by employee.
+      const scale = 480 / (m.naturalWidth || 1024);
+      const w = Math.round((m.naturalWidth || 1024) * scale);
+      const h = Math.round((m.naturalHeight || 1024) * scale);
+      const work = document.createElement("canvas");
+      work.width = w; work.height = h;
+      const wc = work.getContext("2d", { willReadFrequently: true });
+      if (!wc) { mascotImgRef.current = m; return; }
+      wc.drawImage(m, 0, 0, w, h);
+      try {
+        const id = wc.getImageData(0, 0, w, h);
+        const d = id.data;
+        const br = d[0], bgc = d[1], bb = d[2]; // background sampled from a corner
+        const T = 46 * 46;
+        const nearBg = (p: number) => {
+          const dr = d[p] - br, dg = d[p + 1] - bgc, db = d[p + 2] - bb;
+          return dr * dr + dg * dg + db * db < T;
+        };
+        const seen = new Uint8Array(w * h);
+        const stack: number[] = [];
+        const visit = (x: number, y: number) => {
+          if (x < 0 || y < 0 || x >= w || y >= h) return;
+          const p = y * w + x;
+          if (seen[p]) return;
+          seen[p] = 1;
+          if (nearBg(p * 4)) { d[p * 4 + 3] = 0; stack.push(p); }
+        };
+        for (let x = 0; x < w; x++) { visit(x, 0); visit(x, h - 1); }
+        for (let y = 0; y < h; y++) { visit(0, y); visit(w - 1, y); }
+        while (stack.length) {
+          const p = stack.pop()!;
+          const x = p % w, y = (p / w) | 0;
+          visit(x + 1, y); visit(x - 1, y); visit(x, y + 1); visit(x, y - 1);
+        }
+        // Second pass: cream can get trapped between the legs where the edge-flood
+        // can't reach. Clear leftover light background in the lower body only. The
+        // hat and white eyes live up top (guarded); the lower body is purple/orange,
+        // both far from cream, so we can key out anything light down here aggressively.
+        const guard = Math.round(h * 0.52);
+        const lightBg = (p: number) => {
+          const dr = d[p] - br, dg = d[p + 1] - bgc, db = d[p + 2] - bb;
+          return dr * dr + dg * dg + db * db < 90 * 90; // wide net, safe below the guard
+        };
+        for (let y = guard; y < h; y++) for (let x = 0; x < w; x++) {
+          const p4 = (y * w + x) * 4;
+          if (d[p4 + 3] !== 0 && lightBg(p4)) d[p4 + 3] = 0;
+        }
+        wc.putImageData(id, 0, 0);
+        // trim to the bird's bounding box
+        let minX = w, minY = h, maxX = 0, maxY = 0;
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          if (d[(y * w + x) * 4 + 3] > 16) {
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+          }
+        }
+        if (maxX <= minX || maxY <= minY) { minX = 0; minY = 0; maxX = w - 1; maxY = h - 1; }
+        const bw = maxX - minX + 1, bh = maxY - minY + 1;
+        const W2 = 256;
+        const H2 = Math.round((bh / bw) * W2);
+        const c = document.createElement("canvas");
+        c.width = W2; c.height = H2;
+        const cc = c.getContext("2d");
+        if (!cc) { mascotImgRef.current = work; return; }
+        cc.drawImage(work, minX, minY, bw, bh, 0, 0, W2, H2);
+        cc.globalCompositeOperation = "source-atop";
+        cc.fillStyle = employee.tint + "40";
+        cc.fillRect(0, 0, W2, H2);
+        spriteAspectRef.current = H2 / W2;
+        mascotImgRef.current = c;
+      } catch {
+        // getImageData can throw if the asset is treated as cross-origin; fall back
+        spriteAspectRef.current = h / w;
+        mascotImgRef.current = m;
+      }
     };
     // Rasterize each ingredient icon from its SVG for canvas drawing
     (Object.keys(ING_SVG) as Ing[]).forEach((k) => {
