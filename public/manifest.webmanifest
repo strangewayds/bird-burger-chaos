@@ -1,0 +1,15 @@
+{
+  "name": "Bird Burger: Kitchen Chaos",
+  "short_name": "Bird Burger",
+  "description": "The worst restaurant on the blockchain. Survive the shift.",
+  "start_url": "/game",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

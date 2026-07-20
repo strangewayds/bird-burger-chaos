@@ -3352,9 +3352,20 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
 
   // Fullscreen: real Fullscreen API where it exists; CSS page-takeover everywhere
   // (iPhone Safari has no element fullscreen — the takeover IS the fullscreen there).
+  // iPhone Safari (in-browser, not a home-screen app) can't use the Fullscreen API,
+  // so real fullscreen there = Add to Home Screen. Detect that case to show a tip.
+  const [showIosTip, setShowIosTip] = useState(false);
+  const iosInBrowser =
+    typeof navigator !== "undefined" &&
+    /iP(hone|od|ad)/.test(navigator.userAgent) &&
+    !(navigator as unknown as { standalone?: boolean }).standalone &&
+    !(typeof document !== "undefined" && (document as unknown as { fullscreenEnabled?: boolean }).fullscreenEnabled);
+
   const toggleFs = () => {
     const next = !isFs;
-    setIsFs(next);
+    setIsFs(next); // CSS takeover — maximizes on every device (incl. iPhone in Safari)
+    // On iPhone-in-Safari that's as big as a website can get; offer the home-screen how-to.
+    if (next && iosInBrowser) setShowIosTip(true);
     const el = wrapRef.current as (HTMLDivElement & { requestFullscreen?: (o?: object) => Promise<void> }) | null;
     if (next) {
       el?.requestFullscreen?.({ navigationUI: "hide" })?.catch?.(() => {});
@@ -3364,15 +3375,26 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     }
     setTimeout(() => window.dispatchEvent(new Event("resize")), 80);
   };
+  // Show the iPhone home-screen tip once, automatically (they auto-start in takeover mode).
+  useEffect(() => {
+    if (iosInBrowser && typeof localStorage !== "undefined" && !localStorage.getItem("bb_ios_tip")) {
+      const t = setTimeout(() => { setShowIosTip(true); localStorage.setItem("bb_ios_tip", "1"); }, 1200);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="relative mx-auto flex max-w-[1920px] flex-col items-center gap-2 p-2 md:p-3 lg:flex-row lg:items-start lg:justify-center max-lg:landscape:flex-row max-lg:landscape:items-start max-lg:landscape:justify-center max-lg:landscape:gap-1.5 max-lg:landscape:p-1.5" style={{ paddingLeft: "max(0.375rem, env(safe-area-inset-left))", paddingRight: "max(0.375rem, env(safe-area-inset-right))" }}>
-      {/* The kitchen — a clean, unblocked field of view; every panel lives in the sidebar */}
+      {/* Black backdrop behind the letterboxed game in fullscreen */}
+      {isFs && <div className="fixed inset-0 z-[99] bg-black" />}
+      {/* The kitchen — a clean, unblocked field of view; every panel lives in the sidebar.
+          In fullscreen it's a centered 16:9 box (letterboxed) so the art never squishes. */}
       <div
         ref={wrapRef}
         className={
           isFs
-            ? "fixed inset-0 z-[100] h-[100dvh] w-screen overflow-hidden bg-black"
+            ? "fixed inset-0 z-[100] m-auto h-[min(100dvh,56.25vw)] w-[min(100vw,177.78dvh)] overflow-hidden bg-black"
             : "relative aspect-[16/9] w-full overflow-hidden rounded-xl border-2 border-[#7C3AED] shadow-[0_0_60px_rgba(124,58,237,0.4)] lg:w-[min(calc(100%_-_316px),calc((100vh_-_100px)*1.7778))] max-lg:landscape:w-[min(calc(100%_-_212px),calc((100dvh_-_16px)*1.7778))]"
         }
       >
@@ -3384,6 +3406,24 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           {isFs ? "✕ EXIT" : "⛶ FULL SCREEN"}
         </button>
 
+        {/* iPhone-in-Safari fullscreen how-to (Apple blocks the real fullscreen API) */}
+        {showIosTip && (
+          <div className="fixed inset-0 z-[120] grid place-items-center bg-black/85 p-5" onClick={() => setShowIosTip(false)}>
+            <div onClick={(e) => e.stopPropagation()} className="max-w-sm rounded-xl border-2 border-[#FACC15] bg-[#2E1065] p-5 text-center">
+              <div className="[font-family:'Bungee','Impact',sans-serif] text-xl text-[#FACC15]">GO FULLSCREEN ON IPHONE</div>
+              <p className="mt-2 text-sm text-white/85">
+                Safari won't let a website hide its bar — but you can play with <b className="text-[#FACC15]">zero browser junk</b>:
+              </p>
+              <ol className="mt-3 space-y-1.5 text-left text-sm text-white/80">
+                <li>1. Tap the <b className="text-[#22D3EE]">Share</b> button <span className="text-white/50">(square with an ↑)</span> at the bottom of Safari.</li>
+                <li>2. Choose <b className="text-[#22D3EE]">Add to Home Screen</b>.</li>
+                <li>3. Open <b className="text-[#FACC15]">Bird Burger</b> from your home screen — it runs fullscreen, no bar.</li>
+              </ol>
+              <button onClick={() => setShowIosTip(false)} className="mt-4 w-full rounded-lg border-2 border-[#FACC15] bg-[#FACC15]/20 py-2 text-sm font-black uppercase tracking-widest text-[#FACC15]">Got it</button>
+            </div>
+          </div>
+        )}
+
         {/* Compact day/time/rent chip (fullscreen + phones) */}
         <div className={`pointer-events-none absolute left-2 top-2 z-20 flex-col gap-1 ${isFs ? "flex" : "flex lg:hidden"}`}>
           <div className="flex items-center gap-2 rounded-md border border-[#FACC15]/50 bg-[#09090B]/85 px-2 py-1 backdrop-blur">
@@ -3393,7 +3433,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           </div>
         </div>
 
-        {/* Live order ticket — side panel that lights up your next step (fullscreen + phones) */}
+        {/* Live order ticket — compact top strip (fullscreen + phones) so it never
+            covers the PICK UP window or the fridge. Sits under the guidance banner. */}
         {ordersRef.current[0] && (() => {
           const o = ordersRef.current[0];
           const pool = [...carryRef.current];
@@ -3404,35 +3445,22 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
             return { it, have };
           });
           const nextIdx = rows.findIndex((r) => !r.have);
-          const gd = guidance();
           return (
-            <div className={`pointer-events-none absolute right-2 top-14 z-20 w-[150px] md:w-[172px] ${isFs ? "block" : "block lg:hidden"}`}>
-              <div className="overflow-hidden rounded-lg border-2 border-[#FACC15] bg-[#09090B]/90 shadow-[0_0_24px_rgba(250,204,21,0.4)] backdrop-blur">
-                <div className="bg-[#FACC15] px-2 py-0.5 text-center text-[9px] font-black uppercase tracking-[0.18em] text-[#09090B]">★ MAKE THIS ★</div>
-                <div className="px-2 py-1 text-center text-[10px] font-black uppercase leading-tight text-white">{o.template.name}</div>
-                <div className="space-y-1 px-1.5 pb-1.5">
-                  {rows.map((r, i) => (
-                    <div
-                      key={i}
-                      className={`flex items-center gap-1.5 rounded px-1.5 py-1 transition-colors ${
-                        r.have ? "bg-[#00C805]/15" : i === nextIdx ? "animate-pulse bg-[#FACC15]/25 ring-2 ring-[#FACC15]" : "bg-white/5"
-                      }`}
-                    >
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full" style={{ background: ING_META[r.it].color + "55" }}>
-                        <IngIcon kind={r.it} className="h-4 w-4" />
-                      </span>
-                      <span className={`flex-1 truncate text-[10px] font-black uppercase leading-tight ${r.have ? "text-[#4ade80] line-through" : i === nextIdx ? "text-[#FACC15]" : "text-white/60"}`}>
-                        {ING_META[r.it].label}
-                      </span>
-                      {r.have ? <span className="text-xs font-black text-[#00C805]">✓</span> : i === nextIdx ? <span className="text-xs">👈</span> : null}
-                    </div>
-                  ))}
-                </div>
-                {gd && (
-                  <div className="border-t border-[#FACC15]/30 bg-[#FACC15]/10 px-2 py-1.5 text-center text-[9px] font-black uppercase leading-tight tracking-wider text-[#FACC15]">
-                    👉 {gd.text}
-                  </div>
-                )}
+            <div className={`pointer-events-none absolute inset-x-0 top-11 z-20 justify-center px-2 ${isFs ? "flex" : "flex lg:hidden"}`}>
+              <div className="flex max-w-full items-center gap-1.5 overflow-hidden rounded-full border-2 border-[#FACC15] bg-[#09090B]/90 px-2.5 py-1 shadow-[0_0_16px_rgba(250,204,21,0.35)] backdrop-blur">
+                <span className="shrink-0 text-[9px] font-black uppercase tracking-wider text-[#FACC15]">{o.template.name}</span>
+                {rows.map((r, i) => (
+                  <span
+                    key={i}
+                    className={`relative grid h-6 w-6 shrink-0 place-items-center rounded-full ${
+                      r.have ? "ring-2 ring-[#00C805]" : i === nextIdx ? "animate-pulse ring-2 ring-[#FACC15]" : "opacity-50 grayscale-[35%]"
+                    }`}
+                    style={{ background: ING_META[r.it].color + "55" }}
+                  >
+                    <IngIcon kind={r.it} className="h-4 w-4" />
+                    {r.have && <span className="absolute -right-1 -top-1 grid h-3 w-3 place-items-center rounded-full bg-[#00C805] text-[7px] font-black text-white">✓</span>}
+                  </span>
+                ))}
               </div>
             </div>
           );

@@ -84,6 +84,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Order liquidity fries, call the world's worst kitchen, fire Larry, and enter the most unnecessary restaurant on Robinhood Chain.",
       },
       { name: "theme-color", content: "#09090b" },
+      // Add-to-Home-Screen → launches fullscreen (no Safari/Chrome chrome). The
+      // only way to hide the browser bar on iPhone; Apple blocks the Fullscreen API.
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Bird Burger" },
       { property: "og:title", content: "Bird Burger — The Worst Restaurant on the Blockchain" },
       {
         property: "og:description",
@@ -109,6 +115,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
