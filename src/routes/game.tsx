@@ -1002,9 +1002,11 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   // Turning-estimation state: last smoothed dir + its rate of change for predictive lookahead
   const turnEstRef = useRef({ prevDirAvg: 0, dirVel: 0, predicted: 0, lastFaceSign: 1 });
   const carryRef = useRef<Ing[]>([]);
-  // Point-and-click: where the bird is running to; interact=true auto-uses the station on arrival
-  const targetRef = useRef<{ x: number; y: number; interact: boolean } | null>(null);
+  // Point-and-click: where the bird is running to. interact=true uses the station on
+  // arrival; mop=true cleans the grease under the bird on arrival (works while carrying).
+  const targetRef = useRef<{ x: number; y: number; interact: boolean; mop?: boolean } | null>(null);
   const interactFnRef = useRef<() => void>(() => {});
+  const mopFnRef = useRef<() => void>(() => {});
   // Slapstick props: bananas on the floor, explosion shockwave + flying debris, extinguisher foam
   const bananasRef = useRef<{ x: number; y: number; wob: number }[]>([]);
   const shockRef = useRef<{ x: number; y: number; start: number } | null>(null);
@@ -1044,9 +1046,11 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   type Trail = { x: number; y: number; face: number; hopY: number; t: number };
   const trailRef = useRef<Trail[]>([]);
   const lastDrawTimeRef = useRef<number>(0);
-  // Perf mode — caps particles + throttles flashes when the kitchen gets busy
+  // Perf mode — caps particles + throttles flashes when the kitchen gets busy.
+  // Phones default to LEAN (fewer particles) so the game stays smooth on weaker devices.
+  const isPhone = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse) and (max-width: 1023px)").matches;
   const perfRef = useRef({
-    mode: (typeof localStorage !== "undefined" && (localStorage.getItem("bb_perf") as any)) || "auto", // "auto" | "low" | "high"
+    mode: (typeof localStorage !== "undefined" && (localStorage.getItem("bb_perf") as any)) || (isPhone ? "low" : "auto"), // "auto" | "low" | "high"
     fps: 60,
     scale: 1, // 0..1 — effective particle budget
     active: false, // true when auto-reducer engaged
@@ -1447,77 +1451,52 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     setTick((t) => t + 1);
   }
 
-  function interact() {
-    // Clean grease spill if standing on one with empty hands
+  // Mop the grease under the bird — ONE tap fully cleans it, and it works even
+  // while carrying food (you shouldn't have to drop your order to wipe the floor).
+  function mopHere() {
     const p = playerRef.current;
-    const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.03);
-    if (spillHit && carryRef.current.length === 0) {
-      const mop = mopRef.current;
-      const now = performance.now();
-      // No bucket needed — the bird just mops. Fun & easy: two quick swings clean it.
-      if (now < mop.nextSwing) return; // brief per-swing cooldown
-      mop.nextSwing = now + 260;
-      setMopTick((t) => t + 1);
-      spillHit.cleanT += 0.55;
-      const cap = perfRef.current.scale;
-      // per-tick tiny puff so mopping feels physical
-      for (let i = 0; i < Math.round(3 * cap); i++) {
-        const a = Math.random() * Math.PI * 2;
-        const rr = spillHit.r * (0.4 + Math.random() * 0.7);
-        particlesRef.current.push({
-          x: spillHit.x + Math.cos(a) * rr, y: spillHit.y + Math.sin(a) * rr * 0.6,
-          vx: Math.cos(a) * 0.15, vy: Math.sin(a) * 0.08 - 0.05,
-          life: 0, max: 0.28 + Math.random() * 0.12, size: 3 + Math.random() * 2,
-          color: `hsl(${spillHit.hue}, 55%, ${22 + Math.random() * 12}%)`, kind: "dust",
-        });
-      }
-      const pitch = 1 + Math.min(0.6, cleanComboRef.current.count * 0.08);
-      sfxRef.current.mop(0.9, pitch);
-      if (spillHit.cleanT >= 1) {
-        // combo window: 3.2s to chain another finish
-        const now = performance.now();
-        const combo = cleanComboRef.current;
-        if (now < combo.expires) combo.count += 1; else combo.count = 1;
-        combo.expires = now + 3200;
-        setCleanCombo(combo.count);
-        const multi = 1 + (combo.count - 1) * 0.5;
-        const gained = Math.round(40 * multi);
-        // splash burst — big directional flick, colored to spill
-        const burst = Math.round(18 * cap);
-        for (let i = 0; i < burst; i++) {
-          const a = Math.random() * Math.PI * 2;
-          const sp = 0.4 + Math.random() * 0.9;
-          particlesRef.current.push({
-            x: spillHit.x, y: spillHit.y,
-            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.55 - 0.25,
-            life: 0, max: 0.5 + Math.random() * 0.25, size: 3 + Math.random() * 3,
-            color: `hsl(${spillHit.hue}, 65%, ${28 + Math.random() * 20}%)`, kind: "dust",
-          });
-        }
-        // ring flash — cyan for clean, gold on combo≥3
-        particlesRef.current.push({
-          x: spillHit.x, y: spillHit.y, vx: 0, vy: 0,
-          life: 0, max: 0.32, size: spillHit.r * 260,
-          color: combo.count >= 3 ? "#FACC15" : "#22D3EE", kind: "flash",
-        });
-        spillsRef.current = spillsRef.current.filter((sp) => sp !== spillHit);
-        scoreRef.current += gained;
-        setScore(scoreRef.current);
-        chaosRef.current = Math.max(0, chaosRef.current - 0.4 - combo.count * 0.06);
-        sfxRef.current.mopDone(combo.count);
-        if (combo.count >= 2) {
-          pushFloat(`x${combo.count} COMBO  +${gained}`, combo.count >= 3 ? "#FACC15" : "#22D3EE");
-        } else {
-          pushFloat(`+ MOPPED  +${gained}`, "#22D3EE");
-        }
-      } else {
-        pushFloat("MOPPING…", "#22D3EE");
-      }
-      return;
+    const spillHit = spillsRef.current.find((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.06);
+    if (!spillHit) return;
+    const cap = perfRef.current.scale;
+    setMopTick((t) => t + 1);
+    const now = performance.now();
+    const combo = cleanComboRef.current;
+    if (now < combo.expires) combo.count += 1; else combo.count = 1;
+    combo.expires = now + 3200;
+    setCleanCombo(combo.count);
+    const multi = 1 + (combo.count - 1) * 0.5;
+    const gained = Math.round(40 * multi);
+    // satisfying splash burst
+    const burst = Math.round(20 * cap);
+    for (let i = 0; i < burst; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 0.4 + Math.random() * 0.9;
+      particlesRef.current.push({
+        x: spillHit.x, y: spillHit.y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.55 - 0.25,
+        life: 0, max: 0.5 + Math.random() * 0.25, size: 3 + Math.random() * 3,
+        color: `hsl(${spillHit.hue}, 65%, ${28 + Math.random() * 20}%)`, kind: "dust",
+      });
     }
+    particlesRef.current.push({
+      x: spillHit.x, y: spillHit.y, vx: 0, vy: 0,
+      life: 0, max: 0.32, size: spillHit.r * 260,
+      color: combo.count >= 3 ? "#FACC15" : "#22D3EE", kind: "flash",
+    });
+    spillsRef.current = spillsRef.current.filter((sp) => sp !== spillHit);
+    scoreRef.current += gained;
+    setScore(scoreRef.current);
+    chaosRef.current = Math.max(0, chaosRef.current - 0.4 - combo.count * 0.06);
+    sfxRef.current.mop(0.9, 1);
+    sfxRef.current.mopDone(combo.count);
+    pushFloat(combo.count >= 2 ? `x${combo.count} COMBO  +${gained}` : `+ MOPPED  +${gained}`, combo.count >= 3 ? "#FACC15" : "#22D3EE");
+    setTick((t) => t + 1);
+  }
 
+  function interact() {
+    // Station use is the priority. (Grease is cleaned by tapping the puddle → mopHere.)
     const s = nearestStation();
-    if (!s) return;
+    if (!s) { mopHere(); return; } // Space with no station nearby → mop any grease underfoot
     const carry = carryRef.current;
     switch (s.kind) {
       case "fridge": {
@@ -1745,7 +1724,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           dx = ddx; dy = ddy; autoRun = true;
         } else {
           targetRef.current = null;
-          if (tgt.interact) interactFnRef.current();
+          if (tgt.mop) mopFnRef.current();
+          else if (tgt.interact) interactFnRef.current();
         }
       }
       const mag = Math.hypot(dx, dy);
@@ -1771,10 +1751,6 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
           p.y = clamp(p.y + (dx) * nudge, 0.10, 0.96);
           break;
         }
-      }
-      // Auto-mop: standing on grease with empty hands cleans it (no bucket, no fuss)
-      if (carryRef.current.length === 0 && spillsRef.current.some((sp) => Math.hypot(p.x - sp.x, p.y - sp.y) < sp.r + 0.02)) {
-        interact();
       }
       // Facing: weighted-average of recent horizontal input, driven by a critically-damped spring
       // to eliminate jitter on rapid direction changes (angular-velocity smoothing).
@@ -3351,7 +3327,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   }, [employee]);
 
   // Keep the game loop's arrival-callback pointed at the latest interact()
-  useEffect(() => { interactFnRef.current = interact; });
+  useEffect(() => { interactFnRef.current = interact; mopFnRef.current = mopHere; });
 
   // Resize canvas
   useEffect(() => {
@@ -3477,10 +3453,11 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
             const r = e.currentTarget.getBoundingClientRect();
             const nx = (e.clientX - r.left) / r.width;
             const ny = (e.clientY - r.top) / r.height;
-            // Clicked a grease spill? Run onto it and mop it (empty hands only).
-            const sp = spillsRef.current.find((s) => Math.hypot(nx - s.x, ny - s.y) < s.r + 0.03);
-            if (sp && carryRef.current.length === 0) {
-              targetRef.current = { x: clamp(sp.x, 0.02, 0.98), y: clamp(sp.y, 0.1, 0.96), interact: true };
+            // Tapped a grease puddle? Run onto it and mop it clean — works even while
+            // carrying food. Generous hitbox so it's easy to hit on a phone.
+            const sp = spillsRef.current.find((s) => Math.hypot(nx - s.x, ny - s.y) < s.r + 0.05);
+            if (sp) {
+              targetRef.current = { x: clamp(sp.x, 0.02, 0.98), y: clamp(sp.y, 0.1, 0.96), interact: false, mop: true };
               return;
             }
             // Clicked a station (generous hitbox)? Run there and use it on arrival.
@@ -3986,7 +3963,7 @@ function Minimap({ player, fires, pigeons }: { player: { x: number; y: number };
 function TouchControls({ onInteract, onDrop }: { onInteract: () => void; onDrop: () => void }) {
   // Tap-to-move IS the movement control on touch — no joystick blocking the kitchen.
   return (
-    <div className="absolute bottom-3 right-3 z-20 flex items-end gap-2.5 md:hidden">
+    <div className="absolute bottom-3 right-3 z-20 flex items-end gap-2.5">
       <button onTouchStart={onDrop} className="h-12 w-12 rounded-full border-2 border-[#EF4444] bg-[#09090B]/70 text-[10px] font-black uppercase text-[#EF4444] active:bg-[#EF4444]/40">DROP</button>
       <button onTouchStart={onInteract} className="h-16 w-16 rounded-full border-4 border-[#FACC15] bg-[#FACC15]/90 text-xs font-black uppercase text-[#09090B] shadow-[0_0_18px_rgba(250,204,21,0.5)] active:scale-95">USE</button>
     </div>
