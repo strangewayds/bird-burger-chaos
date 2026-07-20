@@ -25,7 +25,8 @@ export type LbEntry = {
   n: string; // display name
   w: string; // wallet (may be "")
   s: number; // best score this week
-  won: boolean; // paid rent at least once
+  d: number; // days survived on that best run
+  won: boolean; // survived at least one full day
   t: number; // last update ts
 };
 
@@ -81,10 +82,11 @@ const maskWallet = (w: string) => (w ? `${w.slice(0, 6)}…${w.slice(-4)}` : "")
 const publicEntries = (entries: LbEntry[]) => entries.map((e) => ({ ...e, w: maskWallet(e.w) }));
 
 export const submitScore = createServerFn({ method: "POST" })
-  .validator((data: { name: string; wallet?: string; score: number; won: boolean }) => {
+  .validator((data: { name: string; wallet?: string; score: number; won: boolean; days?: number }) => {
     const name = cleanName(data.name);
     const score = Math.floor(Number(data.score));
     const won = Boolean(data.won);
+    const days = Math.max(0, Math.min(60, Math.floor(Number(data.days) || 0)));
     if (name.length < 2) throw new Error("Name too short");
     // Plausibility bounds. Score is cumulative across DAYS now, so it can climb —
     // but a truly absurd number is a doctored run. Manual review catches the rest.
@@ -93,7 +95,7 @@ export const submitScore = createServerFn({ method: "POST" })
     // won run has banked ~$550+, and a 0-day run couldn't have banked that much.
     if (won && score < 450) throw new Error("The manager reviewed the tape. Denied.");
     if (!won && score >= 800) throw new Error("The manager reviewed the tape. Denied.");
-    return { name, wallet: cleanWallet(data.wallet), score, won };
+    return { name, wallet: cleanWallet(data.wallet), score, won, days };
   })
   .handler(async ({ data }) => {
     const week = weekKey();
@@ -105,11 +107,12 @@ export const submitScore = createServerFn({ method: "POST" })
       throw new Error("Payroll already has your paperwork. Try again in a minute.");
     }
     if (existing) {
+      if (data.score >= existing.s) existing.d = data.days; // days from the best run
       existing.s = Math.max(existing.s, data.score);
       existing.won = existing.won || data.won;
       existing.t = Date.now();
     } else {
-      file.entries.push({ n: data.name, w: data.wallet, s: data.score, won: data.won, t: Date.now() });
+      file.entries.push({ n: data.name, w: data.wallet, s: data.score, d: data.days, won: data.won, t: Date.now() });
     }
     file.entries.sort((a, b) => b.s - a.s);
     file.entries = file.entries.slice(0, 200);

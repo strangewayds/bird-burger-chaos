@@ -3998,9 +3998,99 @@ function TouchControls({ onInteract, onDrop }: { onInteract: () => void; onDrop:
   );
 }
 
+/* ─────────────────────────  FLEX CARD (shareable run image)  ───────────────────────── */
+
+function FlexCard({ stats, rank }: { stats: GameStats; rank?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const days = stats.daysSurvived;
+  const won = days >= 1;
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    const W = 1080, H = 1080;
+    c.width = W; c.height = H;
+    const draw = (bird?: HTMLImageElement) => {
+      ctx.fillStyle = "#09090b"; ctx.fillRect(0, 0, W, H);
+      const g = ctx.createRadialGradient(W * 0.34, H * 0.28, 60, W * 0.34, H * 0.28, 760);
+      g.addColorStop(0, won ? "rgba(0,200,5,0.24)" : "rgba(239,68,68,0.2)");
+      g.addColorStop(1, "transparent");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = "rgba(139,92,246,0.09)"; ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += 54) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y < H; y += 54) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+      if (bird) {
+        ctx.save(); ctx.globalAlpha = 0.95;
+        ctx.shadowColor = won ? "rgba(0,200,5,0.5)" : "rgba(236,72,153,0.5)"; ctx.shadowBlur = 60;
+        ctx.drawImage(bird, W - 520, H - 560, 500, 500);
+        ctx.restore();
+      }
+      ctx.textAlign = "left";
+      ctx.font = '600 40px "Bungee", Impact, sans-serif';
+      ctx.fillStyle = "#FACC15"; ctx.fillText("BIRD BURGER:", 70, 108);
+      ctx.fillStyle = "#EC4899"; ctx.fillText("KITCHEN CHAOS", 70, 162);
+      ctx.fillStyle = won ? "#00C805" : "#EF4444";
+      ctx.font = '210px "Bungee", Impact, sans-serif';
+      ctx.fillText(won ? String(days) : "0", 60, 470);
+      ctx.fillStyle = "#fff"; ctx.font = '64px "Bungee", Impact, sans-serif';
+      ctx.fillText(days === 1 ? "DAY SURVIVED" : "DAYS SURVIVED", 66, 552);
+      ctx.font = '600 46px "Space Grotesk", system-ui, sans-serif';
+      ctx.fillStyle = "#FACC15"; ctx.fillText(`$${stats.score.toLocaleString()} banked`, 70, 662);
+      ctx.fillStyle = "#22D3EE";
+      ctx.fillText(`Grade ${stats.grade}${rank ? `   ·   Rank #${rank} this week` : ""}`, 70, 722);
+      if (!won) {
+        ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.font = '600 34px "Space Grotesk", sans-serif';
+        ctx.fillText(stats.outcome === "shutdown" ? "Shut down by the health inspector" : "Evicted on Day 1", 70, 786);
+      }
+      ctx.fillStyle = "#FACC15";
+      ctx.beginPath(); (ctx as any).roundRect(70, H - 168, 640, 92, 16); ctx.fill();
+      ctx.fillStyle = "#09090b"; ctx.font = '44px "Bungee", Impact, sans-serif';
+      ctx.fillText("birdburger.meme/game", 96, H - 108);
+      ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.font = '600 30px "Space Grotesk", sans-serif';
+      ctx.fillText("Free to play  ·  top 3 birds each week earn $BRGR", 70, H - 44);
+    };
+    const bird = new Image();
+    bird.src = mascotHero;
+    bird.onload = () => draw(bird);
+    bird.onerror = () => draw();
+  }, [stats, rank, days, won]);
+
+  const share = async () => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const text = `I survived ${days} ${days === 1 ? "day" : "days"} in Bird Burger: Kitchen Chaos and banked $${stats.score.toLocaleString()}${rank ? ` (rank #${rank} this week)` : ""}. How long can you last? 🍔 birdburger.meme/game $BRGR`;
+    c.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], "bird-burger-run.png", { type: "image/png" });
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], text }); return; } catch { /* fall through */ }
+      }
+      // No forced download (looks like malware): open the image in a tab + copy the caption
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }, "image/png");
+  };
+
+  return (
+    <div className="mt-6 flex flex-col items-center gap-3">
+      <div className="text-[10px] font-black uppercase tracking-[0.25em] text-[#FACC15]">📸 Your Flex Card</div>
+      <canvas ref={canvasRef} className="w-full max-w-[340px] rounded-xl border-2 border-[#FACC15]/50 shadow-[0_0_30px_rgba(250,204,21,0.25)]" />
+      <button onClick={share} className="inline-flex items-center gap-2 rounded-lg border-4 border-[#22D3EE] bg-[#22D3EE] px-6 py-3 text-sm font-black uppercase tracking-widest text-[#09090B] shadow-[0_5px_0_#0e7490] hover:-translate-y-0.5 active:translate-y-0.5">
+        <Trophy className="h-4 w-4" /> Share My Run
+      </button>
+    </div>
+  );
+}
+
 /* ─────────────────────────  RESULTS SCREEN  ───────────────────────── */
 
 function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay: () => void; onQuit: () => void }) {
+  const [rank, setRank] = useState<number | undefined>(undefined);
   const days = stats.daysSurvived;
   const won = days >= 1; // survived at least one full day = a good run, celebrate it
   const dayWord = days === 1 ? "DAY" : "DAYS";
@@ -4077,14 +4167,16 @@ function ResultsScreen({ stats, onReplay, onQuit }: { stats: GameStats; onReplay
           </div>
         </div>
 
-        <PayrollSubmit stats={stats} />
+        <FlexCard stats={stats} rank={rank} />
+
+        <PayrollSubmit stats={stats} onRank={setRank} />
 
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button onClick={onReplay} className="inline-flex items-center gap-2 rounded-lg border-4 border-[#FACC15] bg-[#FACC15] px-5 py-3 text-sm font-black uppercase tracking-widest text-[#09090B] shadow-[0_6px_0_#B08807] hover:-translate-y-0.5 active:translate-y-0.5">
             <Zap className="h-4 w-4" /> Clock In Again
           </button>
           <button onClick={share} className="inline-flex items-center gap-2 rounded-lg border-2 border-[#22D3EE] bg-[#22D3EE]/10 px-5 py-3 text-sm font-black uppercase tracking-widest text-[#22D3EE] hover:bg-[#22D3EE]/25">
-            <Trophy className="h-4 w-4" /> {won ? "Share the Win" : "Share the Disaster"}
+            <Trophy className="h-4 w-4" /> Share as Text
           </button>
           <button onClick={onQuit} className="inline-flex items-center gap-2 rounded-lg border-2 border-[#EC4899] bg-[#EC4899]/10 px-5 py-3 text-sm font-black uppercase tracking-widest text-[#EC4899] hover:bg-[#EC4899]/25">
             <ArrowLeft className="h-4 w-4" /> Return to Restaurant
@@ -4129,7 +4221,7 @@ function CoinRain() {
 
 /* ─────────────────────────  $BRGR PAYROLL (leaderboard)  ───────────────────────── */
 
-function PayrollSubmit({ stats }: { stats: GameStats }) {
+function PayrollSubmit({ stats, onRank }: { stats: GameStats; onRank?: (r: number) => void }) {
   const [name, setName] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("bb_lb_name") || "" : ""));
   const [wallet, setWallet] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("bb_lb_wallet") || "" : ""));
   const [busy, setBusy] = useState(false);
@@ -4143,8 +4235,9 @@ function PayrollSubmit({ stats }: { stats: GameStats }) {
     try {
       window.localStorage.setItem("bb_lb_name", name.trim());
       window.localStorage.setItem("bb_lb_wallet", wallet.trim());
-      const r = await submitScore({ data: { name: name.trim(), wallet: wallet.trim(), score: stats.score, won: stats.daysSurvived >= 1 } });
+      const r = await submitScore({ data: { name: name.trim(), wallet: wallet.trim(), score: stats.score, won: stats.daysSurvived >= 1, days: stats.daysSurvived } });
       setResult(r);
+      onRank?.(r.rank);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Payroll machine is jammed. Try again.");
     } finally {
@@ -4209,7 +4302,7 @@ function LeaderboardList({ top, highlight }: { top: LbEntry[]; highlight?: strin
         >
           <span className="w-7 shrink-0 text-center font-black text-white/70">{medals[i] ?? `#${i + 1}`}</span>
           <span className="flex-1 truncate font-bold text-white">{e.n}</span>
-          {e.won && <span className="rounded bg-[#00C805]/20 px-1 text-[8px] font-black uppercase text-[#00C805]">rent paid</span>}
+          {e.d ? <span className="rounded bg-[#7C3AED]/30 px-1 text-[8px] font-black uppercase text-[#C4B5FD]">{e.d}d</span> : null}
           <span className="font-black text-[#FACC15]">${e.s.toLocaleString()}</span>
         </div>
       ))}

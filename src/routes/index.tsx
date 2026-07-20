@@ -828,6 +828,7 @@ function BirdBurgerPage() {
       />
       <Hero onOrder={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })} onBuy={() => document.getElementById("token")?.scrollIntoView({ behavior: "smooth" })} />
       <Ticker />
+      <ScoreTape />
       <div className="mx-auto grid max-w-7xl gap-4 px-4 pt-6 md:grid-cols-3">
         <KitchenStatus onRefresh={() => play("beep")} />
         <KitchenCam onIncident={() => play("buzz")} />
@@ -2458,6 +2459,50 @@ function Ticker() {
         ))}
       </div>
     </div>
+  );
+}
+
+/* ─────── LIVE SCORE TAPE — recent Kitchen Chaos runs scrolling by (FOMO) ─────── */
+function ScoreTape() {
+  const [entries, setEntries] = useState<LbEntry[]>([]);
+  useEffect(() => {
+    getLeaderboard().then((d) => setEntries(d.top)).catch(() => {});
+  }, []);
+  const hype = [
+    "BE THE FIRST BIRD ON THE BOARD",
+    "TOP 3 EACH WEEK EARN $BRGR",
+    "HOW MANY DAYS CAN YOU SURVIVE?",
+    "THE #1 SPOT IS FREE REAL ESTATE",
+  ];
+  const hasRuns = entries.length > 0;
+  const src = hasRuns ? [...entries, ...entries, ...entries].slice(0, 24) : [...hype, ...hype, ...hype];
+  const medals = ["🥇", "🥈", "🥉"];
+  return (
+    <a href="/game" className="block border-b-2 border-robin/30 bg-gradient-to-r from-robin/10 via-black/70 to-robin/10 py-2">
+      <div className="flex items-center">
+        <span className="z-10 flex shrink-0 items-center gap-1.5 border-r-2 border-robin/40 bg-black/80 px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest text-robin">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-robin shadow-[0_0_8px_#00C805]" /> Live Board
+        </span>
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex whitespace-nowrap ticker">
+            {src.map((e, i) =>
+              hasRuns ? (
+                <span key={i} className="mx-5 font-mono text-xs font-bold uppercase tracking-wider">
+                  <span className="text-mustard">{medals[i % (entries.length)] && i % entries.length < 3 ? medals[i % entries.length] : "🔥"} {(e as LbEntry).n}</span>
+                  <span className="text-ink/60"> survived </span>
+                  <span className="text-robin">{(e as LbEntry).d || "?"} days</span>
+                  <span className="text-ink/40"> · ${(e as LbEntry).s.toLocaleString()}</span>
+                </span>
+              ) : (
+                <span key={i} className="mx-6 font-mono text-xs font-bold uppercase tracking-widest text-mustard">
+                  <span className="mr-6 text-robin">▶</span>{e as string}
+                </span>
+              ),
+            )}
+          </div>
+        </div>
+      </div>
+    </a>
   );
 }
 
