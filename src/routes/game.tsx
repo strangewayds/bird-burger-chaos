@@ -192,9 +192,9 @@ const ORDER_POOL: OrderTemplate[] = [
   { name: "Liquidity Fries", items: ["fries", "sauce"], time: 55, score: 160, emoji: "🍟", img: imgFries },
   { name: "Pump & Shake", items: ["shake"], time: 45, score: 120, emoji: "🥤", img: imgShake },
   { name: "Chudburger Deluxe", items: ["bun", "patty_cooked", "patty_cooked", "cheese", "sauce"], time: 95, score: 380, emoji: "🍔", img: imgChud },
-  { name: "Diamond Nuggets", items: ["nugget", "sauce"], time: 60, score: 200, emoji: "🍗", img: imgNuggets },
-  { name: "Exit Combo", items: ["bun", "patty_cooked", "cheese", "fries", "shake"], time: 110, score: 460, emoji: "🥡", img: imgCombo },
-  { name: "Paper Hands Meal", items: ["bun", "patty_cooked", "lettuce_chopped"], time: 70, score: 240, emoji: "🥪", img: imgKids },
+  { name: "Diamond Hands Nuggets", items: ["nugget", "sauce"], time: 60, score: 200, emoji: "🍗", img: imgNuggets },
+  { name: "Exit Liquidity Combo", items: ["bun", "patty_cooked", "cheese", "fries", "shake"], time: 110, score: 460, emoji: "🥡", img: imgCombo },
+  { name: "Paper Hands Kids Meal", items: ["bun", "patty_cooked", "lettuce_chopped"], time: 70, score: 240, emoji: "🥪", img: imgKids },
   { name: "Nothing Burger", items: ["bun"], time: 35, score: 90, emoji: "🍞", img: imgNothing },
 ];
 
@@ -1012,6 +1012,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   const streakRef = useRef(0); // consecutive clean deliveries = tip multiplier
   const ordersRef = useRef<Order[]>([]);
   const orderIdRef = useRef(1);
+  const orderBagRef = useRef<OrderTemplate[]>([]); // shuffle-bag so the whole menu cycles
   const firesRef = useRef<Fire[]>([]);
   const pigeonsRef = useRef<Pigeon[]>([]);
   const spillsRef = useRef<Spill[]>([]);
@@ -1217,9 +1218,21 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   }, []);
 
   function spawnOrder(silent = false) {
-    // Order complexity is set by the current day (Day 1 = 1-2 items, later days build up)
-    const pool = ORDER_POOL.filter((t) => t.items.length <= cfgRef.current.maxItems);
-    const t = pool[Math.floor(Math.random() * pool.length)];
+    // Shuffle-bag: deal every eligible menu item once before any repeats, so a run
+    // rolls through the WHOLE menu instead of hammering the same order. The bag is
+    // filtered to the day's complexity and refilled (reshuffled) when it empties.
+    const maxItems = cfgRef.current.maxItems;
+    let idx = orderBagRef.current.findIndex((t) => t.items.length <= maxItems);
+    if (idx === -1) {
+      const eligible = ORDER_POOL.filter((t) => t.items.length <= maxItems);
+      for (let i = eligible.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+      }
+      orderBagRef.current = eligible;
+      idx = 0;
+    }
+    const t = orderBagRef.current.splice(idx, 1)[0];
     ordersRef.current.push({ id: orderIdRef.current++, template: t, remaining: t.time });
     if (!silent) sfxRef.current.doorBell(); // a customer just walked in
   }
@@ -1258,7 +1271,8 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         start: performance.now(), color: "#00C805",
       });
     }
-    // fresh orders sized to the new day
+    // fresh orders sized to the new day; reshuffle so newly-unlocked menu items appear
+    orderBagRef.current = [];
     ordersRef.current = [];
     for (let i = 0; i < 3; i++) spawnOrder(true);
     setTick((t) => t + 1);
