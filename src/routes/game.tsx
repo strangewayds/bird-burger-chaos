@@ -6,6 +6,7 @@ import kitchenBg from "@/assets/game-kitchen.jpg";
 import mascotHero from "@/assets/bird-mascot.png";
 import birdGame from "@/assets/bird-game.png";
 import { submitScore, getLeaderboard, PAYROLL, type LbEntry } from "@/lib/leaderboard";
+import { HOLDER_TIERS, getBrgrBalance, resolveTier, contractLive, type HolderTier } from "@/lib/holder-perks";
 import imgMcrug from "@/assets/menu-mcrug.png";
 import imgFries from "@/assets/menu-liquidity-fries.png";
 import imgShake from "@/assets/menu-pump-shake.png";
@@ -269,6 +270,9 @@ function GamePage() {
   const [muted, setMuted] = useState(false);
   const [finalStats, setFinalStats] = useState<GameStats | null>(null);
   const haptics = useHaptics();
+  // $BRGR holder perks — resolved from the connected wallet's balance
+  const [holderTier, setHolderTier] = useState<HolderTier | null>(null);
+  const [holderWallet, setHolderWallet] = useState<string>("");
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
@@ -284,6 +288,9 @@ function GamePage() {
               setEmployee={setEmployee}
               onStart={() => setPhase("playing")}
               onHelp={() => setShowHelp(true)}
+              holderTier={holderTier}
+              holderWallet={holderWallet}
+              onHolder={(tier, wallet) => { setHolderTier(tier); setHolderWallet(wallet); }}
             />
           </motion.div>
         )}
@@ -293,6 +300,7 @@ function GamePage() {
               employee={employee}
               muted={muted}
               haptics={haptics}
+              holderTier={holderTier}
               onEnd={(stats) => { setFinalStats(stats); setPhase("results"); }}
               onQuit={() => setPhase("start")}
             />
@@ -353,11 +361,71 @@ function TopBar({ muted, setMuted, haptics }: { muted: boolean; setMuted: (v: bo
 
 /* ─────────────────────────  START SCREEN  ───────────────────────── */
 
-function StartScreen({ employee, setEmployee, onStart, onHelp }: {
+function HolderPerks({ tier, wallet, onHolder }: { tier: HolderTier | null; wallet: string; onHolder: (t: HolderTier | null, w: string) => void }) {
+  const live = contractLive();
+  const [busy, setBusy] = useState(false);
+  const [bal, setBal] = useState<number | null>(null);
+  const [err, setErr] = useState("");
+  const connect = async () => {
+    setErr(""); setBusy(true);
+    try {
+      const eth = (window as unknown as { ethereum?: { request: (a: { method: string }) => Promise<string[]> } }).ethereum;
+      if (!eth?.request) { setErr("No wallet found. Install MetaMask or Rabby, then reload."); setBusy(false); return; }
+      const accts = await eth.request({ method: "eth_requestAccounts" });
+      const addr = accts[0];
+      const balance = await getBrgrBalance(addr);
+      setBal(balance);
+      onHolder(resolveTier(balance), addr);
+    } catch {
+      setErr("Couldn't read your wallet. Try again.");
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="mt-5 max-w-md rounded-lg border-2 border-[#22D3EE]/50 bg-[#09090B]/70 p-4">
+      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#22D3EE]">🐋 $BRGR Holder Perks</div>
+      {tier ? (
+        <div className="rounded-lg border-2 border-[#00C805]/60 bg-[#00C805]/10 p-3">
+          <div className="text-sm font-black text-[#00C805]">{tier.emoji} {tier.label} — PERKS ACTIVE</div>
+          <div className="mt-1 text-xs text-white/85">{tier.blurb}</div>
+          <div className="mt-1 text-[9px] uppercase tracking-wider text-white/40">
+            {wallet.slice(0, 6)}…{wallet.slice(-4)}{bal != null ? ` · ${bal.toLocaleString()} $BRGR` : ""}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-1">
+            {[...HOLDER_TIERS].reverse().map((t) => (
+              <div key={t.key} className="flex items-center justify-between gap-2 rounded bg-white/5 px-2 py-1 text-[10px]">
+                <span className="shrink-0 font-black text-white">{t.emoji} {t.min.toLocaleString()}+ $BRGR</span>
+                <span className="text-right text-[#FACC15]">{t.blurb}</span>
+              </div>
+            ))}
+          </div>
+          {live ? (
+            <button onClick={connect} disabled={busy} className="mt-3 w-full rounded-lg border-2 border-[#22D3EE] bg-[#22D3EE]/15 py-2 text-xs font-black uppercase tracking-widest text-[#22D3EE] hover:bg-[#22D3EE]/30 disabled:opacity-50">
+              {busy ? "Checking your bag…" : bal != null ? `You hold ${bal.toLocaleString()} — grab more to unlock` : "Connect Wallet to Check"}
+            </button>
+          ) : (
+            <div className="mt-3 rounded-lg border border-[#FACC15]/40 bg-[#FACC15]/10 px-3 py-2 text-center text-[11px] font-black uppercase tracking-wider text-[#FACC15]">
+              🔒 Perks go live when $BRGR launches
+            </div>
+          )}
+          {err && <div className="mt-2 text-xs font-bold text-[#EF4444]">{err}</div>}
+          <div className="mt-2 text-[8px] uppercase leading-relaxed tracking-wider text-white/40">Small in-game boosts for holders. $BRGR has no promised value. Not financial advice.</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StartScreen({ employee, setEmployee, onStart, onHelp, holderTier, holderWallet, onHolder }: {
   employee: typeof EMPLOYEES[number];
   setEmployee: (e: typeof EMPLOYEES[number]) => void;
   onStart: () => void;
   onHelp: () => void;
+  holderTier: HolderTier | null;
+  holderWallet: string;
+  onHolder: (tier: HolderTier | null, wallet: string) => void;
 }) {
   const [showEmp, setShowEmp] = useState(false);
   return (
@@ -401,6 +469,7 @@ function StartScreen({ employee, setEmployee, onStart, onHelp }: {
           <div className="mt-4 text-[10px] uppercase tracking-widest text-white/50">
             Now serving: <span className="text-[#FACC15]">{employee.name}</span> — {employee.desc}
           </div>
+          <HolderPerks tier={holderTier} wallet={holderWallet} onHolder={onHolder} />
           <PayrollPanel />
         </div>
         <div className="relative mx-auto">
@@ -964,13 +1033,16 @@ function useHaptics() {
 
 type Haptics = ReturnType<typeof useHaptics>;
 
-function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
+function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
   employee: typeof EMPLOYEES[number];
   muted: boolean;
   haptics: Haptics;
+  holderTier: HolderTier | null;
   onEnd: (s: GameStats) => void;
   onQuit: () => void;
 }) {
+  const holderTips = holderTier?.tips ?? 1;
+  const holderTimeBonus = holderTier?.timeBonus ?? 0;
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
@@ -1217,6 +1289,13 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
   useEffect(() => {
     ordersRef.current = [];
     for (let i = 0; i < 3; i++) spawnOrder(true);
+    // $BRGR holder perks: extra time on Day 1 + a starting buffer toward rent
+    timeRef.current = roundConfig(1).time + holderTimeBonus;
+    if (holderTier?.startBuffer) {
+      scoreRef.current = holderTier.startBuffer;
+      setScore(scoreRef.current);
+      setDayEarned(scoreRef.current);
+    }
     setTick((t) => t + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1250,7 +1329,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     roundRef.current = next;
     cfgRef.current = roundConfig(next);
     roundStartScoreRef.current = scoreRef.current;
-    timeRef.current = cfgRef.current.time;
+    timeRef.current = cfgRef.current.time + holderTimeBonus;
     inspectorRef.current = -1;
     chaosRef.current = Math.max(0, chaosRef.current - 1.5); // breather into the new day
     setRound(next);
@@ -1425,7 +1504,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
     // Speed pays: fresh orders are worth more, so hustling makes rent.
     // Tuned by autopilot playtests — 2 was a coin-flip loss, 3.5 ended shifts in 33s.
     const timeBonus = Math.max(0, Math.floor(order.remaining * 2.6));
-    const gain = Math.round((order.template.score + timeBonus) * employee.tips * streakMult);
+    const gain = Math.round((order.template.score + timeBonus) * employee.tips * streakMult * holderTips);
     scoreRef.current += gain;
     setScore(scoreRef.current);
     statsRef.current.ordersCompleted++;
@@ -3428,6 +3507,7 @@ function GameScreen({ employee, muted, haptics, onEnd, onQuit }: {
         <div className={`pointer-events-none absolute left-2 top-2 z-20 flex-col gap-1 ${isFs ? "flex" : "flex lg:hidden"}`}>
           <div className="flex items-center gap-2 rounded-md border border-[#FACC15]/50 bg-[#09090B]/85 px-2 py-1 backdrop-blur">
             <span className="rounded bg-[#7C3AED] px-1.5 py-0.5 text-[9px] font-black uppercase text-white">DAY {round}</span>
+            {holderTier && <span className="rounded bg-[#00C805]/25 px-1 text-[9px] font-black text-[#00C805]" title={`${holderTier.label}: ${holderTier.blurb}`}>{holderTier.emoji}</span>}
             <span className="font-mono text-sm font-black text-[#FACC15]">{fmt(timeLeft)}</span>
             <span className="text-[10px] font-black text-[#22D3EE]">${dayEarned.toLocaleString()}<span className="text-white/40">/${roundConfig(round).quota.toLocaleString()}</span></span>
           </div>
