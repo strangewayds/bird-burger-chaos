@@ -14,11 +14,13 @@ at `/game` with a weekly play-to-earn leaderboard.
 
 ## 🚀 TOKEN LAUNCH — STAGED, WAITING ON ANTHONY'S GO
 
-**$BRGR contract (provided 2026-07-21, NOT YET ACTIVE — do NOT publish until
-Anthony says so):** `0xe5154aA44BD0653322810Ad1451cCfc0C2C9C0De`
+**$BRGR contract (UPDATED 2026-07-21, NOT YET ACTIVE — do NOT publish until
+Anthony says so):** `0x64677ab0b5a6204c3c2ae27c3a9a5cd59d13c0de`
 
-Verified 2026-07-21: address exists but has zero code/history on Robinhood
-Chain (main+test), Base, Arbitrum — consistent with "not active yet".
+(Supersedes the earlier `0xe5154a…C2C9C0De`. Both are "c0de"-vanity
+addresses reserved pre-launch by the launchpad; verified zero code on
+Robinhood Chain mainnet as of 2026-07-21 ~3:50am — deploys when the token
+actually launches.)
 
 When Anthony says GO:
 1. **Re-verify first**: `eth_getCode` on Robinhood Chain mainnet must return
