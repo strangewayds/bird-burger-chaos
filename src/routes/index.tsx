@@ -64,7 +64,6 @@ const NAV_LINKS = [
   { href: "#kitchen-cam", label: "Kitchen Cam" },
   { href: "#bird-of-the-day", label: "Bird of the Day" },
   { href: "#token", label: "Token" },
-  { href: "#how-to-buy", label: "How to Buy" },
   { href: "#community", label: "Community" },
 ];
 
@@ -850,7 +849,6 @@ function BirdBurgerPage() {
       <PayrollSection />
       <CommunitySection wallet={wallet} />
       <TokenSection wallet={wallet} />
-      <HowToBuy />
       <Roadmap />
       <FAQSection />
       <Footer />
@@ -3672,13 +3670,8 @@ function PayrollSection() {
 
 function TokenSection({ wallet }: { wallet: string | null }) {
   const net = activeNetwork();
-  const [copied, setCopied] = useState(false);
   const cta = BB_CONFIG.token.tradingUrl || "";
   const disabled = !cta;
-  const copyCA = async () => {
-    await navigator.clipboard.writeText(BB_CONFIG.token.contract);
-    setCopied(true); setTimeout(() => setCopied(false), 1500);
-  };
   return (
     <section id="token" className="mx-auto max-w-7xl px-4 py-9 md:py-16">
       <SectionTitle kicker="The Burger Economy" title={`WHAT IS ${BB_CONFIG.token.symbol}?`} sub="$BRGR is a meme token powering absolutely essential restaurant operations such as firing employees, renaming sandwiches, releasing pigeons, and making the website temporarily worse." />
@@ -3691,12 +3684,7 @@ function TokenSection({ wallet }: { wallet: string | null }) {
             <Info label="Contract" val={BB_CONFIG.token.contract} tone="grease"/>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            <a href={cta || undefined} target="_blank" rel="noreferrer" aria-disabled={disabled} className={`inline-flex items-center gap-2 rounded-md border-2 px-4 py-2.5 font-display text-xs tracking-widest ${disabled ? "cursor-not-allowed border-ink/20 bg-ink/5 text-ink/40" : "border-mustard bg-mustard text-bg"}`}>BUY {BB_CONFIG.token.symbol} ON HOOD.DEV</a>
-            <a href={BB_CONFIG.token.contract.startsWith("0x") ? `${net.blockExplorer}/token/${BB_CONFIG.token.contract}` : net.blockExplorer} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-4 py-2.5 font-display text-xs tracking-widest text-cyan">VIEW CONTRACT</a>
-            <button onClick={copyCA} className="inline-flex items-center gap-2 rounded-md border-2 border-grape bg-grape/20 px-4 py-2.5 font-display text-xs tracking-widest text-ink">
-              <Copy className="h-3.5 w-3.5"/> {copied ? "COPIED" : "COPY CA"}
-            </button>
-            <button disabled className="inline-flex cursor-not-allowed items-center gap-2 rounded-md border-2 border-ink/20 bg-ink/5 px-4 py-2.5 font-display text-xs tracking-widest text-ink/40">ADD TO WALLET</button>
+            <a href={cta || undefined} target="_blank" rel="noreferrer" aria-disabled={disabled} className={`inline-flex items-center gap-2 rounded-md border-2 px-5 py-3 font-display text-sm tracking-widest ${disabled ? "cursor-not-allowed border-ink/20 bg-ink/5 text-ink/40" : "border-mustard bg-mustard text-bg shadow-[0_0_25px_rgba(250,204,21,0.45)] transition hover:translate-y-[-2px]"}`}>🍔 BUY {BB_CONFIG.token.symbol} ON HOOD.DEV</a>
           </div>
           <div className="mt-4 rounded-md border border-mustard/40 bg-mustard/5 p-3 text-xs text-mustard">
             <AlertTriangle className="mr-1 inline h-3.5 w-3.5"/> "Buy it because the bird is stupid, not because anyone promised you money." Meme tokens are highly speculative and may lose all value.
@@ -3727,38 +3715,8 @@ function Info({ label, val, tone }: { label: string; val: string; tone?: "mustar
   );
 }
 
-/* ─────────────────────────  HOW TO BUY  ───────────────────────── */
-
-function HowToBuy() {
-  const steps = [
-    { t: "Get a Wallet", d: "Install any EVM-compatible wallet (MetaMask, Rabby, Rainbow, or Robinhood Wallet)." },
-    { t: "Add Robinhood Chain", d: `Add the network: Chain ID ${activeNetwork().chainId}, RPC ${activeNetwork().rpcUrl}.` },
-    { t: "Get ETH on Robinhood Chain", d: "Bridge or acquire ETH on the Robinhood Chain network." },
-    { t: `Swap for ${BB_CONFIG.token.symbol}`, d: "Visit the official trading link and swap. Only trust the contract listed on this page." },
-  ];
-  return (
-    <section id="how-to-buy" className="mx-auto max-w-7xl px-4 py-9 md:py-16">
-      <SectionTitle kicker="Instructions Nobody Reads" title="HOW TO BUY $BRGR"/>
-      <div className="grid gap-4 md:grid-cols-4">
-        {steps.map((s, i) => (
-          <div key={s.t} className="relative rounded-lg border-2 border-grape/40 bg-card p-5">
-            <div className="absolute -top-4 -left-2 grid h-10 w-10 place-items-center rounded-full border-2 border-mustard bg-bg font-display text-lg text-mustard">{i+1}</div>
-            <div className="mt-3 font-display text-base">{s.t}</div>
-            <p className="mt-2 text-xs text-ink/70">{s.d}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-6 rounded-md border-2 border-grease/40 bg-grease/5 p-4 text-xs text-ink/80">
-        <div className="mb-1 flex items-center gap-2 font-display text-grease"><AlertTriangle className="h-4 w-4"/> WARNINGS</div>
-        <ul className="list-inside list-disc space-y-0.5">
-          <li>Verify the official contract address above. Never trust addresses posted in random replies.</li>
-          <li>Never share your seed phrase. Bird Burger staff will never DM you first.</li>
-          <li>Meme tokens are highly speculative and may lose all value.</li>
-        </ul>
-      </div>
-    </section>
-  );
-}
+/* HOW TO BUY section removed 2026-07-21 — buying is one click to the
+   hood.dev terminal now; the 4-step wallet walkthrough was obsolete. */
 
 /* ─────────────────────────  ROADMAP  ───────────────────────── */
 
