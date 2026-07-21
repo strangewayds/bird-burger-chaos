@@ -1383,14 +1383,17 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
   useEffect(() => { sfxRef.current = sfx; }, [sfx]);
   const hapticsRef = useRef(haptics);
   useEffect(() => { hapticsRef.current = haptics; }, [haptics]);
-  // Resume AudioContext on first user gesture (autoplay policy)
+  // Resume AudioContext on user gestures (autoplay policy). NOT once — browsers
+  // sometimes reject the first resume, so keep kicking until it's truly running.
   useEffect(() => {
     const kick = () => { sfxRef.current.ensure(); sfxRef.current.startAmbience(); };
-    window.addEventListener("pointerdown", kick, { once: true });
-    window.addEventListener("keydown", kick, { once: true });
+    window.addEventListener("pointerdown", kick);
+    window.addEventListener("keydown", kick);
+    window.addEventListener("touchstart", kick);
     return () => {
       window.removeEventListener("pointerdown", kick);
       window.removeEventListener("keydown", kick);
+      window.removeEventListener("touchstart", kick);
     };
   }, []);
 
@@ -3949,7 +3952,7 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
         </button>
         {/* Chiptune music toggle */}
         <button
-          onClick={() => setMusicOn((v) => { const n = !v; try { window.localStorage.setItem("bb_music", n ? "1" : "0"); } catch {} return n; })}
+          onClick={() => { sfxRef.current.ensure(); setMusicOn((v) => { const n = !v; try { window.localStorage.setItem("bb_music", n ? "1" : "0"); } catch {} return n; }); }}
           className={`absolute right-2 top-12 z-50 rounded-md border-2 bg-[#09090B]/85 px-3 py-2 text-xs font-black uppercase tracking-widest backdrop-blur active:scale-95 ${musicOn ? "border-[#22D3EE]/80 text-[#22D3EE]" : "border-white/25 text-white/40"}`}
           title="Kitchen theme music"
         >
