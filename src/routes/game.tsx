@@ -9,6 +9,9 @@ import birdFrycook from "@/assets/bird-frycook.png";
 import birdDave from "@/assets/bird-dave.png";
 import birdPete from "@/assets/bird-pete.png";
 import birdGary from "@/assets/bird-gary.png";
+import hazardPigeon from "@/assets/hazard-pigeon.png";
+import hazardGrease from "@/assets/hazard-grease.png";
+import hazardFire from "@/assets/hazard-fire.png";
 import { submitScore, getLeaderboard, PAYROLL, type LbEntry } from "@/lib/leaderboard";
 import { HOLDER_TIERS, getBrgrBalance, resolveTier, contractLive, type HolderTier } from "@/lib/holder-perks";
 import imgMcrug from "@/assets/menu-mcrug.png";
@@ -267,7 +270,8 @@ function GamePage() {
   // Applied post-mount so SSR and client hydrate identically.
   const [phase, setPhase] = useState<Phase>("start");
   useEffect(() => {
-    if (window.location.search.includes("autostart")) setPhase("playing");
+    if (window.location.search.includes("tutorial")) { setTraining(true); setPhase("playing"); }
+    else if (window.location.search.includes("autostart")) setPhase("playing");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [employee, setEmployee] = useState(EMPLOYEES[0]);
@@ -278,13 +282,12 @@ function GamePage() {
   // $BRGR holder perks — resolved from the connected wallet's balance
   const [holderTier, setHolderTier] = useState<HolderTier | null>(null);
   const [holderWallet, setHolderWallet] = useState<string>("");
-  // 3-step intro shown before a player's first-ever shift (replayable via How to Play)
-  const [showIntro, setShowIntro] = useState(false);
+  // First-ever shift = interactive TRAINING SHIFT inside the real kitchen
+  // (Gary walks you through two orders — no clock, no hazards). Replayable via
+  // How to Play or /game?tutorial. ?autostart skips it so headless tests see the real game.
+  const [training, setTraining] = useState(false);
   const startShift = () => {
-    if (typeof window !== "undefined" && !window.localStorage.getItem("bb_intro_v1")) {
-      setShowIntro(true);
-      return;
-    }
+    setTraining(typeof window !== "undefined" && !window.localStorage.getItem("bb_tut_v2"));
     setPhase("playing");
   };
 
@@ -294,15 +297,6 @@ function GamePage() {
       <div className={phase === "playing" ? "max-lg:landscape:hidden" : ""}>
         <TopBar muted={muted} setMuted={setMuted} haptics={haptics} />
       </div>
-      {showIntro && (
-        <TutorialIntro
-          onDone={() => {
-            try { window.localStorage.setItem("bb_intro_v1", "1"); } catch {}
-            setShowIntro(false);
-            setPhase("playing");
-          }}
-        />
-      )}
       <AnimatePresence mode="wait" initial={false}>
         {phase === "start" && (
           <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -324,6 +318,11 @@ function GamePage() {
               muted={muted}
               haptics={haptics}
               holderTier={holderTier}
+              training={training}
+              onTrainingDone={() => {
+                try { window.localStorage.setItem("bb_tut_v2", "1"); } catch {}
+                setTraining(false);
+              }}
               onEnd={(stats) => { setFinalStats(stats); setPhase("results"); }}
               onQuit={() => setPhase("start")}
             />
@@ -339,7 +338,16 @@ function GamePage() {
           </motion.div>
         )}
       </AnimatePresence>
-      {showHelp && <HowToPlay onClose={() => setShowHelp(false)} />}
+      {showHelp && (
+        <HowToPlay
+          onClose={() => setShowHelp(false)}
+          onReplayTraining={() => {
+            setShowHelp(false);
+            setTraining(true);
+            setPhase("playing");
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -384,73 +392,8 @@ function TopBar({ muted, setMuted, haptics }: { muted: boolean; setMuted: (v: bo
 
 /* ─────────────────────────  START SCREEN  ───────────────────────── */
 
-/* ── 3-STEP INTRO — one idea per screen, because "less is more" ── */
-function TutorialIntro({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState(0);
-  const steps = [
-    {
-      icon: (
-        <div className="flex items-center gap-1.5 rounded-full border-2 border-[#FACC15] bg-[#FFF7DF] px-3 py-2">
-          <span className="text-[11px] font-black uppercase text-[#2E1065]">Nothing Burger</span>
-          <span className="grid h-7 w-7 place-items-center rounded-full ring-2 ring-[#FACC15]" style={{ background: "#FACC1555" }}>
-            <IngIcon kind="bun" className="h-5 w-5" />
-          </span>
-        </div>
-      ),
-      title: "1 · READ THE ORDER",
-      text: "The ticket at the top shows what the customer wants.",
-    },
-    {
-      icon: (
-        <div className="relative grid h-16 w-24 place-items-center rounded-lg border-4 border-dashed border-[#FACC15] bg-[#FACC15]/15">
-          <span className="text-3xl">👆</span>
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 animate-bounce text-2xl">⬇️</span>
-        </div>
-      ),
-      title: "2 · TAP WHAT GLOWS",
-      text: "The kitchen lights up where you need to go. Tap it — your bird runs over and does the work.",
-    },
-    {
-      icon: (
-        <div className="flex items-center gap-2">
-          <span className="text-3xl">💰</span>
-          <div className="h-3 w-28 overflow-hidden rounded-full bg-white/15">
-            <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-[#22D3EE] to-[#00C805]" />
-          </div>
-        </div>
-      ),
-      title: "3 · MAKE RENT, SURVIVE",
-      text: "Deliver at PICK UP to earn cash. Pay each day's rent before the clock hits zero. Every day gets harder — how long can you last?",
-    },
-  ];
-  const s = steps[step];
-  const last = step === steps.length - 1;
-  return (
-    <div className="fixed inset-0 z-[130] grid place-items-center bg-black/90 p-5">
-      <div className="w-full max-w-sm rounded-2xl border-2 border-[#FACC15] bg-[#2E1065] p-6 text-center shadow-[0_0_60px_rgba(250,204,21,0.35)]">
-        <div className="mb-4 flex justify-center">{s.icon}</div>
-        <div className="[font-family:'Bungee','Impact',sans-serif] text-xl text-[#FACC15]">{s.title}</div>
-        <p className="mt-2 min-h-[3.5rem] text-sm leading-relaxed text-white/85">{s.text}</p>
-        <div className="mt-3 flex justify-center gap-1.5">
-          {steps.map((_, i) => (
-            <span key={i} className={`h-1.5 rounded-full transition-all ${i === step ? "w-6 bg-[#FACC15]" : "w-1.5 bg-white/25"}`} />
-          ))}
-        </div>
-        <button
-          onClick={() => (last ? onDone() : setStep(step + 1))}
-          className="mt-5 w-full rounded-xl border-4 border-[#FACC15] bg-[#FACC15] py-3.5 text-base font-black uppercase tracking-widest text-[#09090B] shadow-[0_5px_0_#B08807] active:translate-y-0.5"
-        >
-          {last ? "🔥 Let's Cook" : "Next"}
-        </button>
-        {!last && (
-          <button onClick={onDone} className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/40 underline-offset-2 hover:underline">
-            Skip — just let me play
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
+/* The old 3-step intro modal is gone — first-time players now get an
+   interactive TRAINING SHIFT inside the real kitchen (see GameScreen). */
 
 function HolderPerks({ tier, wallet, onHolder }: { tier: HolderTier | null; wallet: string; onHolder: (t: HolderTier | null, w: string) => void }) {
   const live = contractLive();
@@ -653,7 +596,7 @@ function hueFor(hex: string): number {
   return map[hex] ?? 0;
 }
 
-function HowToPlay({ onClose }: { onClose: () => void }) {
+function HowToPlay({ onClose, onReplayTraining }: { onClose: () => void; onReplayTraining?: () => void }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-xl border-2 border-[#EC4899] bg-[#2E1065] p-6">
@@ -680,6 +623,11 @@ function HowToPlay({ onClose }: { onClose: () => void }) {
           <li><b className="text-white/80">Employees</b> have different perks — pick one that fits your style.</li>
         </ul>
         <button onClick={onClose} className="mt-4 w-full rounded border-2 border-[#FACC15] bg-[#FACC15]/20 py-2 text-xs font-black uppercase tracking-widest text-[#FACC15] hover:bg-[#FACC15]/40">Got it</button>
+        {onReplayTraining && (
+          <button onClick={onReplayTraining} className="mt-2 w-full rounded border border-[#22D3EE]/50 bg-[#22D3EE]/10 py-2 text-[10px] font-black uppercase tracking-widest text-[#22D3EE] hover:bg-[#22D3EE]/25">
+            🎓 Replay the training shift
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1168,16 +1116,25 @@ function useHaptics() {
 
 type Haptics = ReturnType<typeof useHaptics>;
 
-function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
+function GameScreen({ employee, muted, haptics, holderTier, training, onTrainingDone, onEnd, onQuit }: {
   employee: typeof EMPLOYEES[number];
   muted: boolean;
   haptics: Haptics;
   holderTier: HolderTier | null;
+  training: boolean;
+  onTrainingDone: () => void;
   onEnd: (s: GameStats) => void;
   onQuit: () => void;
 }) {
   const holderTips = holderTier?.tips ?? 1;
   const holderTimeBonus = holderTier?.timeBonus ?? 0;
+  // TRAINING SHIFT — first-timers play two scripted orders with Gary coaching:
+  // no clock, no hazards, spotlight on every step. Graduates into a fresh Day 1.
+  const trainingRef = useRef(training);
+  const trainStepRef = useRef(0);          // 0 = Nothing Burger, 1 = McRug Pull
+  const [trainStep, setTrainStep] = useState(0);
+  const [trainUi, setTrainUi] = useState(training);       // trainer bubble + HUD swaps
+  const [trainWelcome, setTrainWelcome] = useState(training); // one welcome card, then hands-on
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
@@ -1185,6 +1142,8 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
   const spriteAspectRef = useRef(1); // sprite height / width after perch crop
   // Rasterized ingredient icons so the bird carries the ACTUAL item, drawn on canvas
   const ingImgRef = useRef<Partial<Record<Ing, HTMLImageElement>>>({});
+  // Hand-drawn hazard sprites (Higgsfield, mascot-style): pigeon / grease / fire
+  const hazardImgRef = useRef<{ pigeon?: HTMLImageElement; grease?: HTMLImageElement; fire?: HTMLImageElement }>({});
   const sfx = useGameSfx(muted);
   const sfxRef = useRef(sfx);
   useEffect(() => { sfxRef.current = sfx; }, [sfx]);
@@ -1409,6 +1368,12 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
         mascotImgRef.current = m;
       }
     };
+    // Hazard sprites (already transparent PNGs — no knockout needed)
+    ([["pigeon", hazardPigeon], ["grease", hazardGrease], ["fire", hazardFire]] as const).forEach(([key, src]) => {
+      const img = new Image();
+      img.src = src;
+      img.onload = () => { hazardImgRef.current[key] = img; };
+    });
     // Rasterize each ingredient icon from its SVG for canvas drawing
     (Object.keys(ING_SVG) as Ing[]).forEach((k) => {
       const img = new Image();
@@ -1420,6 +1385,14 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
   // Seed orders
   useEffect(() => {
     ordersRef.current = [];
+    if (trainingRef.current) {
+      // Training: one scripted order at a time, no clock, no mission banner —
+      // the welcome card and Gary's bubble do the talking.
+      spawnNamed("Nothing Burger");
+      timeRef.current = roundConfig(1).time;
+      setTick((t) => t + 1);
+      return;
+    }
     for (let i = 0; i < 3; i++) spawnOrder(true);
     // $BRGR holder perks: extra time on Day 1 + a starting buffer toward rent
     timeRef.current = roundConfig(1).time + holderTimeBonus;
@@ -1438,6 +1411,59 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
     setTick((t) => t + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Spawn one specific menu item — used by the training script.
+  function spawnNamed(name: string) {
+    const t = ORDER_POOL.find((tpl) => tpl.name === name);
+    if (!t) return;
+    ordersRef.current.push({ id: orderIdRef.current++, template: t, remaining: t.time });
+    sfxRef.current.doorBell();
+  }
+
+  // Training over (finished or skipped) → wipe the slate and start a real Day 1.
+  function graduate(celebrate: boolean) {
+    trainingRef.current = false;
+    setTrainUi(false);
+    setTrainWelcome(false);
+    onTrainingDone();
+    statsRef.current = { ordersCompleted: 0, ordersFailed: 0, foodBurned: 0, fires: 0, pigeonsChased: 0, dropped: 0 };
+    scoreRef.current = holderTier?.startBuffer ?? 0;
+    roundRef.current = 1;
+    cfgRef.current = roundConfig(1);
+    roundStartScoreRef.current = scoreRef.current;
+    timeRef.current = roundConfig(1).time + holderTimeBonus;
+    chaosRef.current = 0;
+    inspectorRef.current = -1;
+    streakRef.current = 0;
+    carryRef.current = [];
+    grillRef.current = { progress: 0, item: null };
+    fryerRef.current = { progress: 0, item: null };
+    ordersRef.current = [];
+    orderBagRef.current = [];
+    for (let i = 0; i < 3; i++) spawnOrder(true);
+    setScore(scoreRef.current);
+    setRound(1);
+    setDayEarned(Math.max(0, scoreRef.current));
+    dayBannerRef.current = celebrate
+      ? { text: "🎓 YOU'RE HIRED!", sub: `DAY 1 — earn $${roundConfig(1).quota.toLocaleString()} rent before the clock runs out. Good luck.`, until: performance.now() + 3600 }
+      : { text: "DAY 1", sub: `MISSION: earn $${roundConfig(1).quota.toLocaleString()} rent before the clock runs out.`, until: performance.now() + 3200 };
+    setDayBannerTick((n) => n + 1);
+    if (celebrate) {
+      sfxRef.current.kaching();
+      const pu = STATIONS.find((s) => s.id === "pickup")!;
+      for (let ci = 0; ci < 14; ci++) {
+        const a = Math.PI * (0.8 + Math.random() * 1.4);
+        const sp = 0.09 + Math.random() * 0.18;
+        debrisRef.current.push({
+          x: pu.x + pu.w / 2, y: pu.y + pu.h / 2,
+          vx: Math.cos(a) * sp, vy: -Math.abs(Math.sin(a)) * sp - 0.08,
+          glyph: "$", rot: 0, vr: (Math.random() - 0.5) * 6,
+          start: performance.now(), color: "#00C805",
+        });
+      }
+    }
+    setTick((t) => t + 1);
+  }
 
   function spawnOrder(silent = false) {
     // Shuffle-bag: deal every eligible menu item once before any repeats, so a run
@@ -1664,6 +1690,20 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
     if (streakRef.current >= 2) pushFloat(`STREAK ×${streakRef.current} — TIPS +${Math.round((streakMult - 1) * 100)}%`, "#FACC15");
     ordersRef.current.splice(idx, 1);
     carryRef.current = [];
+    // Training script: order 1 done → serve up the McRug Pull lesson;
+    // order 2 done → graduate into the real Day 1.
+    if (trainingRef.current) {
+      if (trainStepRef.current === 0) {
+        trainStepRef.current = 1;
+        setTrainStep(1);
+        pushFloat("LESSON 1 DONE!", "#22D3EE");
+        setTimeout(() => { spawnNamed("McRug Pull"); setTick((t) => t + 1); }, 700);
+      } else {
+        graduate(true);
+      }
+      setTick((t) => t + 1);
+      return;
+    }
     // spawn a new one
     setTimeout(() => { spawnOrder(); setTick((t) => t + 1); }, 400);
     setTick((t) => t + 1);
@@ -2176,8 +2216,9 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
       }
 
       // Fires + mishaps
-      // Tutorial grace: no fires/disasters/spills/pigeons until the first order is done
-      const inTutorial = statsRef.current.ordersCompleted < 1;
+      // Tutorial grace: no fires/disasters/spills/pigeons during the training
+      // shift or until the first real order is done
+      const inTutorial = trainingRef.current || statsRef.current.ordersCompleted < 1;
 
       // Bananas: they spawn, you slip, everyone laughs
       bananaCd -= dt;
@@ -2531,8 +2572,8 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
       });
       pigeonsRef.current = pigeonsRef.current.filter((pg) => pg.hp > 0 && pg.x < 1.1);
 
-      // Orders countdown
-      orderTickAcc += dt;
+      // Orders countdown (frozen during training — no pressure while learning)
+      if (!trainingRef.current) orderTickAcc += dt;
       if (orderTickAcc > 1) {
         orderTickAcc = 0;
         ordersRef.current.forEach((o) => {
@@ -2558,7 +2599,9 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
       if (viceAnimRef.current.t > 0) viceAnimRef.current.t -= dt;
 
       // HEALTH INSPECTOR: chaos pegged at max starts a 5s shutdown countdown
-      if (chaosRef.current >= 5.75) {
+      // (never during training — mistakes are free in class)
+      if (trainingRef.current) chaosRef.current = Math.min(chaosRef.current, 3);
+      if (!trainingRef.current && chaosRef.current >= 5.75) {
         if (inspectorRef.current < 0) inspectorRef.current = 8;
         inspectorRef.current -= dt;
         if (inspectorRef.current <= 0) {
@@ -2572,16 +2615,19 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
 
       // DAY COMPLETE: made this day's rent → advance to the next, harder day
       const earnedThisDay = scoreRef.current - roundStartScoreRef.current;
-      if (earnedThisDay >= cfgRef.current.quota) {
+      if (!trainingRef.current && earnedThisDay >= cfgRef.current.quota) {
         advanceRound();
       }
 
-      // Timer — run out before making the day's rent = game over (evicted)
-      timeRef.current -= dt;
-      if (timeRef.current <= 0) {
-        cancelAnimationFrame(raf);
-        finishGame("evicted");
-        return;
+      // Timer — run out before making the day's rent = game over (evicted).
+      // The clock does not tick during the training shift.
+      if (!trainingRef.current) {
+        timeRef.current -= dt;
+        if (timeRef.current <= 0) {
+          cancelAnimationFrame(raf);
+          finishGame("evicted");
+          return;
+        }
       }
 
       // React state sync every ~0.25s
@@ -2705,33 +2751,32 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
       // stronger, nonlinear fade so it clearly disappears near completion
       const fade = Math.min(1, sp.life / 4) * Math.pow(1 - sp.cleanT, 1.6);
       ctx.save();
-      // dark oily body
-      ctx.globalAlpha = 0.72 * fade;
-      const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, Math.max(rx, ry));
-      grad.addColorStop(0, `hsl(${sp.hue}, 55%, 18%)`);
-      grad.addColorStop(0.7, `hsl(${sp.hue}, 45%, 10%)`);
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // glossy highlight streak
-      ctx.globalAlpha = 0.55 * fade;
-      ctx.fillStyle = `hsl(${sp.hue}, 95%, 68%)`;
-      const gx = cx - rx * 0.35 + Math.sin(performance.now() / 700 + sp.wob) * 2;
-      const gy = cy - ry * 0.35;
-      ctx.beginPath();
-      ctx.ellipse(gx, gy, rx * 0.32, ry * 0.18, -0.5, 0, Math.PI * 2);
-      ctx.fill();
-      // little droplets around edge
-      ctx.globalAlpha = 0.5 * fade;
-      ctx.fillStyle = `hsl(${sp.hue}, 60%, 22%)`;
-      for (let i = 0; i < 4; i++) {
-        const a = sp.wob + i * 1.7;
-        const dx = Math.cos(a) * rx * 1.15;
-        const dy = Math.sin(a) * ry * 1.15;
+      const greaseSprite = hazardImgRef.current.grease;
+      if (greaseSprite) {
+        // hand-drawn glossy splat, squashed to floor perspective, wobble-rotated
+        ctx.globalAlpha = 0.92 * fade;
+        ctx.translate(cx, cy);
+        ctx.rotate(Math.sin(sp.wob) * 0.5);
+        ctx.drawImage(greaseSprite, -rx * 1.25, -ry * 1.45, rx * 2.5, ry * 2.9);
+        ctx.rotate(-Math.sin(sp.wob) * 0.5);
+        ctx.translate(-cx, -cy);
+      } else {
+        // sprite still loading — procedural puddle as a fallback
+        ctx.globalAlpha = 0.72 * fade;
+        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, Math.max(rx, ry));
+        grad.addColorStop(0, `hsl(${sp.hue}, 55%, 18%)`);
+        grad.addColorStop(0.7, `hsl(${sp.hue}, 45%, 10%)`);
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(cx + dx, cy + dy, 2 + (i % 2), 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.55 * fade;
+        ctx.fillStyle = `hsl(${sp.hue}, 95%, 68%)`;
+        const gx = cx - rx * 0.35 + Math.sin(performance.now() / 700 + sp.wob) * 2;
+        const gy = cy - ry * 0.35;
+        ctx.beginPath();
+        ctx.ellipse(gx, gy, rx * 0.32, ry * 0.18, -0.5, 0, Math.PI * 2);
         ctx.fill();
       }
       // cleaning progress ring — thicker + pulsing as it approaches full
@@ -2791,37 +2836,61 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
         glow.addColorStop(1, "rgba(255,60,0,0)");
         ctx.fillStyle = glow;
         ctx.fillRect(cx - 58, cy - 58, 116, 116);
-        const layers = [
-          { c: "#DC2626", s: 1.0 },
-          { c: "#F97316", s: 0.72 },
-          { c: "#FACC15", s: 0.45 },
-        ];
-        for (let ti2 = 0; ti2 < 3; ti2++) {
-          const ox = (ti2 - 1) * 11;
-          const phase = now * (5 + ti2 * 1.7) + ti2 * 2.1;
-          const hgt = 32 + Math.sin(phase) * 6 + Math.sin(phase * 2.3) * 3;
-          const wob = Math.sin(phase * 1.4) * 5;
-          for (const L of layers) {
-            const hh = hgt * L.s;
-            const ww = 10 * L.s + (ti2 === 1 ? 3 : 0);
-            ctx.save();
-            ctx.fillStyle = L.c;
-            ctx.beginPath();
-            ctx.moveTo(cx + ox - ww, cy + 6);
-            ctx.quadraticCurveTo(cx + ox - ww, cy - hh * 0.45, cx + ox + wob * L.s, cy - hh);
-            ctx.quadraticCurveTo(cx + ox + ww, cy - hh * 0.45, cx + ox + ww, cy + 6);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
+        const fireSprite = hazardImgRef.current.fire;
+        if (fireSprite) {
+          // hand-drawn flame, kept alive with flicker (stretch), sway and a
+          // second faint back-flame half a beat behind
+          const stretch = 1 + Math.sin(now * 11) * 0.06 + Math.sin(now * 23.7) * 0.035;
+          const sway = Math.sin(now * 6.3) * 0.055;
+          const fw = 46;
+          const fh = fw * (fireSprite.height / fireSprite.width);
+          ctx.save();
+          ctx.translate(cx, cy + 8);
+          ctx.rotate(-sway * 0.7);
+          ctx.globalAlpha = 0.5;
+          ctx.scale(1.18, 1.18 * (2 - stretch));
+          ctx.drawImage(fireSprite, -fw / 2, -fh, fw, fh);
+          ctx.restore();
+          ctx.save();
+          ctx.translate(cx, cy + 8);
+          ctx.rotate(sway);
+          ctx.scale(1, stretch);
+          ctx.drawImage(fireSprite, -fw / 2, -fh, fw, fh);
+          ctx.restore();
+        } else {
+          // sprite still loading — procedural tongues as a fallback
+          const layers = [
+            { c: "#DC2626", s: 1.0 },
+            { c: "#F97316", s: 0.72 },
+            { c: "#FACC15", s: 0.45 },
+          ];
+          for (let ti2 = 0; ti2 < 3; ti2++) {
+            const ox = (ti2 - 1) * 11;
+            const phase = now * (5 + ti2 * 1.7) + ti2 * 2.1;
+            const hgt = 32 + Math.sin(phase) * 6 + Math.sin(phase * 2.3) * 3;
+            const wob = Math.sin(phase * 1.4) * 5;
+            for (const L of layers) {
+              const hh = hgt * L.s;
+              const ww = 10 * L.s + (ti2 === 1 ? 3 : 0);
+              ctx.save();
+              ctx.fillStyle = L.c;
+              ctx.beginPath();
+              ctx.moveTo(cx + ox - ww, cy + 6);
+              ctx.quadraticCurveTo(cx + ox - ww, cy - hh * 0.45, cx + ox + wob * L.s, cy - hh);
+              ctx.quadraticCurveTo(cx + ox + ww, cy - hh * 0.45, cx + ox + ww, cy + 6);
+              ctx.closePath();
+              ctx.fill();
+              ctx.restore();
+            }
           }
+          ctx.save();
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = "#FEF3C7";
+          ctx.beginPath();
+          ctx.ellipse(cx, cy + 1, 7 + Math.sin(now * 9) * 1.5, 10, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         }
-        ctx.save();
-        ctx.globalAlpha = 0.85;
-        ctx.fillStyle = "#FEF3C7";
-        ctx.beginPath();
-        ctx.ellipse(cx, cy + 1, 7 + Math.sin(now * 9) * 1.5, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
         for (let ei = 0; ei < 4; ei++) {
           const ek = (now * 0.8 + ei * 0.27) % 1;
           ctx.save();
@@ -2975,23 +3044,35 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
       }
     }
 
-    // Pigeons
+    // Pigeons — hand-drawn sprite with a flap-bob and a bank into the turn
     for (const pg of pigeonsRef.current) {
       const cx = pg.x * W, cy = pg.y * H;
-      ctx.fillStyle = "#6b6b6b";
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, 14, 10, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = "#FACC15";
-      ctx.beginPath();
-      ctx.moveTo(cx+12, cy);
-      ctx.lineTo(cx+22, cy-2);
-      ctx.lineTo(cx+12, cy+3);
-      ctx.fill();
-      ctx.fillStyle = "#EF4444";
-      ctx.beginPath();
-      ctx.arc(cx+4, cy-4, 2, 0, Math.PI*2);
-      ctx.fill();
+      const sprite = hazardImgRef.current.pigeon;
+      if (sprite) {
+        const t2 = performance.now() / 1000;
+        const flap = Math.sin(t2 * 9 + pg.x * 40);
+        const pw = Math.max(38, Math.min(64, W * 0.038));
+        const ph = pw * (sprite.height / sprite.width);
+        ctx.save();
+        ctx.translate(cx, cy + flap * 3);
+        ctx.rotate(pg.vy * 2 + flap * 0.07); // bank with vertical drift + wing beat
+        if (pg.vx < 0) ctx.scale(-1, 1);      // sprite faces right by default
+        ctx.scale(1, 1 + flap * 0.06);        // subtle wing-beat squash
+        ctx.drawImage(sprite, -pw / 2, -ph / 2, pw, ph);
+        ctx.restore();
+      } else {
+        // sprite still loading — old blob as a fallback
+        ctx.fillStyle = "#6b6b6b";
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 14, 10, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = "#FACC15";
+        ctx.beginPath();
+        ctx.moveTo(cx+12, cy);
+        ctx.lineTo(cx+22, cy-2);
+        ctx.lineTo(cx+12, cy+3);
+        ctx.fill();
+      }
     }
 
     // Movement particles (pixel dust + impact flashes) — under the player
@@ -3461,8 +3542,8 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
         ctx.restore();
       }
 
-      // FIRST DAY TRAINING: spotlight the target station until the first order is delivered
-      if (statsRef.current.ordersCompleted < 1 && st) {
+      // TRAINING SHIFT: spotlight the target station while Gary is teaching
+      if (trainingRef.current && st) {
         const scx = (st.x + st.w / 2) * W;
         const scy = (st.y + st.h / 2) * H;
         const srad = Math.max(st.w * W, st.h * H) * 0.95 + 34;
@@ -3476,17 +3557,6 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
         ctx.arc(scx, scy, srad, 0, Math.PI * 2);
         if (Math.hypot(plx - scx, ply - scy) > srad + prad) ctx.arc(plx, ply, prad, 0, Math.PI * 2);
         ctx.fill("evenodd");
-        ctx.restore();
-        ctx.save();
-        const fs1 = Math.max(11, Math.min(19, W * 0.0135));
-        const fs2 = Math.max(9, Math.min(12, W * 0.0085));
-        ctx.fillStyle = "#FACC15";
-        ctx.font = `bold ${fs1}px system-ui`;
-        ctx.textAlign = "center";
-        ctx.fillText("🎓 FIRST DAY TRAINING — CLICK THE SPOTLIT STATION", W / 2, H - 92);
-        ctx.fillStyle = "rgba(255,255,255,0.75)";
-        ctx.font = `bold ${fs2}px system-ui`;
-        ctx.fillText("Deliver your first order and the real shift (fires, pigeons, bananas) begins", W / 2, H - 72);
         ctx.restore();
       }
     }
@@ -3645,10 +3715,19 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
         {/* Compact day/time/rent chip (fullscreen + phones) */}
         <div className={`pointer-events-none absolute left-2 top-2 z-20 flex-col gap-1 ${isFs ? "flex" : "flex lg:hidden"}`}>
           <div className="flex items-center gap-2 rounded-md border border-[#FACC15]/50 bg-[#09090B]/85 px-2 py-1 backdrop-blur">
-            <span className="rounded bg-[#7C3AED] px-1.5 py-0.5 text-[9px] font-black uppercase text-white">DAY {round}</span>
-            {holderTier && <span className="rounded bg-[#00C805]/25 px-1 text-[9px] font-black text-[#00C805]" title={`${holderTier.label}: ${holderTier.blurb}`}>{holderTier.emoji}</span>}
-            <span className="font-mono text-sm font-black text-[#FACC15]">{fmt(timeLeft)}</span>
-            <span className="text-[10px] font-black text-[#22D3EE]">${dayEarned.toLocaleString()}<span className="text-white/40">/${roundConfig(round).quota.toLocaleString()}</span></span>
+            {trainUi ? (
+              <>
+                <span className="rounded bg-[#22D3EE] px-1.5 py-0.5 text-[9px] font-black uppercase text-[#09090B]">🎓 TRAINING</span>
+                <span className="text-[10px] font-black uppercase text-white/60">no clock · no rent</span>
+              </>
+            ) : (
+              <>
+                <span className="rounded bg-[#7C3AED] px-1.5 py-0.5 text-[9px] font-black uppercase text-white">DAY {round}</span>
+                {holderTier && <span className="rounded bg-[#00C805]/25 px-1 text-[9px] font-black text-[#00C805]" title={`${holderTier.label}: ${holderTier.blurb}`}>{holderTier.emoji}</span>}
+                <span className="font-mono text-sm font-black text-[#FACC15]">{fmt(timeLeft)}</span>
+                <span className="text-[10px] font-black text-[#22D3EE]">${dayEarned.toLocaleString()}<span className="text-white/40">/${roundConfig(round).quota.toLocaleString()}</span></span>
+              </>
+            )}
           </div>
         </div>
 
@@ -3756,6 +3835,54 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
           ) : null;
         })()}
 
+        {/* TRAINING: Gary's coaching bubble + skip */}
+        {trainUi && !trainWelcome && (
+          <div className="pointer-events-none absolute left-2 top-12 z-30 flex max-w-[280px] flex-col gap-1.5 md:left-3 md:top-14">
+            <div className="flex items-end gap-2">
+              <img src={EMPLOYEES.find((e) => e.id === "gary")!.img} alt="Manager Gary" className="h-14 w-14 shrink-0 rounded-full border-2 border-[#00C805] bg-[#09090B]/80 object-contain md:h-16 md:w-16" />
+              <div className="rounded-xl rounded-bl-none border-2 border-[#00C805]/70 bg-[#09090B]/92 p-2.5 backdrop-blur">
+                <div className="text-[8px] font-black uppercase tracking-widest text-[#00C805]">MANAGER GARY · LESSON {trainStep + 1}/2</div>
+                <p className="mt-0.5 text-[11px] font-bold leading-snug text-white/90">
+                  {trainStep === 0
+                    ? "Welcome aboard. The ticket up top is the order. The kitchen GLOWS where you need to go — tap the glow, your bird does the rest."
+                    : "Easy money! Now a real burger: raw PATTY → GRILL it → wait for the DING → grab it → add SAUCE → deliver. Don't let it burn."}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => graduate(false)}
+              className="pointer-events-auto self-start rounded border border-white/25 bg-[#09090B]/80 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white"
+            >
+              Skip training →
+            </button>
+          </div>
+        )}
+
+        {/* TRAINING: one welcome card, then it's hands-on */}
+        {trainWelcome && (
+          <div className="absolute inset-0 z-50 grid place-items-center bg-black/80 p-5">
+            <div className="w-full max-w-sm rounded-2xl border-2 border-[#22D3EE] bg-[#2E1065] p-6 text-center shadow-[0_0_60px_rgba(34,211,238,0.35)]">
+              <img src={EMPLOYEES.find((e) => e.id === "gary")!.img} alt="" className="mx-auto h-20 w-20 rounded-full border-2 border-[#00C805] bg-[#09090B]/60 object-contain" />
+              <div className="mt-3 [font-family:'Bungee','Impact',sans-serif] text-xl text-[#22D3EE]">FIRST DAY AT BIRD BURGER</div>
+              <p className="mt-2 text-sm leading-relaxed text-white/85">
+                Manager Gary will train you: <b className="text-[#FACC15]">two quick orders</b>. No clock, no fires, no pressure — the kitchen glows, you tap.
+              </p>
+              <button
+                onClick={() => setTrainWelcome(false)}
+                className="mt-5 w-full rounded-xl border-4 border-[#FACC15] bg-[#FACC15] py-3.5 text-base font-black uppercase tracking-widest text-[#09090B] shadow-[0_5px_0_#B08807] active:translate-y-0.5"
+              >
+                🎓 Start training
+              </button>
+              <button
+                onClick={() => graduate(false)}
+                className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/40 underline-offset-2 hover:underline"
+              >
+                Skip — I've flipped burgers before
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* DAY COMPLETE flash */}
         {(() => {
           void dayBannerTick;
@@ -3807,12 +3934,22 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
         {/* Day + time + rent */}
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-3 gap-2">
-            <InfoCard title="DAY" value={`${round}`} sub={`TOTAL $${score.toLocaleString()}`} tint="#7C3AED" wide />
-            <InfoCard title="TIME" value={fmt(timeLeft)} sub="TILL CLOSE" tint="#FACC15" wide />
-            <InfoCard title="TODAY'S RENT" value={`$${dayEarned.toLocaleString()}`} sub={`NEED $${roundConfig(round).quota.toLocaleString()}`} tint="#22D3EE" wide />
+            {trainUi ? (
+              <>
+                <InfoCard title="SHIFT" value="🎓" sub="TRAINING" tint="#22D3EE" wide />
+                <InfoCard title="TIME" value="∞" sub="NO CLOCK" tint="#FACC15" wide />
+                <InfoCard title="LESSON" value={`${trainStep + 1}/2`} sub="ORDERS" tint="#7C3AED" wide />
+              </>
+            ) : (
+              <>
+                <InfoCard title="DAY" value={`${round}`} sub={`TOTAL $${score.toLocaleString()}`} tint="#7C3AED" wide />
+                <InfoCard title="TIME" value={fmt(timeLeft)} sub="TILL CLOSE" tint="#FACC15" wide />
+                <InfoCard title="TODAY'S RENT" value={`$${dayEarned.toLocaleString()}`} sub={`NEED $${roundConfig(round).quota.toLocaleString()}`} tint="#22D3EE" wide />
+              </>
+            )}
           </div>
           {/* Day rent progress bar */}
-          {(() => {
+          {!trainUi && (() => {
             const q = roundConfig(round).quota;
             const paid = dayEarned >= q;
             return (

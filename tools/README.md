@@ -1,3 +1,13 @@
+# tools/ — testing helpers
+
+- **playtest.mjs** — autopilot playtester (below).
+- **shot.mjs** — one-off screenshot: `node tools/shot.mjs <url> <out.png> [waitMs]`.
+  Run from the repo root (needs the repo's puppeteer-core).
+- **tutorial-drive.mjs** — drives the interactive TRAINING SHIFT end-to-end
+  against localhost:8080 (welcome card → both lessons → graduation) and saves
+  two screenshots: `node tools/tutorial-drive.mjs <lesson1.png> <grad.png>`.
+  Run it after any change to the tutorial or the guidance system.
+
 # tools/playtest.mjs — autopilot playtester
 
 Drives a real browser through a full Kitchen Chaos shift by following the

@@ -54,6 +54,23 @@ serving the old build. Get the newest URL from `vercel ls bird-burger`.
 
 ## State of things
 
+**Done and verified (7/20 late — interactive tutorial + hazard art):**
+- **INTERACTIVE TRAINING SHIFT** replaced the static 3-step intro modal.
+  First-time players get Manager Gary walking them through 2 real orders in
+  the live kitchen: welcome card → Nothing Burger (learn tap-the-glow) →
+  McRug Pull (learn the grill) → "🎓 YOU'RE HIRED!" → fresh Day 1. No clock,
+  no hazards, chaos capped, spotlight on every step, skippable at any moment
+  (welcome card + a persistent SKIP button), replayable from How to Play.
+  localStorage key `bb_tut_v2` (so everyone, including old players, sees it
+  once). `?tutorial` forces it; `?autostart` skips it (headless tests
+  unchanged). Verified end-to-end with `tools/tutorial-drive.mjs` — zero errors.
+- **Higgsfield hazard art** (mascot-style, bg-removed, trimmed): pigeons are
+  now a real grumpy cartoon pigeon sprite (flap-bob + banking, flips with
+  direction), grease is a glossy golden splat sprite, fires are a cartoon
+  flame sprite kept alive with flicker/sway + the old glow/embers/danger ring.
+  Assets: `src/assets/hazard-{pigeon,grease,fire}.png`. Procedural drawings
+  kept as loading fallbacks.
+
 **Done and verified (7/19–7/20 additions):**
 - **Day/round progression** — the game no longer ends at one rent payment; each
   day escalates (higher rent goal, whole menu rotates in via a shuffle-bag
