@@ -5,6 +5,10 @@ import { Flame, Trophy, Zap, ArrowLeft, Play, Users, HelpCircle, Volume2, Volume
 import kitchenBg from "@/assets/game-kitchen.jpg";
 import mascotHero from "@/assets/bird-mascot.png";
 import birdGame from "@/assets/bird-game.png";
+import birdFrycook from "@/assets/bird-frycook.png";
+import birdDave from "@/assets/bird-dave.png";
+import birdPete from "@/assets/bird-pete.png";
+import birdGary from "@/assets/bird-gary.png";
 import { submitScore, getLeaderboard, PAYROLL, type LbEntry } from "@/lib/leaderboard";
 import { HOLDER_TIERS, getBrgrBalance, resolveTier, contractLive, type HolderTier } from "@/lib/holder-perks";
 import imgMcrug from "@/assets/menu-mcrug.png";
@@ -221,13 +225,14 @@ type FallingSign = {
   spinSpd: number;
 };
 
-// Perks: speed = movement, cook = grill/fryer speed, tips = order payout, calm = chaos cooldown rate
+// Perks: speed = movement, cook = grill/fryer speed, tips = order payout, calm = chaos cooldown rate.
+// Each employee is real hand-drawn art now (img), not a color-tinted Larry.
 const EMPLOYEES = [
-  { id: "larry", name: "Larry", tint: "#C4A9F5", desc: "Tired. Always tired.", perk: "Perfectly average at everything", speed: 1, cook: 1, tips: 1, calm: 1 },
-  { id: "frycook", name: "FryCook420", tint: "#22D3EE", desc: "Wears shades indoors.", perk: "Cooks 35% faster", speed: 0.95, cook: 1.35, tips: 1, calm: 1 },
-  { id: "diamond", name: "Diamond Dave", tint: "#FACC15", desc: "Never sells.", perk: "+25% tips on every order", speed: 0.9, cook: 1, tips: 1.25, calm: 1 },
-  { id: "pete", name: "Paper Hands Pete", tint: "#EC4899", desc: "Drops everything.", perk: "Fastest bird alive (+25% speed)", speed: 1.25, cook: 1, tips: 0.9, calm: 1 },
-  { id: "gary", name: "Manager Gary", tint: "#00C805", desc: "Reluctantly here.", perk: "Chaos cools down 2× faster", speed: 1, cook: 1, tips: 1, calm: 2.2 },
+  { id: "larry", name: "Larry", tint: "#C4A9F5", desc: "Tired. Always tired.", perk: "Perfectly average at everything", speed: 1, cook: 1, tips: 1, calm: 1, img: birdGame },
+  { id: "frycook", name: "FryCook420", tint: "#22D3EE", desc: "Wears shades indoors.", perk: "Cooks 35% faster", speed: 0.95, cook: 1.35, tips: 1, calm: 1, img: birdFrycook },
+  { id: "diamond", name: "Diamond Dave", tint: "#FACC15", desc: "Never sells.", perk: "+25% tips on every order", speed: 0.9, cook: 1, tips: 1.25, calm: 1, img: birdDave },
+  { id: "pete", name: "Paper Hands Pete", tint: "#EC4899", desc: "Drops everything.", perk: "Fastest bird alive (+25% speed)", speed: 1.25, cook: 1, tips: 0.9, calm: 1, img: birdPete },
+  { id: "gary", name: "Manager Gary", tint: "#00C805", desc: "Reluctantly here.", perk: "Chaos cools down 2× faster", speed: 1, cook: 1, tips: 1, calm: 2.2, img: birdGary },
 ];
 
 // THE GAME: survive as many DAYS as you can. Each day you must earn that day's
@@ -273,6 +278,15 @@ function GamePage() {
   // $BRGR holder perks — resolved from the connected wallet's balance
   const [holderTier, setHolderTier] = useState<HolderTier | null>(null);
   const [holderWallet, setHolderWallet] = useState<string>("");
+  // 3-step intro shown before a player's first-ever shift (replayable via How to Play)
+  const [showIntro, setShowIntro] = useState(false);
+  const startShift = () => {
+    if (typeof window !== "undefined" && !window.localStorage.getItem("bb_intro_v1")) {
+      setShowIntro(true);
+      return;
+    }
+    setPhase("playing");
+  };
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
@@ -280,13 +294,22 @@ function GamePage() {
       <div className={phase === "playing" ? "max-lg:landscape:hidden" : ""}>
         <TopBar muted={muted} setMuted={setMuted} haptics={haptics} />
       </div>
+      {showIntro && (
+        <TutorialIntro
+          onDone={() => {
+            try { window.localStorage.setItem("bb_intro_v1", "1"); } catch {}
+            setShowIntro(false);
+            setPhase("playing");
+          }}
+        />
+      )}
       <AnimatePresence mode="wait" initial={false}>
         {phase === "start" && (
           <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <StartScreen
               employee={employee}
               setEmployee={setEmployee}
-              onStart={() => setPhase("playing")}
+              onStart={startShift}
               onHelp={() => setShowHelp(true)}
               holderTier={holderTier}
               holderWallet={holderWallet}
@@ -361,6 +384,74 @@ function TopBar({ muted, setMuted, haptics }: { muted: boolean; setMuted: (v: bo
 
 /* ─────────────────────────  START SCREEN  ───────────────────────── */
 
+/* ── 3-STEP INTRO — one idea per screen, because "less is more" ── */
+function TutorialIntro({ onDone }: { onDone: () => void }) {
+  const [step, setStep] = useState(0);
+  const steps = [
+    {
+      icon: (
+        <div className="flex items-center gap-1.5 rounded-full border-2 border-[#FACC15] bg-[#FFF7DF] px-3 py-2">
+          <span className="text-[11px] font-black uppercase text-[#2E1065]">Nothing Burger</span>
+          <span className="grid h-7 w-7 place-items-center rounded-full ring-2 ring-[#FACC15]" style={{ background: "#FACC1555" }}>
+            <IngIcon kind="bun" className="h-5 w-5" />
+          </span>
+        </div>
+      ),
+      title: "1 · READ THE ORDER",
+      text: "The ticket at the top shows what the customer wants.",
+    },
+    {
+      icon: (
+        <div className="relative grid h-16 w-24 place-items-center rounded-lg border-4 border-dashed border-[#FACC15] bg-[#FACC15]/15">
+          <span className="text-3xl">👆</span>
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 animate-bounce text-2xl">⬇️</span>
+        </div>
+      ),
+      title: "2 · TAP WHAT GLOWS",
+      text: "The kitchen lights up where you need to go. Tap it — your bird runs over and does the work.",
+    },
+    {
+      icon: (
+        <div className="flex items-center gap-2">
+          <span className="text-3xl">💰</span>
+          <div className="h-3 w-28 overflow-hidden rounded-full bg-white/15">
+            <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-[#22D3EE] to-[#00C805]" />
+          </div>
+        </div>
+      ),
+      title: "3 · MAKE RENT, SURVIVE",
+      text: "Deliver at PICK UP to earn cash. Pay each day's rent before the clock hits zero. Every day gets harder — how long can you last?",
+    },
+  ];
+  const s = steps[step];
+  const last = step === steps.length - 1;
+  return (
+    <div className="fixed inset-0 z-[130] grid place-items-center bg-black/90 p-5">
+      <div className="w-full max-w-sm rounded-2xl border-2 border-[#FACC15] bg-[#2E1065] p-6 text-center shadow-[0_0_60px_rgba(250,204,21,0.35)]">
+        <div className="mb-4 flex justify-center">{s.icon}</div>
+        <div className="[font-family:'Bungee','Impact',sans-serif] text-xl text-[#FACC15]">{s.title}</div>
+        <p className="mt-2 min-h-[3.5rem] text-sm leading-relaxed text-white/85">{s.text}</p>
+        <div className="mt-3 flex justify-center gap-1.5">
+          {steps.map((_, i) => (
+            <span key={i} className={`h-1.5 rounded-full transition-all ${i === step ? "w-6 bg-[#FACC15]" : "w-1.5 bg-white/25"}`} />
+          ))}
+        </div>
+        <button
+          onClick={() => (last ? onDone() : setStep(step + 1))}
+          className="mt-5 w-full rounded-xl border-4 border-[#FACC15] bg-[#FACC15] py-3.5 text-base font-black uppercase tracking-widest text-[#09090B] shadow-[0_5px_0_#B08807] active:translate-y-0.5"
+        >
+          {last ? "🔥 Let's Cook" : "Next"}
+        </button>
+        {!last && (
+          <button onClick={onDone} className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/40 underline-offset-2 hover:underline">
+            Skip — just let me play
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function HolderPerks({ tier, wallet, onHolder }: { tier: HolderTier | null; wallet: string; onHolder: (t: HolderTier | null, w: string) => void }) {
   const live = contractLive();
   const [busy, setBusy] = useState(false);
@@ -428,6 +519,9 @@ function StartScreen({ employee, setEmployee, onStart, onHelp, holderTier, holde
   onHolder: (tier: HolderTier | null, wallet: string) => void;
 }) {
   const [showEmp, setShowEmp] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
+  const [isTouch, setIsTouch] = useState(false);
+  useEffect(() => { setIsTouch("ontouchstart" in window); }, []);
   return (
     <div className="relative min-h-[calc(100vh-56px)] overflow-hidden">
       <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url(${kitchenBg})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(6px)" }} />
@@ -469,6 +563,42 @@ function StartScreen({ employee, setEmployee, onStart, onHelp, holderTier, holde
           <div className="mt-4 text-[10px] uppercase tracking-widest text-white/50">
             Now serving: <span className="text-[#FACC15]">{employee.name}</span> — {employee.desc}
           </div>
+          {isTouch && (
+            <button
+              onClick={() => setShowInstall(true)}
+              className="mt-4 flex w-full max-w-md items-center gap-3 rounded-lg border-2 border-[#22D3EE]/60 bg-[#22D3EE]/10 p-3 text-left hover:bg-[#22D3EE]/20 sm:max-w-md"
+            >
+              <span className="text-2xl">📲</span>
+              <span>
+                <span className="block text-xs font-black uppercase tracking-wider text-[#22D3EE]">Playing on a phone?</span>
+                <span className="block text-[11px] text-white/70">Add Bird Burger to your Home Screen for true fullscreen — <u>tap here to see how</u></span>
+              </span>
+            </button>
+          )}
+          {showInstall && (
+            <div className="fixed inset-0 z-[120] grid place-items-center bg-black/85 p-5" onClick={() => setShowInstall(false)}>
+              <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-xl border-2 border-[#22D3EE] bg-[#2E1065] p-5">
+                <div className="text-center [font-family:'Bungee','Impact',sans-serif] text-lg text-[#22D3EE]">📲 PLAY FULLSCREEN</div>
+                <p className="mt-1 text-center text-xs text-white/70">Add the game to your home screen — it opens like a real app, no browser bar.</p>
+                <div className="mt-3 rounded-lg bg-black/40 p-3">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#FACC15]"> iPhone (Safari)</div>
+                  <ol className="mt-1 space-y-1 text-xs text-white/80">
+                    <li>1. Tap the <b>Share</b> button <span className="text-white/50">(square with ↑, bottom of Safari)</span></li>
+                    <li>2. Scroll down, tap <b className="text-[#22D3EE]">Add to Home Screen</b></li>
+                    <li>3. Tap <b>Add</b> — then open Bird Burger from your home screen</li>
+                  </ol>
+                </div>
+                <div className="mt-2 rounded-lg bg-black/40 p-3">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#00C805]">🤖 Android (Chrome)</div>
+                  <ol className="mt-1 space-y-1 text-xs text-white/80">
+                    <li>1. Tap the <b>⋮ menu</b> (top right)</li>
+                    <li>2. Tap <b className="text-[#00C805]">Add to Home screen</b> → <b>Install</b></li>
+                  </ol>
+                </div>
+                <button onClick={() => setShowInstall(false)} className="mt-4 w-full rounded-lg border-2 border-[#22D3EE] bg-[#22D3EE]/20 py-2 text-xs font-black uppercase tracking-widest text-[#22D3EE]">Got it</button>
+              </div>
+            </div>
+          )}
           <HolderPerks tier={holderTier} wallet={holderWallet} onHolder={onHolder} />
           <PayrollPanel />
         </div>
@@ -502,8 +632,8 @@ function EmployeePicker({ current, onPick, onClose }: { current: string; onPick:
               onClick={() => onPick(e)}
               className={`flex flex-col items-center rounded-lg border-2 p-3 transition-all ${current === e.id ? "border-[#FACC15] bg-[#FACC15]/10 shadow-[0_0_20px_rgba(250,204,21,0.5)]" : "border-[#7C3AED]/40 bg-[#09090B]/40 hover:border-[#EC4899]"}`}
             >
-              <div className="grid h-16 w-16 place-items-center rounded-full" style={{ background: `radial-gradient(${e.tint}, transparent 70%)` }}>
-                <img src={mascotHero} alt="" width={64} height={64} className="h-14 w-14 object-contain" style={{ filter: `hue-rotate(${hueFor(e.tint)}deg)` }} />
+              <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-full border-2" style={{ borderColor: e.tint, background: `radial-gradient(${e.tint}44, #09090B 75%)` }}>
+                <img src={e.img} alt="" width={64} height={64} className="h-14 w-14 rounded-full object-cover" />
               </div>
               <div className="mt-2 text-xs font-black uppercase tracking-widest text-white">{e.name}</div>
               <div className="mt-1 text-[9px] uppercase tracking-widest text-white/60">{e.desc}</div>
@@ -528,21 +658,26 @@ function HowToPlay({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-xl border-2 border-[#EC4899] bg-[#2E1065] p-6">
         <h3 className="mb-3 [font-family:'Bungee','Impact',sans-serif] text-2xl text-[#EC4899]">HOW TO PLAY</h3>
-        <div className="mb-3 rounded-lg border border-[#FACC15]/50 bg-[#FACC15]/10 p-2.5 text-sm">
-          <b className="text-[#FACC15]">🏆 GOAL:</b> <span className="text-white/85">Survive as many <b className="text-[#7C3AED]">days</b> as you can. Make each day's <b className="text-[#00C805]">rent</b> before the clock runs out to reach the next — it gets harder every day.</span>
-          <div className="mt-1 text-xs text-white/70"><b className="text-[#EF4444]">YOU LOSE IF:</b> time runs out short (EVICTED), or the CHAOS meter maxes out and the health inspector's 5-second countdown hits zero (SHUT DOWN). Failed orders, burned food and wrong deliveries raise chaos — mopping, extinguishing and serving keep it down. Chaos also cools on its own; don't panic, just clean.</div>
+        <div className="mb-3 space-y-2">
+          <div className="flex items-start gap-2.5 rounded-lg bg-[#FACC15]/10 p-2.5 text-sm text-white/85">
+            <span className="text-xl">🎯</span>
+            <span><b className="text-[#FACC15]">Read the order</b> — the ticket at the top shows what to make.</span>
+          </div>
+          <div className="flex items-start gap-2.5 rounded-lg bg-[#FACC15]/10 p-2.5 text-sm text-white/85">
+            <span className="text-xl">👆</span>
+            <span><b className="text-[#FACC15]">Tap what glows</b> — the kitchen lights up your next step. Tap it; the bird runs over and does the work.</span>
+          </div>
+          <div className="flex items-start gap-2.5 rounded-lg bg-[#FACC15]/10 p-2.5 text-sm text-white/85">
+            <span className="text-xl">💰</span>
+            <span><b className="text-[#FACC15]">Deliver at PICK UP</b> — earn each day's rent before the clock runs out. Every day gets harder.</span>
+          </div>
         </div>
-        <ul className="space-y-2 text-sm text-white/85">
-          <li><b className="text-[#FACC15]">CLICK / TAP</b> — Larry runs wherever you click. <b className="text-[#22D3EE]">Click a station and he'll use it automatically</b> when he gets there.</li>
-          <li><b className="text-[#FACC15]">SPACE / E</b> — Interact with the nearest station (if you'd rather do it yourself)</li>
-          <li><b className="text-[#FACC15]">Q</b> — Drop what you're carrying</li>
-          <li><b className="text-[#FACC15]">WASD / Arrows + SHIFT</b> — Old-school move & dash still work too</li>
-          <li className="pt-2 text-white/70"><b className="text-[#FACC15]">Just follow the yellow arrow.</b> It always points at the station you need next for the ★ MAKE THIS ★ order, and the banner under the orders tells you exactly what to do there.</li>
-          <li className="text-white/70">Pick up buns, cook patties on the grill, chop lettuce at the cutting board, fry fries at the fryer. Carry the full order in your hands and deliver it at <b className="text-[#EC4899]">PICK UP</b>.</li>
-          <li className="text-white/70">Fires break out at the fryer — grab the extinguisher and interact with the flames to put them out.</li>
-          <li className="text-white/70">Grease puddles make you slip — tap one (or walk over it) with empty hands to mop it clean.</li>
-          <li className="text-white/70">Pigeons wander in from the alley. Run into them to scare them off for bonus tips.</li>
-          <li className="text-white/70">Each employee has a different perk — pick one that fits how you play.</li>
+        <div className="mb-3 rounded-lg border border-[#EF4444]/40 bg-[#EF4444]/10 p-2.5 text-xs text-white/75">
+          <b className="text-[#EF4444]">WATCH OUT:</b> burned food, failed orders and fires raise CHAOS — max it out and the health inspector shuts you down. Tap grease to mop it, grab the 🧯 for fires, and keep cooking.
+        </div>
+        <ul className="space-y-1.5 text-xs text-white/60">
+          <li><b className="text-white/80">Keyboard:</b> WASD move · SPACE use · Q drop · SHIFT dash</li>
+          <li><b className="text-white/80">Employees</b> have different perks — pick one that fits your style.</li>
         </ul>
         <button onClick={onClose} className="mt-4 w-full rounded border-2 border-[#FACC15] bg-[#FACC15]/20 py-2 text-xs font-black uppercase tracking-widest text-[#FACC15] hover:bg-[#FACC15]/40">Got it</button>
       </div>
@@ -1197,11 +1332,10 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
     bg.src = kitchenBg;
     bg.onload = () => { bgImgRef.current = bg; };
     const m = new Image();
-    m.src = birdGame;
+    m.src = employee.img; // each employee has their own hand-drawn sprite now
     m.onload = () => {
-      // The new game bird (no burger, no perch) comes on a solid cream background.
-      // Knock the background out with a flood-fill from the edges (so the cream
-      // BIRD BURGER hat is preserved), trim to the bird, then pre-tint by employee.
+      // Sprites come on a solid cream background. Knock it out with a flood-fill
+      // from the edges (preserves the cream BIRD BURGER hat), then trim to the bird.
       const scale = 480 / (m.naturalWidth || 1024);
       const w = Math.round((m.naturalWidth || 1024) * scale);
       const h = Math.round((m.naturalHeight || 1024) * scale);
@@ -1266,9 +1400,7 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
         const cc = c.getContext("2d");
         if (!cc) { mascotImgRef.current = work; return; }
         cc.drawImage(work, minX, minY, bw, bh, 0, 0, W2, H2);
-        cc.globalCompositeOperation = "source-atop";
-        cc.fillStyle = employee.tint + "40";
-        cc.fillRect(0, 0, W2, H2);
+        // No tint pass — each employee's art carries its own colors now
         spriteAspectRef.current = H2 / W2;
         mascotImgRef.current = c;
       } catch {
@@ -1296,6 +1428,13 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
       setScore(scoreRef.current);
       setDayEarned(scoreRef.current);
     }
+    // State the mission the moment play begins
+    dayBannerRef.current = {
+      text: "DAY 1",
+      sub: `MISSION: earn $${roundConfig(1).quota.toLocaleString()} rent before the clock runs out.`,
+      until: performance.now() + 3200,
+    };
+    setDayBannerTick((n) => n + 1);
     setTick((t) => t + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1337,7 +1476,7 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
     setScore(scoreRef.current);
     dayBannerRef.current = {
       text: `DAY ${completedDay} DONE!`,
-      sub: `Rent paid. Day ${next}: make $${cfgRef.current.quota.toLocaleString()}.`,
+      sub: `NEW MISSION — Day ${next}: earn $${cfgRef.current.quota.toLocaleString()} rent.`,
       until: performance.now() + 3000,
     };
     setDayBannerTick((n) => n + 1);
@@ -3753,14 +3892,6 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
             <StatRow label="Dropped" value={statsRef.current.dropped} />
           </div>
           )}
-          {(() => {
-            return (
-              <div className="rounded-lg border-2 border-[#22D3EE]/60 bg-[#09090B]/85 p-2 text-[10px] uppercase tracking-widest backdrop-blur">
-                <div className="mb-1 font-black text-[#22D3EE]">🧽 GREASE</div>
-                <div className="text-white/60">Tap a grease puddle (or just walk over it) with empty hands to mop it clean. Uncleaned grease makes you slip.</div>
-              </div>
-            );
-          })()}
           {firesRef.current.length > 0 && (() => {
             const worst = firesRef.current.reduce((a, b) => (a.danger < b.danger ? a : b));
             const pct = Math.max(0, Math.min(1, worst.danger / worst.dangerMax));
@@ -3788,8 +3919,8 @@ function GameScreen({ employee, muted, haptics, holderTier, onEnd, onQuit }: {
               </motion.div>
             );
           })()}
-          {/* Vices — because the place has 1★ reviews anyway */}
-          {(() => {
+          {/* Vices — tucked behind the "…" toggle; fun for regulars, noise for new players */}
+          {hudOpen && (() => {
             const v = viceRef.current;
             const smokeMax = 12, beerMax = 15;
             const smokePct = v.smokeCd > 0 ? 1 - v.smokeCd / smokeMax : 1;
