@@ -12,27 +12,16 @@ at `/game` with a weekly play-to-earn leaderboard.
 - Repo here: `C:\Users\stran\bird-burger-chaos`
 - Owner: Anthony (non-technical — plain English, show him links + screenshots)
 
-## 🚀 TOKEN LAUNCH — STAGED, WAITING ON ANTHONY'S GO
+## 🚀 $BRGR IS LAUNCHED (2026-07-21 ~4am) — LIVE ON THE SITE
 
-**$BRGR contract (UPDATED 2026-07-21, NOT YET ACTIVE — do NOT publish until
-Anthony says so):** `0x64677ab0b5a6204c3c2ae27c3a9a5cd59d13c0de`
-
-(Supersedes the earlier `0xe5154a…C2C9C0De`. Both are "c0de"-vanity
-addresses reserved pre-launch by the launchpad; verified zero code on
-Robinhood Chain mainnet as of 2026-07-21 ~3:50am — deploys when the token
-actually launches.)
-
-When Anthony says GO:
-1. **Re-verify first**: `eth_getCode` on Robinhood Chain mainnet must return
-   real bytecode, and check `decimals()` == 18 (holder perks assume 18).
-2. `src/lib/bird-burger-config.ts`: set `token.contract` to the address,
-   `token.tradingUrl` to the hood.dev page for the token (get the exact URL
-   from Anthony's browser; `hood.dev/token/<addr>` 404'd pre-launch).
-3. BUY button should say **"BUY ON HOOD.DEV"** per Anthony and link to
-   tradingUrl.
-4. Holder perks arm automatically once contract is a real 0x address —
-   zero extra code.
-5. Build + deploy + `vercel alias set` + push both remotes.
+- Contract: `0x64677ab0b5a6204c3c2ae27c3a9a5cd59d13c0de` — verified on-chain
+  before publishing (symbol BRGR, name "Bird Burger", 18 decimals ✓).
+- Buy link everywhere: **https://hood.dev/terminal/0x64677ab0…d13c0de**
+  (the `/terminal/<addr>` route). Hero BUY THE BURGER opens it directly;
+  token section says "BUY $BRGR ON HOOD.DEV"; VIEW CONTRACT → Blockscout
+  token page.
+- **Holder perks in the game armed automatically** (tips/time/rent-buffer
+  tiers) — worth a live test with a real holding wallet.
 
 ## DO THIS FIRST (in order)
 

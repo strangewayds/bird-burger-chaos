@@ -11,8 +11,9 @@ export const BB_CONFIG = {
   token: {
     name: "Bird Burger",
     symbol: "$BRGR",
-    contract: "COMING SOON",
-    tradingUrl: "",
+    // LIVE 2026-07-21 — verified on-chain: symbol BRGR, name "Bird Burger", 18 decimals
+    contract: "0x64677ab0b5a6204c3c2ae27c3a9a5cd59d13c0de",
+    tradingUrl: "https://hood.dev/terminal/0x64677ab0b5a6204c3c2ae27c3a9a5cd59d13c0de",
     launchpadUrl: "",
   },
   socials: {

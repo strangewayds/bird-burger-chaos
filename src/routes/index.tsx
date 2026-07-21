@@ -826,7 +826,11 @@ function BirdBurgerPage() {
         wallet={wallet}
         wrongNet={wrongNet}
       />
-      <Hero onOrder={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })} onBuy={() => document.getElementById("token")?.scrollIntoView({ behavior: "smooth" })} />
+      <Hero onOrder={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })} onBuy={() => {
+        // The way to buy: straight to the hood.dev terminal (falls back to the token section pre-launch)
+        if (BB_CONFIG.token.tradingUrl) window.open(BB_CONFIG.token.tradingUrl, "_blank", "noopener");
+        else document.getElementById("token")?.scrollIntoView({ behavior: "smooth" });
+      }} />
       <Ticker />
       <ScoreTape />
       <div className="mx-auto grid max-w-7xl gap-4 px-4 pt-6 md:grid-cols-3">
@@ -3687,8 +3691,8 @@ function TokenSection({ wallet }: { wallet: string | null }) {
             <Info label="Contract" val={BB_CONFIG.token.contract} tone="grease"/>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            <a href={cta || undefined} aria-disabled={disabled} className={`inline-flex items-center gap-2 rounded-md border-2 px-4 py-2.5 font-display text-xs tracking-widest ${disabled ? "cursor-not-allowed border-ink/20 bg-ink/5 text-ink/40" : "border-mustard bg-mustard text-bg"}`}>BUY {BB_CONFIG.token.symbol}</a>
-            <a href={net.blockExplorer} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-4 py-2.5 font-display text-xs tracking-widest text-cyan">VIEW CONTRACT</a>
+            <a href={cta || undefined} target="_blank" rel="noreferrer" aria-disabled={disabled} className={`inline-flex items-center gap-2 rounded-md border-2 px-4 py-2.5 font-display text-xs tracking-widest ${disabled ? "cursor-not-allowed border-ink/20 bg-ink/5 text-ink/40" : "border-mustard bg-mustard text-bg"}`}>BUY {BB_CONFIG.token.symbol} ON HOOD.DEV</a>
+            <a href={BB_CONFIG.token.contract.startsWith("0x") ? `${net.blockExplorer}/token/${BB_CONFIG.token.contract}` : net.blockExplorer} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-4 py-2.5 font-display text-xs tracking-widest text-cyan">VIEW CONTRACT</a>
             <button onClick={copyCA} className="inline-flex items-center gap-2 rounded-md border-2 border-grape bg-grape/20 px-4 py-2.5 font-display text-xs tracking-widest text-ink">
               <Copy className="h-3.5 w-3.5"/> {copied ? "COPIED" : "COPY CA"}
             </button>
