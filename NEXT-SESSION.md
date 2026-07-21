@@ -104,7 +104,8 @@ serving the old build. Get the newest URL from `vercel ls bird-burger`.
 
 ## BACKLOG (nothing here is blocking)
 
-- Prominent "PLAY" entry point in the mobile nav menu (desktop has one).
+- ~~Prominent "PLAY" entry point in the mobile nav menu~~ DONE 7/19 (header
+  PLAY on phones + hamburger leads with PLAY THE GAME).
 - Sound mix pass once Anthony reports how it actually sounds.
 - Wire the real contract → BUY button, socials → footer/nav, then the site is
   launch-complete.
