@@ -1084,7 +1084,7 @@ function useGameSfx(muted: boolean) {
     const barLen = beat * 4;
     const loopLen = barLen * 4;
     const mg = ctx.createGain();
-    mg.gain.value = 0.055;
+    mg.gain.value = 0.11;
     mg.connect(masterRef.current);
     const st = { timer: null as ReturnType<typeof setTimeout> | null, gain: mg, next: ctx.currentTime + 0.15 };
     musicRef.current = st;
@@ -1369,6 +1369,29 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
   const [trainStep, setTrainStep] = useState(0);
   const [trainUi, setTrainUi] = useState(training);       // trainer bubble + HUD swaps
   const [trainWelcome, setTrainWelcome] = useState(training); // one welcome card, then hands-on
+  const [trainOops, setTrainOops] = useState(false);      // Gary reacts to a wrong delivery
+  const trainOopsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Gary's line tracks what the player is actually doing, not a static script.
+  function garyLine(gd: { stationId: string; text: string } | null): string {
+    if (trainOops) return "Whoa whoa — WRONG ticket! Match EXACTLY the items on the order up top, then deliver.";
+    if (trainStepRef.current === 0) {
+      if (gd?.stationId === "pickup") return "That's the whole order! Run it to the PICK UP window on the right →";
+      return "The ticket up top says what the customer wants. Tap the GLOWING station — your bird does the rest.";
+    }
+    switch (gd?.stationId) {
+      case "raw_patty": return "A real burger this time. First: grab a RAW PATTY, bottom-left.";
+      case "grill":
+        if (gd.text.includes("PUT")) return "Now slap that patty on the GRILL.";
+        if (gd.text.includes("COOKING")) return "Patience... the bell dings when it's done. Burnt patties ruin my day.";
+        if (gd.text.includes("DONE")) return "DING! Grab it before it burns!";
+        return "To the GRILL.";
+      case "fridge": return "Every burger starts with a BUN. Hit the fridge.";
+      case "sauce": return "Sauce it. Everything here is 80% sauce.";
+      case "pickup": return "Beautiful. Deliver at PICK UP and you're officially hired.";
+      default: return "Follow the glow. The kitchen tells you where to go.";
+    }
+  }
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
@@ -1913,6 +1936,12 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
       statsRef.current.dropped++;
       streakRef.current = 0;
       carryRef.current = [];
+      // Training: mistakes are free, and Gary explains what went wrong
+      if (trainingRef.current) {
+        setTrainOops(true);
+        if (trainOopsTimer.current) clearTimeout(trainOopsTimer.current);
+        trainOopsTimer.current = setTimeout(() => setTrainOops(false), 4500);
+      }
       return;
     }
     const order = ordersRef.current[idx];
@@ -1950,6 +1979,8 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
         setTrainStep(1);
         sfxRef.current.chime();
         pushFloat("LESSON 1 DONE!", "#22D3EE");
+        dayBannerRef.current = { text: "LESSON 1 ✓", sub: "One more: a REAL burger — patty, grill, sauce.", until: performance.now() + 2600 };
+        setDayBannerTick((n) => n + 1);
         setTimeout(() => { spawnNamed("McRug Pull"); setTick((t) => t + 1); }, 700);
       } else {
         graduate(true);
@@ -4102,15 +4133,13 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
 
         {/* TRAINING: Gary's coaching bubble + skip */}
         {trainUi && !trainWelcome && (
-          <div className="pointer-events-none absolute left-2 top-12 z-30 flex max-w-[320px] flex-col gap-1.5 md:left-3 md:top-14 md:max-w-[420px]">
+          <div className="pointer-events-none absolute left-2 top-20 z-30 flex max-w-[260px] flex-col gap-1.5 md:left-3 md:top-14 md:max-w-[420px]">
             <div className="flex items-end gap-2">
-              <img src={EMPLOYEES.find((e) => e.id === "gary")!.img} alt="Manager Gary" className="h-16 w-16 shrink-0 rounded-full border-2 border-[#00C805] bg-[#09090B]/80 object-contain md:h-20 md:w-20" />
-              <div className="rounded-xl rounded-bl-none border-2 border-[#00C805]/80 bg-[#09090B]/95 p-3 shadow-[0_0_24px_rgba(0,200,5,0.35)] backdrop-blur md:p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-[#00C805] md:text-xs">MANAGER GARY · LESSON {trainStep + 1}/2</div>
+              <img src={EMPLOYEES.find((e) => e.id === "gary")!.img} alt="Manager Gary" className="h-14 w-14 shrink-0 rounded-full border-2 border-[#00C805] bg-[#09090B]/80 object-contain md:h-20 md:w-20" />
+              <div className={`rounded-xl rounded-bl-none border-2 bg-[#09090B]/95 p-3 backdrop-blur md:p-4 ${trainOops ? "border-[#EF4444] shadow-[0_0_24px_rgba(239,68,68,0.5)]" : "border-[#00C805]/80 shadow-[0_0_24px_rgba(0,200,5,0.35)]"}`}>
+                <div className={`text-[10px] font-black uppercase tracking-widest md:text-xs ${trainOops ? "text-[#EF4444]" : "text-[#00C805]"}`}>MANAGER GARY · LESSON {trainStep + 1}/2</div>
                 <p className="mt-1 text-sm font-bold leading-snug text-white md:text-base">
-                  {trainStep === 0
-                    ? "Welcome aboard. The ticket up top is the order. The kitchen GLOWS where you need to go — tap the glow, your bird does the rest."
-                    : "Easy money! Now a real burger: raw PATTY → GRILL it → wait for the DING → grab it → add SAUCE → deliver. Don't let it burn."}
+                  {garyLine(guidance())}
                 </p>
               </div>
             </div>
