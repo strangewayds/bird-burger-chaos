@@ -25,7 +25,10 @@ const browser = await puppeteer.launch({
   args: ["--window-size=1440,900", "--mute-audio"],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: 1440, height: 900 });
+// Optional viewport override: node tools/tutorial-drive.mjs <l1.png> <grad.png> [width] [height]
+const vw = Number(process.argv[4]) || 1440;
+const vh = Number(process.argv[5]) || 900;
+await page.setViewport({ width: vw, height: vh });
 const errors = [];
 page.on("pageerror", (e) => errors.push((e.stack || String(e)).slice(0, 250)));
 await page.goto("http://localhost:8080/game?tutorial", { waitUntil: "networkidle2", timeout: 60000 });

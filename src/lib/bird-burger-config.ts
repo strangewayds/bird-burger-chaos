@@ -16,7 +16,7 @@ export const BB_CONFIG = {
     launchpadUrl: "",
   },
   socials: {
-    x: "",
+    x: "https://x.com/Birdburgermeme",
     telegram: "",
   },
   networks: {

@@ -1071,7 +1071,139 @@ function useGameSfx(muted: boolean) {
     o.start(t); o.stop(t + 0.4);
   }, [muted, ensure]);
 
-  return { hop, land, boom, whoosh, dashLand, mop, mopDone, ensure, startAmbience, doorBell, orderBell, hiss, slip, kaching };
+  // Victory fanfare — rising major arpeggio + coin sparkle (day complete, graduation)
+  const fanfare = useCallback(() => {
+    if (muted) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    if (!rateOk("fanfare", 1500)) return;
+    const t = ctx.currentTime;
+    const notes: [number, number][] = [[523.25, 0], [659.25, 0.11], [783.99, 0.22], [1046.5, 0.33]]; // C5 E5 G5 C6
+    for (const [f, d0] of notes) {
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t + d0);
+      g2.gain.exponentialRampToValueAtTime(0.13, t + d0 + 0.012);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + d0 + 0.5);
+      g2.connect(masterRef.current);
+      const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = f;
+      const o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.value = f * 2;
+      const g3 = ctx.createGain(); g3.gain.value = 0.35;
+      o2.connect(g3); g3.connect(g2); o.connect(g2);
+      o.start(t + d0); o.stop(t + d0 + 0.55);
+      o2.start(t + d0); o2.stop(t + d0 + 0.55);
+    }
+    // final chord shimmer
+    const g4 = ctx.createGain();
+    g4.gain.setValueAtTime(0.0001, t + 0.44);
+    g4.gain.exponentialRampToValueAtTime(0.09, t + 0.47);
+    g4.gain.exponentialRampToValueAtTime(0.0001, t + 1.25);
+    g4.connect(masterRef.current);
+    for (const f of [1046.5, 1318.5, 1568]) {
+      const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+      o.connect(g4); o.start(t + 0.44); o.stop(t + 1.3);
+    }
+  }, [muted, ensure]);
+
+  // Sad trombone — womp womp womp woooomp (evicted)
+  const sadTrombone = useCallback(() => {
+    if (muted) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    if (!rateOk("sadbone", 2000)) return;
+    const t = ctx.currentTime;
+    const seq: [number, number, number][] = [[233.08, 0, 0.28], [220, 0.32, 0.28], [207.65, 0.64, 0.28], [196, 0.96, 0.9]]; // Bb3 A3 Ab3 G3
+    for (const [f, d0, dur] of seq) {
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t + d0);
+      g2.gain.exponentialRampToValueAtTime(0.16, t + d0 + 0.03);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + d0 + dur);
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900; lp.Q.value = 4;
+      g2.connect(lp); lp.connect(masterRef.current);
+      const o = ctx.createOscillator(); o.type = "sawtooth";
+      o.frequency.setValueAtTime(f, t + d0);
+      if (dur > 0.5) o.frequency.linearRampToValueAtTime(f * 0.94, t + d0 + dur); // last note droops
+      const vib = ctx.createOscillator(); vib.frequency.value = 5.5;
+      const vg = ctx.createGain(); vg.gain.value = dur > 0.5 ? 7 : 3;
+      vib.connect(vg); vg.connect(o.frequency);
+      o.connect(g2); o.start(t + d0); o.stop(t + d0 + dur + 0.05);
+      vib.start(t + d0); vib.stop(t + d0 + dur + 0.05);
+    }
+  }, [muted, ensure]);
+
+  // Health-inspector klaxon hit + low boom (shut down)
+  const alarmSting = useCallback(() => {
+    if (muted) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    if (!rateOk("alarmsting", 2000)) return;
+    const t = ctx.currentTime;
+    for (const d0 of [0, 0.42]) {
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t + d0);
+      g2.gain.exponentialRampToValueAtTime(0.15, t + d0 + 0.02);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + d0 + 0.38);
+      g2.connect(masterRef.current);
+      const o = ctx.createOscillator(); o.type = "square";
+      o.frequency.setValueAtTime(880, t + d0);
+      o.frequency.linearRampToValueAtTime(620, t + d0 + 0.36);
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400;
+      o.connect(lp); lp.connect(g2);
+      o.start(t + d0); o.stop(t + d0 + 0.4);
+    }
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0.0001, t + 0.8);
+    bg.gain.exponentialRampToValueAtTime(0.3, t + 0.84);
+    bg.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    bg.connect(masterRef.current);
+    const bo = ctx.createOscillator(); bo.type = "sine";
+    bo.frequency.setValueAtTime(110, t + 0.8);
+    bo.frequency.exponentialRampToValueAtTime(38, t + 1.7);
+    bo.connect(bg); bo.start(t + 0.8); bo.stop(t + 1.85);
+  }, [muted, ensure]);
+
+  // Pigeon coo — soft warbling two-note coo, pitch varies per call
+  const coo = useCallback((scared = false) => {
+    if (muted) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    if (!rateOk("coo", 600)) return;
+    const t = ctx.currentTime;
+    const base = (scared ? 520 : 380) + Math.random() * 60;
+    for (const [d0, dur, fMul] of [[0, 0.22, 1], [0.26, 0.3, 0.88]] as const) {
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t + d0);
+      g2.gain.exponentialRampToValueAtTime(scared ? 0.1 : 0.07, t + d0 + 0.04);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + d0 + dur);
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1300;
+      g2.connect(lp); lp.connect(masterRef.current);
+      const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = base * fMul;
+      const vib = ctx.createOscillator(); vib.frequency.value = scared ? 22 : 12;
+      const vg = ctx.createGain(); vg.gain.value = base * 0.08;
+      vib.connect(vg); vg.connect(o.frequency);
+      o.connect(g2); o.start(t + d0); o.stop(t + d0 + dur + 0.05);
+      vib.start(t + d0); vib.stop(t + d0 + dur + 0.05);
+    }
+  }, [muted, ensure]);
+
+  // Two-note lesson chime (training progress)
+  const chime = useCallback(() => {
+    if (muted) return;
+    const ctx = ensure();
+    if (!ctx || !masterRef.current) return;
+    if (!rateOk("chime", 800)) return;
+    const t = ctx.currentTime;
+    for (const [f, d0] of [[880, 0], [1318.5, 0.14]] as const) {
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t + d0);
+      g2.gain.exponentialRampToValueAtTime(0.12, t + d0 + 0.01);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + d0 + 0.7);
+      g2.connect(masterRef.current);
+      const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+      o.connect(g2); o.start(t + d0); o.stop(t + d0 + 0.75);
+    }
+  }, [muted, ensure]);
+
+  return { hop, land, boom, whoosh, dashLand, mop, mopDone, ensure, startAmbience, doorBell, orderBell, hiss, slip, kaching, fanfare, sadTrombone, alarmSting, coo, chime };
 
 }
 
@@ -1449,7 +1581,7 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
       : { text: "DAY 1", sub: `MISSION: earn $${roundConfig(1).quota.toLocaleString()} rent before the clock runs out.`, until: performance.now() + 3200 };
     setDayBannerTick((n) => n + 1);
     if (celebrate) {
-      sfxRef.current.kaching();
+      sfxRef.current.fanfare();
       const pu = STATIONS.find((s) => s.id === "pickup")!;
       for (let ci = 0; ci < 14; ci++) {
         const a = Math.PI * (0.8 + Math.random() * 1.4);
@@ -1506,7 +1638,7 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
       until: performance.now() + 3000,
     };
     setDayBannerTick((n) => n + 1);
-    sfxRef.current.kaching();
+    sfxRef.current.fanfare();
     // quick coin burst at the pickup window
     const pu = STATIONS.find((s) => s.id === "pickup")!;
     for (let ci = 0; ci < 10; ci++) {
@@ -1696,6 +1828,7 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
       if (trainStepRef.current === 0) {
         trainStepRef.current = 1;
         setTrainStep(1);
+        sfxRef.current.chime();
         pushFloat("LESSON 1 DONE!", "#22D3EE");
         setTimeout(() => { spawnNamed("McRug Pull"); setTick((t) => t + 1); }, 700);
       } else {
@@ -2557,6 +2690,7 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
       if (pigeonCd <= 0 && !inTutorial && cfgRef.current.pigeons) {
         pigeonsRef.current.push({ x: -0.05, y: 0.5 + (Math.random() - 0.5) * 0.4, vx: 0.08 + Math.random()*0.05, vy: (Math.random() - 0.5) * 0.05, hp: 1 });
         pigeonCd = (12 + Math.random() * 10) / cfgRef.current.spawnMul;
+        sfxRef.current.coo();
       }
       pigeonsRef.current.forEach((pg) => {
         pg.x += pg.vx * dt;
@@ -2567,6 +2701,7 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
           pg.hp = 0;
           statsRef.current.pigeonsChased++;
           scoreRef.current += 30;
+          sfxRef.current.coo(true);
           floatsRef.current.push({ x: pg.x, y: pg.y - 0.02, text: "SHOO!", color: "#22D3EE", life: 1 });
         }
       });
@@ -2652,6 +2787,8 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
   }, []);
 
   function finishGame(outcome: Outcome) {
+    if (outcome === "evicted") sfxRef.current.sadTrombone();
+    else if (outcome === "shutdown") sfxRef.current.alarmSting();
     const s = statsRef.current;
     const total = scoreRef.current;
     const daysSurvived = roundRef.current - 1; // fully completed days
@@ -3837,12 +3974,12 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
 
         {/* TRAINING: Gary's coaching bubble + skip */}
         {trainUi && !trainWelcome && (
-          <div className="pointer-events-none absolute left-2 top-12 z-30 flex max-w-[280px] flex-col gap-1.5 md:left-3 md:top-14">
+          <div className="pointer-events-none absolute left-2 top-12 z-30 flex max-w-[320px] flex-col gap-1.5 md:left-3 md:top-14 md:max-w-[420px]">
             <div className="flex items-end gap-2">
-              <img src={EMPLOYEES.find((e) => e.id === "gary")!.img} alt="Manager Gary" className="h-14 w-14 shrink-0 rounded-full border-2 border-[#00C805] bg-[#09090B]/80 object-contain md:h-16 md:w-16" />
-              <div className="rounded-xl rounded-bl-none border-2 border-[#00C805]/70 bg-[#09090B]/92 p-2.5 backdrop-blur">
-                <div className="text-[8px] font-black uppercase tracking-widest text-[#00C805]">MANAGER GARY · LESSON {trainStep + 1}/2</div>
-                <p className="mt-0.5 text-[11px] font-bold leading-snug text-white/90">
+              <img src={EMPLOYEES.find((e) => e.id === "gary")!.img} alt="Manager Gary" className="h-16 w-16 shrink-0 rounded-full border-2 border-[#00C805] bg-[#09090B]/80 object-contain md:h-20 md:w-20" />
+              <div className="rounded-xl rounded-bl-none border-2 border-[#00C805]/80 bg-[#09090B]/95 p-3 shadow-[0_0_24px_rgba(0,200,5,0.35)] backdrop-blur md:p-4">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[#00C805] md:text-xs">MANAGER GARY · LESSON {trainStep + 1}/2</div>
+                <p className="mt-1 text-sm font-bold leading-snug text-white md:text-base">
                   {trainStep === 0
                     ? "Welcome aboard. The ticket up top is the order. The kitchen GLOWS where you need to go — tap the glow, your bird does the rest."
                     : "Easy money! Now a real burger: raw PATTY → GRILL it → wait for the DING → grab it → add SAUCE → deliver. Don't let it burn."}
@@ -3851,7 +3988,7 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
             </div>
             <button
               onClick={() => graduate(false)}
-              className="pointer-events-auto self-start rounded border border-white/25 bg-[#09090B]/80 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white"
+              className="pointer-events-auto self-start rounded-md border border-white/30 bg-[#09090B]/85 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest text-white/70 hover:text-white md:text-xs"
             >
               Skip training →
             </button>

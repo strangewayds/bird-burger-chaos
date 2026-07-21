@@ -2381,6 +2381,11 @@ function Hero({ onOrder, onBuy }: { onOrder: () => void; onBuy: () => void }) {
             <button onClick={onBuy} className="group inline-flex items-center justify-center gap-2 rounded-md border-2 border-grape bg-grape px-5 py-3.5 font-display text-sm tracking-wider text-white shadow-[0_0_25px_rgba(124,58,237,0.6)] transition hover:translate-y-[-2px]">
               <ShoppingBag className="h-4 w-4" /> BUY THE BURGER
             </button>
+            {BB_CONFIG.socials.x && (
+              <a href={BB_CONFIG.socials.x} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-md border-2 border-ink/40 bg-ink/5 px-5 py-3.5 font-display text-sm tracking-wider text-ink/90 hover:border-ink/70 hover:bg-ink/10">
+                𝕏 FOLLOW THE BIRD
+              </a>
+            )}
             <button onClick={onOrder} className="inline-flex items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-5 py-3.5 font-display text-sm tracking-wider text-cyan hover:bg-cyan/20">
               🍟 VIEW THE MENU
             </button>
@@ -3811,8 +3816,26 @@ function Footer() {
           <div>
             <div className="font-display text-xs tracking-widest text-cyan">FOLLOW US</div>
             <ul className="mt-2 space-y-1 text-xs text-ink/70">
-              <li>X: <span className="text-grease">{BB_CONFIG.socials.x || "COMING SOON"}</span></li>
-              <li>Telegram: <span className="text-grease">{BB_CONFIG.socials.telegram || "COMING SOON"}</span></li>
+              <li>
+                X:{" "}
+                {BB_CONFIG.socials.x ? (
+                  <a href={BB_CONFIG.socials.x} target="_blank" rel="noreferrer" className="text-grease underline-offset-2 hover:text-cyan hover:underline">
+                    @{BB_CONFIG.socials.x.split("/").pop()}
+                  </a>
+                ) : (
+                  <span className="text-grease">COMING SOON</span>
+                )}
+              </li>
+              <li>
+                Telegram:{" "}
+                {BB_CONFIG.socials.telegram ? (
+                  <a href={BB_CONFIG.socials.telegram} target="_blank" rel="noreferrer" className="text-grease underline-offset-2 hover:text-cyan hover:underline">
+                    Join the flock
+                  </a>
+                ) : (
+                  <span className="text-grease">COMING SOON</span>
+                )}
+              </li>
               <li><a href="#community" className="hover:text-cyan">Community Rules</a></li>
             </ul>
           </div>
