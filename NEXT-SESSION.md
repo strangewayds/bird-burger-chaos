@@ -12,6 +12,26 @@ at `/game` with a weekly play-to-earn leaderboard.
 - Repo here: `C:\Users\stran\bird-burger-chaos`
 - Owner: Anthony (non-technical — plain English, show him links + screenshots)
 
+## 🚀 TOKEN LAUNCH — STAGED, WAITING ON ANTHONY'S GO
+
+**$BRGR contract (provided 2026-07-21, NOT YET ACTIVE — do NOT publish until
+Anthony says so):** `0xe5154aA44BD0653322810Ad1451cCfc0C2C9C0De`
+
+Verified 2026-07-21: address exists but has zero code/history on Robinhood
+Chain (main+test), Base, Arbitrum — consistent with "not active yet".
+
+When Anthony says GO:
+1. **Re-verify first**: `eth_getCode` on Robinhood Chain mainnet must return
+   real bytecode, and check `decimals()` == 18 (holder perks assume 18).
+2. `src/lib/bird-burger-config.ts`: set `token.contract` to the address,
+   `token.tradingUrl` to the hood.dev page for the token (get the exact URL
+   from Anthony's browser; `hood.dev/token/<addr>` 404'd pre-launch).
+3. BUY button should say **"BUY ON HOOD.DEV"** per Anthony and link to
+   tradingUrl.
+4. Holder perks arm automatically once contract is a real 0x address —
+   zero extra code.
+5. Build + deploy + `vercel alias set` + push both remotes.
+
 ## DO THIS FIRST (in order)
 
 1. **Ask Anthony the three open questions** (they've been pending — nobody has
