@@ -1071,6 +1071,108 @@ function useGameSfx(muted: boolean) {
     o.start(t); o.stop(t + 0.4);
   }, [muted, ensure]);
 
+  // ── 8-BIT KITCHEN THEME ─────────────────────────────────────────────
+  // A 4-bar chiptune loop (square lead, triangle bass, noise hats, sine kick)
+  // scheduled ahead on the WebAudio clock. Quiet on purpose — it sits UNDER
+  // the kitchen, it doesn't compete with it.
+  const musicRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; gain: GainNode | null; next: number } | null>(null);
+  const startMusic = useCallback(() => {
+    const ctx = ensure();
+    if (!ctx || !masterRef.current || musicRef.current) return;
+    const BPM = 112;
+    const beat = 60 / BPM;
+    const barLen = beat * 4;
+    const loopLen = barLen * 4;
+    const mg = ctx.createGain();
+    mg.gain.value = 0.055;
+    mg.connect(masterRef.current);
+    const st = { timer: null as ReturnType<typeof setTimeout> | null, gain: mg, next: ctx.currentTime + 0.15 };
+    musicRef.current = st;
+    const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+    // [midiNote, startBeat, lengthBeats] over 16 beats
+    const lead: [number, number, number][] = [
+      [72, 0, 0.5], [76, 0.5, 0.5], [79, 1, 1], [76, 2, 0.75], [72, 3, 1],
+      [81, 4, 0.5], [79, 4.5, 0.5], [76, 5, 1], [72, 6, 0.75], [74, 7, 1],
+      [77, 8, 0.5], [81, 8.5, 0.5], [79, 9, 1], [76, 10, 0.75], [74, 11, 1],
+      [74, 12, 0.5], [76, 12.5, 0.5], [72, 13, 1.5], [67, 15, 1],
+    ];
+    const bass: [number, number, number][] = [
+      [48, 0, 0.9], [48, 1, 0.4], [52, 2, 0.9], [43, 3, 0.4],
+      [45, 4, 0.9], [45, 5, 0.4], [48, 6, 0.9], [43, 7, 0.4],
+      [41, 8, 0.9], [41, 9, 0.4], [45, 10, 0.9], [41, 11, 0.4],
+      [43, 12, 0.9], [43, 13, 0.4], [48, 14, 1.8],
+    ];
+    const noiseBuf = (() => {
+      const len = Math.floor(ctx.sampleRate * 0.05);
+      const b = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = b.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      return b;
+    })();
+    const scheduleLoop = (t0: number) => {
+      for (const [m, s, l] of lead) {
+        const o = ctx.createOscillator(); o.type = "square"; o.frequency.value = midi(m);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t0 + s * beat);
+        g.gain.exponentialRampToValueAtTime(0.16, t0 + s * beat + 0.012);
+        g.gain.setValueAtTime(0.16, t0 + (s + l) * beat - 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + (s + l) * beat);
+        o.connect(g); g.connect(mg);
+        o.start(t0 + s * beat); o.stop(t0 + (s + l) * beat + 0.02);
+      }
+      for (const [m, s, l] of bass) {
+        const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = midi(m);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t0 + s * beat);
+        g.gain.exponentialRampToValueAtTime(0.3, t0 + s * beat + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + (s + l) * beat);
+        o.connect(g); g.connect(mg);
+        o.start(t0 + s * beat); o.stop(t0 + (s + l) * beat + 0.02);
+      }
+      for (let b2 = 0; b2 < 16; b2++) {
+        // kick on the beat
+        const ko = ctx.createOscillator(); ko.type = "sine";
+        ko.frequency.setValueAtTime(150, t0 + b2 * beat);
+        ko.frequency.exponentialRampToValueAtTime(48, t0 + b2 * beat + 0.1);
+        const kg = ctx.createGain();
+        kg.gain.setValueAtTime(0.28, t0 + b2 * beat);
+        kg.gain.exponentialRampToValueAtTime(0.0001, t0 + b2 * beat + 0.12);
+        ko.connect(kg); kg.connect(mg);
+        ko.start(t0 + b2 * beat); ko.stop(t0 + b2 * beat + 0.14);
+        // hat on the off-beat
+        const hs = ctx.createBufferSource(); hs.buffer = noiseBuf;
+        const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 6500;
+        const hg = ctx.createGain();
+        hg.gain.setValueAtTime(0.12, t0 + (b2 + 0.5) * beat);
+        hg.gain.exponentialRampToValueAtTime(0.0001, t0 + (b2 + 0.5) * beat + 0.04);
+        hs.connect(hp); hp.connect(hg); hg.connect(mg);
+        hs.start(t0 + (b2 + 0.5) * beat);
+      }
+    };
+    const tick = () => {
+      if (!musicRef.current) return;
+      scheduleLoop(st.next);
+      st.next += loopLen;
+      st.timer = setTimeout(tick, (st.next - ctx.currentTime - 0.4) * 1000);
+    };
+    tick();
+  }, [ensure]);
+  const stopMusic = useCallback(() => {
+    const st = musicRef.current;
+    if (!st) return;
+    if (st.timer) clearTimeout(st.timer);
+    // fade out anything already scheduled
+    if (st.gain && ctxRef.current) {
+      try {
+        st.gain.gain.setValueAtTime(st.gain.gain.value, ctxRef.current.currentTime);
+        st.gain.gain.exponentialRampToValueAtTime(0.0001, ctxRef.current.currentTime + 0.4);
+        const g = st.gain;
+        setTimeout(() => { try { g.disconnect(); } catch {} }, 600);
+      } catch {}
+    }
+    musicRef.current = null;
+  }, []);
+
   // Victory fanfare — rising major arpeggio + coin sparkle (day complete, graduation)
   const fanfare = useCallback(() => {
     if (muted) return;
@@ -1203,7 +1305,7 @@ function useGameSfx(muted: boolean) {
     }
   }, [muted, ensure]);
 
-  return { hop, land, boom, whoosh, dashLand, mop, mopDone, ensure, startAmbience, doorBell, orderBell, hiss, slip, kaching, fanfare, sadTrombone, alarmSting, coo, chime };
+  return { hop, land, boom, whoosh, dashLand, mop, mopDone, ensure, startAmbience, doorBell, orderBell, hiss, slip, kaching, fanfare, sadTrombone, alarmSting, coo, chime, startMusic, stopMusic };
 
 }
 
@@ -1391,6 +1493,21 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
   const [dayEarned, setDayEarned] = useState(0); // $ earned toward this day's rent (for HUD)
   const dayBannerRef = useRef<{ text: string; sub: string; until: number } | null>(null);
   const [dayBannerTick, setDayBannerTick] = useState(0);
+  // Chiptune theme — remembered preference, defaults ON (it's quiet). Starts on
+  // the first user gesture (autoplay policy) via the same kick that arms sfx.
+  const [musicOn, setMusicOn] = useState(true);
+  useEffect(() => {
+    try { if (window.localStorage.getItem("bb_music") === "0") setMusicOn(false); } catch {}
+  }, []);
+  useEffect(() => {
+    if (musicOn && !muted) {
+      sfxRef.current.startMusic();
+      const kick = () => sfxRef.current.startMusic();
+      window.addEventListener("pointerdown", kick);
+      return () => { window.removeEventListener("pointerdown", kick); sfxRef.current.stopMusic(); };
+    }
+    sfxRef.current.stopMusic();
+  }, [musicOn, muted]);
   // Phones: the shift STARTS in takeover mode — no button hunting, the game just fills the screen.
   // Set after mount (not in the initializer) so SSR and first client render match — no hydration mismatch.
   const [isFs, setIsFs] = useState(false);
@@ -3829,6 +3946,14 @@ function GameScreen({ employee, muted, haptics, holderTier, training, onTraining
           className="absolute right-2 top-2 z-50 rounded-md border-2 border-[#FACC15]/80 bg-[#09090B]/85 px-3 py-2 text-xs font-black uppercase tracking-widest text-[#FACC15] backdrop-blur active:scale-95"
         >
           {isFs ? "✕ EXIT" : "⛶ FULL SCREEN"}
+        </button>
+        {/* Chiptune music toggle */}
+        <button
+          onClick={() => setMusicOn((v) => { const n = !v; try { window.localStorage.setItem("bb_music", n ? "1" : "0"); } catch {} return n; })}
+          className={`absolute right-2 top-12 z-50 rounded-md border-2 bg-[#09090B]/85 px-3 py-2 text-xs font-black uppercase tracking-widest backdrop-blur active:scale-95 ${musicOn ? "border-[#22D3EE]/80 text-[#22D3EE]" : "border-white/25 text-white/40"}`}
+          title="Kitchen theme music"
+        >
+          {musicOn ? "♫ ON" : "♫ OFF"}
         </button>
 
         {/* iPhone-in-Safari fullscreen how-to (Apple blocks the real fullscreen API) */}
