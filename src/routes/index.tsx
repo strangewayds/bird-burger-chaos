@@ -2340,6 +2340,14 @@ function Nav({ open, setOpen, muted, setMuted, onRandomizeTrack, trackName, volu
 /* ─────────────────────────  HERO  ───────────────────────── */
 
 function Hero({ onOrder, onBuy }: { onOrder: () => void; onBuy: () => void }) {
+  // "As heard on the radio" — AI announcer ad, loads only when clicked
+  const adRef = useRef<HTMLAudioElement | null>(null);
+  const [adPlaying, setAdPlaying] = useState(false);
+  const toggleAd = () => {
+    if (!adRef.current) return;
+    if (adPlaying) { adRef.current.pause(); adRef.current.currentTime = 0; setAdPlaying(false); }
+    else { adRef.current.play().then(() => setAdPlaying(true)).catch(() => {}); }
+  };
   const [counter, setCounter] = useState({ serving: 4892, order: 98391, rugged: 6942 });
   const reduced = useReducedMotion();
   useEffect(() => {
@@ -2386,6 +2394,17 @@ function Hero({ onOrder, onBuy }: { onOrder: () => void; onBuy: () => void }) {
                 𝕏 FOLLOW THE BIRD
               </a>
             )}
+            <button
+              onClick={toggleAd}
+              className={`inline-flex items-center justify-center gap-2 rounded-md border-2 px-5 py-3.5 font-display text-sm tracking-wider transition ${
+                adPlaying
+                  ? "animate-pulse border-robin bg-robin/25 text-robin"
+                  : "border-robin/50 bg-robin/10 text-robin hover:bg-robin/20"
+              }`}
+            >
+              {adPlaying ? "📻 ON AIR… (STOP)" : "📻 HEAR OUR AD"}
+            </button>
+            <audio ref={adRef} src="/radio-ad.wav" preload="none" onEnded={() => setAdPlaying(false)} />
             <button onClick={onOrder} className="inline-flex items-center justify-center gap-2 rounded-md border-2 border-cyan bg-cyan/10 px-5 py-3.5 font-display text-sm tracking-wider text-cyan hover:bg-cyan/20">
               🍟 VIEW THE MENU
             </button>
