@@ -1,6 +1,6 @@
 # 🍔 BIRD BURGER — NEXT SESSION HANDOFF
 
-_Last worked: 2026-07-18. Read this first, then start at "DO THIS FIRST"._
+_Last worked: 2026-07-20. Read this first, then start at "DO THIS FIRST"._
 
 ## What this is
 
@@ -54,7 +54,29 @@ serving the old build. Get the newest URL from `vercel ls bird-burger`.
 
 ## State of things
 
-**Done and verified:**
+**Done and verified (7/19–7/20 additions):**
+- **Day/round progression** — the game no longer ends at one rent payment; each
+  day escalates (higher rent goal, whole menu rotates in via a shuffle-bag
+  order picker). Autopilot verified 7/20: bot survived into Day 5, $7,557
+  earned, zero JS errors.
+- **Player-feedback pass (7/20, live)** — 3-step intro tutorial before the
+  first-ever shift (localStorage `bb_intro_v1`, skippable, replayable via How
+  to Play), decluttered HUD (vices behind a "…" toggle), DAY 1 mission banner,
+  phone Add-to-Home-Screen guide card, and 4 unique Higgsfield employee
+  sprites (FryCook420 / Diamond Dave / Paper Hands Pete / Manager Gary) —
+  tint-pass clones are gone.
+- **Viral hooks** — shareable flex card + live score tape.
+- **$BRGR holder perks** — built but dormant until the contract address lands.
+- **Phone pass** — letterbox 16:9 (no more squished bird), order panel off the
+  PICK UP window, iPhone fullscreen via Add-to-Home-Screen PWA.
+- **Audio pass** — soft footsteps, warmer ambience, gentler master (still
+  unheard by a human — sound check remains open).
+- ⚠️ **Playtester note**: `tools/playtest.mjs` predates the day system, so a
+  good run now reports "OUTCOME: timeout" (its 220s harness cap) instead of
+  WIN — that's success as long as there are no JS errors. Consider teaching it
+  to report the day reached.
+
+**Done and verified (7/18):**
 - Site live, all assets self-hosted (Lovable only exported image *pointers* —
   the real PNGs were downloaded into `src/assets`, nothing depends on Lovable).
 - Game has a real goal: earn **$2,000 rent** in a 3-minute shift. Win = rent
@@ -86,7 +108,9 @@ serving the old build. Get the newest URL from `vercel ls bird-burger`.
 - Sound mix pass once Anthony reports how it actually sounds.
 - Wire the real contract → BUY button, socials → footer/nav, then the site is
   launch-complete.
-- Optional: per-employee art variants (perks exist, sprite is tinted only).
+- ~~Optional: per-employee art variants~~ DONE 7/20 (unique Higgsfield sprites).
+- Optional: teach `tools/playtest.mjs` about the day system (report day
+  reached instead of "timeout").
 - Optional: seasonal reset tooling if Season 0 runs long.
 
 ## Machine note
