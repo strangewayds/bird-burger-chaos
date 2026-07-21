@@ -17,11 +17,13 @@ Point it at localhost by editing the `page.goto` URL to
 
 - **Regression testing**: it caught a game-loop crash (spill spawner) that no
   screenshot could see, plus hydration errors.
-- **Balance tuning**: outcomes across runs tell you if rent is reachable.
-  Target: bot wins in roughly 50–130s of the 180s shift. Wins under ~40s mean
-  it's too easy (shift ends before the chaos starts); repeated evictions mean
-  it's too hard. The lever is the delivery `timeBonus` multiplier in
-  `tryDeliverAtPickup` (currently 2.6) and the fire/chaos rates.
+- **Balance tuning**: since the DAY progression system, the game is endless
+  survival — a good bot run never "wins", it clears day after day until the
+  harness's 220s cap stops it, reported as `SURVIVED to DAY N (harness cap)`.
+  That is a PASS as long as there are no page errors. Target: bot reaches
+  Day 4–6 inside the cap. EVICTED on Day 1–2 means too hard; sailing past
+  Day 6 means too easy. Levers: the delivery `timeBonus` multiplier in
+  `tryDeliverAtPickup` and the per-day escalation in `roundConfig`.
 
 The bot never multitasks (it does one guidance step at a time), so a thinking
 human should beat its times.

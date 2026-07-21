@@ -1,5 +1,7 @@
 // Autonomous playtest: follows the in-game guidance banner and tries to make rent.
 import puppeteer from "puppeteer-core";
+import os from "node:os";
+import path from "node:path";
 
 // Station rects (normalized) — mirror of STATIONS in game.tsx
 const STATIONS = {
@@ -62,11 +64,20 @@ async function pageHas(s) {
   return page.evaluate((needle) => document.body.innerText.includes(needle), s);
 }
 
+// The game is endless day-based survival: a good bot run never "wins", it just
+// keeps clearing days until the harness cap below stops it. Reaching the cap
+// with no page errors IS a pass; the day counter is the score.
 let outcome = "timeout";
+let maxDay = 1;
 while (Date.now() - start < 220_000) {
   if (await pageHas("YOU WIN")) { outcome = "WIN"; break; }
   if (await pageHas("EVICTED")) { outcome = "EVICTED"; break; }
   if (await pageHas("SHUT DOWN")) { outcome = "SHUTDOWN"; break; }
+  const day = await page.evaluate(() => {
+    const m = document.body.innerText.match(/DAY (\d+)/);
+    return m ? Number(m[1]) : 0;
+  });
+  if (day > maxDay) { maxDay = day; console.log(`[${Math.round((Date.now() - start) / 1000)}s] 🌅 DAY ${day}`); }
   const text = (await bannerText()) || "";
   if (text !== lastText) { console.log(`[${Math.round((Date.now() - start) / 1000)}s] ${text}`); lastText = text; }
   if (/WAIT|DON'T LET IT BURN|COOKING|FRYING —/.test(text.toUpperCase()) && !/READY|DONE/.test(text.toUpperCase())) {
@@ -93,8 +104,10 @@ while (Date.now() - start < 220_000) {
 
 const secs = Math.round((Date.now() - start) / 1000);
 const summary = await page.evaluate(() => document.body.innerText.slice(0, 1200));
+if (outcome === "timeout") outcome = `SURVIVED to DAY ${maxDay} (harness cap)`;
+else outcome = `${outcome} on DAY ${maxDay}`;
 console.log("=== OUTCOME:", outcome, "in", secs, "s, clicks:", clicks, "===");
 console.log(summary.split("\n").filter((l) => /Rent Earned|Orders|grade|WIN|EVICTED|SHUT|Final|seconds to spare|RENT PAID|\$/.test(l)).slice(0, 14).join(" | "));
 if (errors.length) console.log("PAGE ERRORS:", errors.slice(0, 5));
-await page.screenshot({ path: "C:/Users/stran/AppData/Local/Temp/claude/C--Users-stran/79920252-7ac4-44b6-869d-bd4785598357/scratchpad/playtest-end.png" });
+await page.screenshot({ path: path.join(os.tmpdir(), "playtest-end.png") });
 await browser.close();
